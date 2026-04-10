@@ -1,0 +1,3960 @@
+const STORAGE_KEY = "cadence-equipe-sessions-v3";
+const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
+const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
+
+const form = document.querySelector("#time-form");
+const viewTabs = Array.from(document.querySelectorAll("[data-view-target]"));
+const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
+const analysisToolbarPanel = document.querySelector("#analysis-toolbar-panel");
+const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
+const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
+const currentUserName = document.querySelector("#current-user-name");
+const collaboratorInput = document.querySelector("#collaborator-input");
+const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
+const projectInput = document.querySelector("#project-input");
+const projectSuggestions = document.querySelector("#project-suggestions");
+const projectMemoryHint = document.querySelector("#project-memory-hint");
+const taskInput = document.querySelector("#task-input");
+const categoriesInput = document.querySelector("#categories-input");
+const categoriesList = document.querySelector("#categories-list");
+const categorySuggestions = document.querySelector("#category-suggestions");
+const tagsInput = document.querySelector("#tags-input");
+const tagsList = document.querySelector("#tags-list");
+const tagSuggestions = document.querySelector("#tag-suggestions");
+const notionInput = document.querySelector("#notion-input");
+const objectiveDisclosure = document.querySelector("#objective-disclosure");
+const objectiveSummaryText = document.querySelector("#objective-summary-text");
+const objectivePoleInput = document.querySelector("#objective-pole-input");
+const objectiveOkrInput = document.querySelector("#objective-okr-input");
+const objectiveKrInput = document.querySelector("#objective-kr-input");
+const objectivePoleSelected = document.querySelector("#objective-pole-selected");
+const objectiveOkrSelected = document.querySelector("#objective-okr-selected");
+const objectiveKrSelected = document.querySelector("#objective-kr-selected");
+const notesInput = document.querySelector("#notes-input");
+const quickProjects = document.querySelector("#quick-projects");
+const toggleButton = document.querySelector("#toggle-button");
+const pauseButton = document.querySelector("#pause-button");
+const openManualButton = document.querySelector("#open-manual-button");
+const activeStartInput = document.querySelector("#active-start-input");
+const activeStartDisplay = document.querySelector("#active-start-display");
+const timerDisplay = document.querySelector("#timer-display");
+const activeTaskLabel = document.querySelector("#active-task-label");
+const todayTotal = document.querySelector("#today-total");
+const weekTotal = document.querySelector("#week-total");
+const todayPanelCopy = document.querySelector("#today-panel-copy");
+const teamCount = document.querySelector("#team-count");
+const activeCountCopy = document.querySelector("#active-count-copy");
+const personalStatsSwitch = document.querySelector("#personal-stats-switch");
+const personalStatsTitle = document.querySelector("#personal-stats-title");
+const personalStatsCopy = document.querySelector("#personal-stats-copy");
+const personalDistributionBar = document.querySelector("#personal-distribution-bar");
+const personalDistributionLegend = document.querySelector("#personal-distribution-legend");
+const agendaBoard = document.querySelector("#agenda-board");
+const periodSwitch = document.querySelector("#period-switch");
+const analysisStatsSwitch = document.querySelector("#analysis-stats-switch");
+const reportAnchorInput = document.querySelector("#report-anchor");
+const managerCollaboratorFilter = document.querySelector("#manager-collaborator-filter");
+const reportTotal = document.querySelector("#report-total");
+const reportRange = document.querySelector("#report-range");
+const reportTopProject = document.querySelector("#report-top-project");
+const reportTopProjectTime = document.querySelector("#report-top-project-time");
+const reportTopCategoryLabel = document.querySelector("#report-top-category-label");
+const reportTopCategory = document.querySelector("#report-top-category");
+const reportTopCategoryTime = document.querySelector("#report-top-category-time");
+const reportTopKrCard = document.querySelector("#report-top-kr-card");
+const reportTopKr = document.querySelector("#report-top-kr");
+const reportTopKrTime = document.querySelector("#report-top-kr-time");
+const managerDistributionTitle = document.querySelector("#manager-distribution-title");
+const managerDistributionCopy = document.querySelector("#manager-distribution-copy");
+const managerDistributionBar = document.querySelector("#manager-distribution-bar");
+const managerDistributionLegend = document.querySelector("#manager-distribution-legend");
+const evolutionGrid = document.querySelector("#evolution-grid");
+const teamReportList = document.querySelector("#team-report-list");
+const reportProjectList = document.querySelector("#report-project-list");
+const reportCategoryHead = document.querySelector("#report-category-head");
+const reportCategoryList = document.querySelector("#report-category-list");
+const reportKrShell = document.querySelector("#report-kr-shell");
+const reportKrList = document.querySelector("#report-kr-list");
+const managerObjectivesPanel = document.querySelector("#manager-objectives-panel");
+const managerObjectivesGrid = document.querySelector("#manager-objectives-grid");
+const sessionList = document.querySelector("#session-list");
+const projectMemoryList = document.querySelector("#project-memory-list");
+const sessionItemTemplate = document.querySelector("#session-item-template");
+const resourceTotal = document.querySelector("#resource-total");
+const resourceRange = document.querySelector("#resource-range");
+const resourceTopProject = document.querySelector("#resource-top-project");
+const resourceTopProjectTime = document.querySelector("#resource-top-project-time");
+const resourceTopCategoryLabel = document.querySelector("#resource-top-category-label");
+const resourceTopCategory = document.querySelector("#resource-top-category");
+const resourceTopCategoryTime = document.querySelector("#resource-top-category-time");
+const resourceTopKrCard = document.querySelector("#resource-top-kr-card");
+const resourceTopKr = document.querySelector("#resource-top-kr");
+const resourceTopKrTime = document.querySelector("#resource-top-kr-time");
+const resourceDistributionTitle = document.querySelector("#resource-distribution-title");
+const resourceDistributionCopy = document.querySelector("#resource-distribution-copy");
+const resourceDistributionBar = document.querySelector("#resource-distribution-bar");
+const resourceDistributionLegend = document.querySelector("#resource-distribution-legend");
+const resourceEvolutionGrid = document.querySelector("#resource-evolution-grid");
+const resourceTeamList = document.querySelector("#resource-team-list");
+const resourceProjectList = document.querySelector("#resource-project-list");
+const resourceCategoryHead = document.querySelector("#resource-category-head");
+const resourceCategoryList = document.querySelector("#resource-category-list");
+const resourceKrShell = document.querySelector("#resource-kr-shell");
+const resourceKrList = document.querySelector("#resource-kr-list");
+const resourceObjectivesPanel = document.querySelector("#resource-objectives-panel");
+const resourceObjectivesGrid = document.querySelector("#resource-objectives-grid");
+
+const manualDialog = document.querySelector("#manual-dialog");
+const manualCollaboratorInput = document.querySelector("#manual-collaborator-input");
+const manualProjectInput = document.querySelector("#manual-project-input");
+const manualTaskInput = document.querySelector("#manual-task-input");
+const manualCategoriesInput = document.querySelector("#manual-categories-input");
+const manualTagsInput = document.querySelector("#manual-tags-input");
+const manualNotionInput = document.querySelector("#manual-notion-input");
+const manualObjectiveDisclosure = document.querySelector("#manual-objective-disclosure");
+const manualObjectiveSummaryText = document.querySelector("#manual-objective-summary-text");
+const manualObjectivePoleInput = document.querySelector("#manual-objective-pole-input");
+const manualObjectiveOkrInput = document.querySelector("#manual-objective-okr-input");
+const manualObjectiveKrInput = document.querySelector("#manual-objective-kr-input");
+const manualObjectivePoleSelected = document.querySelector("#manual-objective-pole-selected");
+const manualObjectiveOkrSelected = document.querySelector("#manual-objective-okr-selected");
+const manualObjectiveKrSelected = document.querySelector("#manual-objective-kr-selected");
+const manualStartInput = document.querySelector("#manual-start-input");
+const manualEndInput = document.querySelector("#manual-end-input");
+const manualNotesInput = document.querySelector("#manual-notes-input");
+const cancelManualButton = document.querySelector("#cancel-manual-button");
+const saveManualButton = document.querySelector("#save-manual-button");
+
+const conflictDialog = document.querySelector("#conflict-dialog");
+const conflictMessage = document.querySelector("#conflict-message");
+const conflictDetail = document.querySelector("#conflict-detail");
+const cancelConflictButton = document.querySelector("#cancel-conflict-button");
+const editConflictButton = document.querySelector("#edit-conflict-button");
+const adjustConflictButton = document.querySelector("#adjust-conflict-button");
+
+const OBJECTIVE_2026_CATALOG = [
+  {
+    pole: "Cyclologistique",
+    okrCode: "O1",
+    okrLabel:
+      "On a developpe le CA et ameliore le taux horaire, en maitrisant le ratio matin/apres-midi",
+    krs: [
+      "RC 1.1 : On a augmente le CA global du pole cyclologistique (livraison + stockage) de 10 % en 2026",
+      "RC 1.2 : Le taux horaire global livraison a augmente de 4,82 %",
+      "RC 1.3 : Le taux horaire de l'apres-midi a augmente de 10%",
+      "RC 1.4 : Le ratio de CA matin/apres-midi est passe de 2,95 a 2,5",
+    ],
+  },
+  {
+    pole: "Cyclologistique",
+    okrCode: "O2",
+    okrLabel: "On a developpe et diversifie le portefeuille commercial des activites livraison et stockage",
+    krs: [
+      "RC 2.1 : On a embarque 7 nouveaux clients avec un CA mensuel moyen > 1 000 EUR",
+      "RC 2.2 : On est passe de 5,6% a 8% de CA sur des clients 100% collecte",
+      "RC 2.3 : On a signe 2 contrats supplementaires en co-traitance avec d'autres acteurs franciliens",
+      "RC 2.4 : Le CA du TOP client (Yumi) ne represente pas plus de 50% du CA entrepot",
+      "RC 2.5 : On a augmente de 45% le nombre de clients actifs en stockage ET livraison",
+      "RC 2.6 : On est passe de 300 a 350 demandes entrantes issues du site web",
+      "RC 2.7 : On sait suivre precisement le CA des operations speciales",
+    ],
+  },
+  {
+    pole: "Cyclologistique",
+    okrCode: "O3",
+    okrLabel: "On a renforce l'excellence operationnelle",
+    krs: [
+      "RC 3.1 : On est passe de 12% a 15% des livraisons en horaires de bureau",
+      "RC 3.2 : On a atteint 95% de respect des cut-off",
+      "RC 3.3 : Le taux de livraisons en retard >30 minutes est passe de 1,24% a 1,00%",
+      "RC 3.4 : Le taux de livraisons Rive droite hors 12 & 16 reste superieur a 70%",
+      "RC 3.5 : On a optimise les etapes de chargement et dechargement de tournee",
+    ],
+  },
+  {
+    pole: "Cyclologistique",
+    okrCode: "O4",
+    okrLabel: "On a developpe de nouvelles prestations a forte valeur ajoutee",
+    krs: [
+      "RC 4.1 : On est capables d'expedier de la marchandise via des transporteurs externes partenaires",
+      "RC 4.2 : On a defini notre positionnement et notre calendrier sur un 20m3 electrique avec hayon",
+      "RC 4.3 : On sait repondre aux demandes spot avec un tarif structure",
+      "RC 4.4 : On a lance et commercialise l'offre livraison lourde en zone proche",
+    ],
+  },
+  {
+    pole: "Cyclologistique",
+    okrCode: "O5",
+    okrLabel: "On a progresse en conformite et ameliore notre offre de services",
+    krs: [
+      "RC 5.1 : On a obtenu le label Entrepositaire agree sous douane",
+      "RC 5.2 : On a deploye et commercialise une option de suivi et releve de temperature",
+      "RC 5.3 : On garantit 0 colis introuvable et 0 colis rackoone a tort",
+      "RC 5.4 : On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
+    ],
+  },
+  {
+    pole: "Cyclologistique",
+    okrCode: "O6",
+    okrLabel: "On a ameliore les conditions de travail : organisation, ergonomie, securite et outils",
+    krs: [
+      "RC 6.1 : On a impose une limite stricte de poids par colis : aucun colis >15kg",
+      "RC 6.2 : On a >80% des livraisons entrantes sur palettes",
+      "RC 6.3 : On a mis en service et on utilise un gerbeur et un transpalette electriques",
+      "RC 6.4 : Le ratio nb de batteries / nb de velos est > 2 pour les bullit et les bosch",
+      "RC 6.5 : On a un calendrier de revisions preventives par types de velo",
+    ],
+  },
+  {
+    pole: "Cercle de management",
+    okrCode: "O1",
+    okrLabel:
+      "On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions operationnelles",
+    krs: [
+      "RC 1.1 : Le nombre de shifts de depannage reste <= a 5% des shifts course par semaine",
+      "RC 1.2 : Moins de 5% des shifts depassent de plus de 45 minutes par rapport au planning",
+      "RC 1.3 : Aucune semaine consecutive ne depasse les seuils d'alerte de depannage ou retard",
+      "RC 1.4 : Le deficit horaire reste inferieur a 0,8% sur l'annee",
+      "RC 1.5 : Le planning est publie le mercredi au plus tard",
+      "RC 1.6 : On a un cadre pour les indisponibilites des salarie.e.s",
+      "RC 1.7 : On utilise un dashboard pour mieux anticiper le volume de livraison",
+    ],
+  },
+  {
+    pole: "Cercle de management",
+    okrCode: "O2",
+    okrLabel: "Nous avons ancre une formation initiale et continue dans nos pratiques",
+    krs: [
+      "RC 2.1 : Toutes les personnes recrutees en 2026 ont suivi au moins 3 jours de formation",
+      "RC 2.2 : Chaque recrue a beneficie de 3 entretiens de feedback durant ses 2 premiers mois",
+      "RC 2.3 : 100% des salarie.e.s ont suivi une demi-journee de sensibilisation au commercial",
+      "RC 2.4 : 5 salarie.e.s ont suivi une formation externe",
+    ],
+  },
+  {
+    pole: "Cercle de management",
+    okrCode: "O3",
+    okrLabel: "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    krs: [
+      "RC 3.1 : 100% des salarie.e.s en periode d'essai recoivent un kit de base complet",
+      "RC 3.2 : 100% du materiel soumis a une duree de vie definie est renouvelle dans les delais",
+      "RC 3.3 : 100% des cadenas sont recuperes lors des departs",
+      "RC 3.4 : 100% des salarie.e.s eligibles beneficient d'une participation telephone",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O1",
+    okrLabel: "Nous realisons 5000 EUR de revenu mensuel recurrent en Europe",
+    krs: [
+      "R1 : Allemagne : 3 clients pour 1500 EUR / mois",
+      "R2 : Suisse : 2 clients pour 2000 EUR / mois",
+      "R3 : Italie : 2 nouveaux clients pour 300 EUR / mois",
+      "R4 : Espagne : 2 nouveaux clients pour 300 EUR / mois",
+      "R5 : Belgique : Urbike a teste sur le terrain et defini son plan de migration",
+      "R6 : Les clients etrangers ont 2 propositions d'entretiens utilisateurs dans l'annee",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O2",
+    okrLabel: "Cyke couvre mieux les differents cas d'usage de la cyclologistique",
+    krs: [
+      "R1 : Entretien utilisateurs pour les ambassadeurs",
+      "R2 : 10 visites sur site chez des cyclologisticiens",
+      "R3 : On sait comment chaque client utilise Cyke et on en tire des pistes d'amelioration",
+      "R4 : On a signe au moins un nouveau client petit colis en sous-traitance",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O3",
+    okrLabel: "Cyke gagne en fiabilite",
+    krs: [
+      "R1 : Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
+      "R2 : La mediane mensuelle d'erreur Sentry ruby par jour est <5",
+      "R3 : La mediane mensuelle d'erreur Sentry js et mobile par jour est <50",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O4",
+    okrLabel:
+      "On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
+    krs: [
+      "R1 : L'equipe ne ressent pas de surcharge de travail ou de ralentissement de la roadmap",
+      "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap et a la vision de Cyke",
+      "R3 : 100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
+    ],
+  },
+];
+
+const OBJECTIVE_2026_PILLARS = [
+  "Cyclologistique",
+  "Cercle de management",
+  "Cyke",
+  "Bigbikes Consulting",
+  "Vente de materiel",
+];
+
+let sessions = loadSessions();
+let activeSession = loadActiveSession();
+let currentCategories = [];
+let currentTags = [];
+let timerIntervalId = null;
+let reportPeriod = "week";
+let statsMode = "objectives";
+let manualEditingSessionId = null;
+let pendingConflict = null;
+let currentView = getInitialView();
+let referenceCatalog = {
+  users: [],
+  projects: [],
+  categories: [],
+  loaded: false,
+  loadingPromise: null,
+};
+const autocompletePopover = createAutocompletePopover();
+let autocompleteState = {
+  config: null,
+  items: [],
+  activeIndex: 0,
+};
+let autocompleteHideTimeoutId = null;
+
+setupTokenInput(categoriesInput, {
+  getValues: () => currentCategories,
+  setValues: (values) => {
+    currentCategories = values;
+    renderCategoryTokens();
+  },
+  singleValue: true,
+});
+
+setupTokenInput(tagsInput, {
+  getValues: () => currentTags,
+  setValues: (values) => {
+    currentTags = values;
+    renderTagTokens();
+  },
+});
+
+initializeAutocomplete();
+initializeObjectiveSelections();
+initializeViewNavigation();
+
+hydrateFormFromActiveSession();
+setDefaultReportAnchor();
+startTimerLoopIfNeeded();
+render();
+registerServiceWorker();
+void initializeReferenceCatalog();
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (activeSession) {
+    stopActiveSession();
+    return;
+  }
+
+  const sessionDraft = await validateAndNormalizeMainForm();
+  if (!sessionDraft) {
+    return;
+  }
+
+  activeSession = {
+    id: crypto.randomUUID(),
+    ...sessionDraft,
+    start: new Date().toISOString(),
+    pausedAt: null,
+    pausedDurationMs: 0,
+  };
+
+  persistActiveSession();
+  startTimerLoopIfNeeded();
+  render();
+});
+
+pauseButton.addEventListener("click", () => {
+  togglePauseSession();
+});
+
+openManualButton.addEventListener("click", () => {
+  openManualDialog();
+});
+
+activeStartInput.addEventListener("change", () => {
+  updateActiveSessionStart();
+});
+
+activeStartInput.addEventListener("blur", () => {
+  hideActiveStartEditor();
+});
+
+activeStartDisplay.addEventListener("click", () => {
+  showActiveStartEditor();
+});
+
+projectInput.addEventListener("input", () => {
+  projectInput.setCustomValidity("");
+  applyProjectMemoryFromInput();
+});
+
+projectInput.addEventListener("blur", () => {
+  applyProjectMemoryFromInput();
+  void canonicalizeProjectInput();
+});
+
+collaboratorInput.addEventListener("change", () => {
+  collaboratorInput.setCustomValidity("");
+  applyProjectMemoryFromInput();
+  renderQuickProjects();
+  renderProjectMemoryList();
+  renderCadreViews();
+  void canonicalizeCollaboratorInput();
+});
+
+collaboratorInput.addEventListener("input", () => {
+  collaboratorInput.setCustomValidity("");
+  renderCurrentUserContext();
+});
+
+categoriesInput.addEventListener("input", () => {
+  categoriesInput.setCustomValidity("");
+});
+
+categoriesInput.addEventListener("blur", () => {
+  void canonicalizeCategorySelection();
+});
+
+quickProjects.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-memory-key]");
+  if (!button) {
+    return;
+  }
+
+  const memory = getProjectMemories(getCurrentCollaborator()).find((item) => item.key === button.dataset.memoryKey);
+  if (!memory) {
+    return;
+  }
+
+  fillFormFromMemory(memory);
+});
+
+projectMemoryList.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-memory-key]");
+  if (!button) {
+    return;
+  }
+
+  const memory = getProjectMemories(getCurrentCollaborator()).find((item) => item.key === button.dataset.memoryKey);
+  if (!memory) {
+    return;
+  }
+
+  fillFormFromMemory(memory);
+});
+
+periodSwitch.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-period]");
+  if (!button) {
+    return;
+  }
+
+  reportPeriod = button.dataset.period;
+  renderManagerControls();
+  renderManagerViews();
+});
+
+personalStatsSwitch.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-stats-mode]");
+  if (!button) {
+    return;
+  }
+
+  statsMode = button.dataset.statsMode;
+  render();
+});
+
+analysisStatsSwitch.addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-stats-mode]");
+  if (!button) {
+    return;
+  }
+
+  statsMode = button.dataset.statsMode;
+  render();
+});
+
+reportAnchorInput.addEventListener("change", () => {
+  renderCadreViews();
+  renderManagerViews();
+});
+
+managerCollaboratorFilter.addEventListener("change", () => {
+  renderManagerViews();
+});
+
+sessionList.addEventListener("click", (event) => {
+  const editButton = event.target.closest(".session-edit-button");
+  if (!editButton) {
+    return;
+  }
+
+  const sessionId = editButton.closest(".session-item")?.dataset.sessionId;
+  const session = sessions.find((item) => item.id === sessionId);
+  if (!session) {
+    return;
+  }
+
+  openManualDialog(session);
+});
+
+agendaBoard.addEventListener("click", (event) => {
+  const target = event.target.closest("[data-session-id]");
+  if (target) {
+    const session =
+      sessions.find((item) => item.id === target.dataset.sessionId) ??
+      (activeSession?.id === target.dataset.sessionId ? activeSession : null);
+    if (session) {
+      openManualDialog(session);
+    }
+    return;
+  }
+
+  const track = event.target.closest(".agenda-day-track");
+  if (!track) {
+    return;
+  }
+
+  const slot = resolveAgendaSlotFromClick(track, event);
+  if (!slot) {
+    return;
+  }
+
+  openManualDialog(null, slot);
+});
+
+saveManualButton.addEventListener("click", () => {
+  saveManualEntry();
+});
+
+cancelManualButton.addEventListener("click", () => {
+  manualEditingSessionId = null;
+  manualDialog.close();
+});
+
+cancelConflictButton.addEventListener("click", () => {
+  pendingConflict = null;
+  conflictDialog.close();
+});
+
+editConflictButton.addEventListener("click", () => {
+  if (!pendingConflict?.existingSession) {
+    return;
+  }
+
+  const existingSession = pendingConflict.existingSession;
+  pendingConflict = null;
+  conflictDialog.close();
+  openManualDialog(existingSession);
+});
+
+adjustConflictButton.addEventListener("click", () => {
+  if (!pendingConflict) {
+    return;
+  }
+
+  const adjustedSession = getAdjustedSession(pendingConflict.newSession, pendingConflict.existingSession);
+  const callback = pendingConflict.onResolve;
+  pendingConflict = null;
+  conflictDialog.close();
+
+  if (adjustedSession && callback) {
+    callback(adjustedSession);
+  }
+});
+
+function createAutocompletePopover() {
+  const popover = document.createElement("div");
+  popover.className = "autocomplete-popover";
+  popover.hidden = true;
+  document.body.append(popover);
+  return popover;
+}
+
+function initializeAutocomplete() {
+  const configs = [
+    {
+      input: collaboratorInput,
+      getOptions: () =>
+        referenceCatalog.loaded
+          ? referenceCatalog.users.map((item) => item.user_name)
+          : uniqueValues("collaborator"),
+      applyValue: (value) => {
+        collaboratorInput.value = value;
+        collaboratorInput.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau collaborateur`,
+      createValue: (value) => createUserReference(value),
+    },
+    {
+      input: projectInput,
+      getOptions: () =>
+        referenceCatalog.loaded ? referenceCatalog.projects.map((item) => item.project_name) : uniqueValues("project"),
+      applyValue: (value) => {
+        projectInput.value = value;
+        applyProjectMemoryFromInput();
+      },
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau projet`,
+      createValue: (value) => createProjectReference(value, currentCategories[0] ?? ""),
+    },
+    {
+      input: taskInput,
+      getOptions: () => uniqueValues("task"),
+      applyValue: (value) => {
+        taskInput.value = value;
+      },
+    },
+    {
+      input: categoriesInput,
+      getOptions: () =>
+        referenceCatalog.loaded
+          ? referenceCatalog.categories.map((item) => item.activity_category_label)
+          : uniqueTokenValues("categories"),
+      applyValue: (value) => {
+        currentCategories = [value];
+        renderCategoryTokens();
+        categoriesInput.value = "";
+      },
+    },
+    {
+      input: tagsInput,
+      getOptions: () => uniqueTokenValues("tags"),
+      applyValue: (value) => {
+        currentTags = Array.from(new Set([...currentTags, value]));
+        renderTagTokens();
+        tagsInput.value = "";
+      },
+    },
+    {
+      input: notionInput,
+      getOptions: () => uniqueValues("notionRef"),
+      applyValue: (value) => {
+        notionInput.value = value;
+      },
+    },
+    {
+      input: objectivePoleInput,
+      anchor: objectivePoleInput.closest(".objective-block"),
+      getOptions: () => mergeSuggestionValues(OBJECTIVE_2026_PILLARS, uniqueValues("objectivePole")),
+      applyValue: (value) => {
+        objectivePoleInput.value = value;
+      },
+    },
+    {
+      input: objectiveOkrInput,
+      anchor: objectiveOkrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveOkrOptions(objectivePoleInput.value.trim()),
+      applyValue: (value) => {
+        applyObjectiveOkrSelection(value, {
+          poleInput: objectivePoleInput,
+          okrInput: objectiveOkrInput,
+        });
+      },
+    },
+    {
+      input: objectiveKrInput,
+      anchor: objectiveKrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveKrOptions(objectivePoleInput.value.trim(), objectiveOkrInput.value.trim()),
+      applyValue: (value) => {
+        applyObjectiveKrSelection(value, {
+          poleInput: objectivePoleInput,
+          okrInput: objectiveOkrInput,
+          krInput: objectiveKrInput,
+        });
+      },
+    },
+    {
+      input: manualCollaboratorInput,
+      getOptions: () =>
+        referenceCatalog.loaded
+          ? referenceCatalog.users.map((item) => item.user_name)
+          : uniqueValues("collaborator"),
+      applyValue: (value) => {
+        manualCollaboratorInput.value = value;
+      },
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau collaborateur`,
+      createValue: (value) => createUserReference(value),
+    },
+    {
+      input: manualProjectInput,
+      getOptions: () =>
+        referenceCatalog.loaded ? referenceCatalog.projects.map((item) => item.project_name) : uniqueValues("project"),
+      applyValue: (value) => {
+        manualProjectInput.value = value;
+      },
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau projet`,
+      createValue: (value) => createProjectReference(value, parseTokenString(manualCategoriesInput.value)[0] ?? ""),
+    },
+    {
+      input: manualTaskInput,
+      getOptions: () => uniqueValues("task"),
+      applyValue: (value) => {
+        manualTaskInput.value = value;
+      },
+    },
+    {
+      input: manualCategoriesInput,
+      getOptions: () =>
+        referenceCatalog.loaded
+          ? referenceCatalog.categories.map((item) => item.activity_category_label)
+          : uniqueTokenValues("categories"),
+      applyValue: (value) => {
+        manualCategoriesInput.value = value;
+      },
+    },
+    {
+      input: manualTagsInput,
+      getOptions: () => uniqueTokenValues("tags"),
+      applyValue: (value) => {
+        const tokens = Array.from(new Set([...parseTokenString(manualTagsInput.value), value]));
+        manualTagsInput.value = tokens.join(", ");
+      },
+    },
+    {
+      input: manualNotionInput,
+      getOptions: () => uniqueValues("notionRef"),
+      applyValue: (value) => {
+        manualNotionInput.value = value;
+      },
+    },
+    {
+      input: manualObjectivePoleInput,
+      anchor: manualObjectivePoleInput.closest(".objective-block"),
+      getOptions: () => mergeSuggestionValues(OBJECTIVE_2026_PILLARS, uniqueValues("objectivePole")),
+      applyValue: (value) => {
+        manualObjectivePoleInput.value = value;
+      },
+    },
+    {
+      input: manualObjectiveOkrInput,
+      anchor: manualObjectiveOkrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveOkrOptions(manualObjectivePoleInput.value.trim()),
+      applyValue: (value) => {
+        applyObjectiveOkrSelection(value, {
+          poleInput: manualObjectivePoleInput,
+          okrInput: manualObjectiveOkrInput,
+        });
+      },
+    },
+    {
+      input: manualObjectiveKrInput,
+      anchor: manualObjectiveKrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveKrOptions(
+        manualObjectivePoleInput.value.trim(),
+        manualObjectiveOkrInput.value.trim(),
+      ),
+      applyValue: (value) => {
+        applyObjectiveKrSelection(value, {
+          poleInput: manualObjectivePoleInput,
+          okrInput: manualObjectiveOkrInput,
+          krInput: manualObjectiveKrInput,
+        });
+      },
+    },
+  ];
+
+  for (const config of configs) {
+    setupAutocompleteInput(config);
+  }
+
+  document.addEventListener("pointerdown", (event) => {
+    if (autocompletePopover.hidden) {
+      return;
+    }
+    if (autocompletePopover.contains(event.target) || autocompleteState.config?.input === event.target) {
+      return;
+    }
+    hideAutocomplete();
+  });
+
+  autocompletePopover.addEventListener("pointerenter", () => {
+    clearAutocompleteHideTimeout();
+  });
+
+  autocompletePopover.addEventListener("pointerleave", () => {
+    scheduleAutocompleteHide();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!autocompletePopover.hidden) {
+      positionAutocomplete();
+    }
+  });
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (!autocompletePopover.hidden) {
+        positionAutocomplete();
+      }
+    },
+    true,
+  );
+}
+
+function setupAutocompleteInput(config) {
+  config.input.removeAttribute("list");
+
+  config.input.addEventListener("pointerdown", () => {
+    clearAutocompleteHideTimeout();
+    openAutocomplete(config);
+  });
+
+  config.input.addEventListener("focus", () => {
+    clearAutocompleteHideTimeout();
+    openAutocomplete(config);
+  });
+
+  config.input.addEventListener("input", () => {
+    clearAutocompleteHideTimeout();
+    openAutocomplete(config);
+  });
+
+  config.input.addEventListener("keydown", (event) => {
+    if (autocompletePopover.hidden || autocompleteState.config?.input !== config.input) {
+      return;
+    }
+
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      moveAutocompleteSelection(1);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      moveAutocompleteSelection(-1);
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === "Tab") {
+      const selected = autocompleteState.items[autocompleteState.activeIndex];
+      if (!selected) {
+        return;
+      }
+      event.preventDefault();
+      void applyAutocompleteItem(selected, config);
+      return;
+    }
+
+    if (event.key === "Escape") {
+      hideAutocomplete();
+    }
+  });
+
+  config.input.addEventListener("blur", () => {
+    scheduleAutocompleteHide();
+  });
+}
+
+function openAutocomplete(config) {
+  clearAutocompleteHideTimeout();
+  const query = config.input.value.trim();
+  const items = buildAutocompleteItems(config, query);
+  if (!items.length) {
+    hideAutocomplete();
+    return;
+  }
+
+  autocompleteState = {
+    config,
+    items,
+    activeIndex: 0,
+  };
+
+  renderAutocomplete(query);
+  positionAutocomplete();
+  autocompletePopover.hidden = false;
+}
+
+function buildAutocompleteItems(config, query) {
+  const options = Array.from(new Set((config.getOptions?.() ?? []).filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"));
+  const rankedOptions = rankAutocompleteOptions(options, query);
+  const visibleOptions = query ? rankedOptions.slice(0, 9) : rankedOptions;
+  const matches = visibleOptions.map((value) => ({
+    type: "option",
+    value,
+    label: value,
+  }));
+
+  const normalizedQuery = normalizeText(query);
+  const exactMatch = normalizedQuery
+    ? options.some((value) => normalizeText(value) === normalizedQuery)
+    : false;
+
+  if (config.allowCreate && normalizedQuery && !exactMatch) {
+    matches.push({
+      type: "create",
+      value: query,
+      label: config.createLabel ? config.createLabel(query) : `Ajouter "${query}"`,
+    });
+  }
+
+  return matches;
+}
+
+function rankAutocompleteOptions(options, query) {
+  const normalizedQuery = normalizeText(query);
+  if (!normalizedQuery) {
+    return options;
+  }
+
+  return options
+    .map((value) => ({ value, score: getAutocompleteScore(value, normalizedQuery) }))
+    .filter((item) => Number.isFinite(item.score))
+    .sort((left, right) => {
+      if (left.score !== right.score) {
+        return left.score - right.score;
+      }
+      return left.value.localeCompare(right.value, "fr");
+    })
+    .map((item) => item.value);
+}
+
+function getAutocompleteScore(value, normalizedQuery) {
+  const normalizedValue = normalizeText(value);
+  if (!normalizedValue) {
+    return Number.POSITIVE_INFINITY;
+  }
+  if (normalizedValue === normalizedQuery) {
+    return 0;
+  }
+  if (normalizedValue.startsWith(normalizedQuery)) {
+    return 1;
+  }
+  if (normalizedValue.split(" ").some((part) => part.startsWith(normalizedQuery))) {
+    return 2;
+  }
+  if (normalizedValue.includes(normalizedQuery)) {
+    return 3;
+  }
+  const compactQuery = normalizedQuery.replace(/\s+/g, "");
+  const compactValue = normalizedValue.replace(/\s+/g, "");
+  if (compactValue.includes(compactQuery)) {
+    return 4;
+  }
+  return Number.POSITIVE_INFINITY;
+}
+
+function getObjectiveCatalogRows() {
+  return OBJECTIVE_2026_CATALOG.map((item) => ({
+    pole: item.pole,
+    okr: `${item.okrCode} · ${item.okrLabel}`,
+    krs: item.krs,
+  }));
+}
+
+function getObjectiveOkrOptions(selectedPole = "") {
+  const normalizedPole = normalizeText(selectedPole);
+  const catalogOptions = getObjectiveCatalogRows()
+    .filter((item) => !normalizedPole || normalizeText(item.pole) === normalizedPole)
+    .map((item) => `${item.pole} · ${item.okr}`);
+
+  return mergeSuggestionValues(catalogOptions, uniqueValues("objectiveOkr"));
+}
+
+function getObjectiveKrOptions(selectedPole = "", selectedOkr = "") {
+  const normalizedPole = normalizeText(selectedPole);
+  const normalizedOkr = normalizeText(selectedOkr);
+  const catalogOptions = [];
+
+  for (const item of getObjectiveCatalogRows()) {
+    const poleMatches = !normalizedPole || normalizeText(item.pole) === normalizedPole;
+    const okrMatches =
+      !normalizedOkr ||
+      normalizeText(item.okr) === normalizedOkr ||
+      normalizeText(`${item.pole} · ${item.okr}`) === normalizedOkr;
+
+    if (!poleMatches || !okrMatches) {
+      continue;
+    }
+
+    for (const kr of item.krs) {
+      catalogOptions.push(extractObjectiveKrContent(kr));
+    }
+  }
+
+  return mergeSuggestionValues(catalogOptions, uniqueValues("objectiveKr").map(extractObjectiveKrContent));
+}
+
+function applyObjectiveOkrSelection(value, { poleInput, okrInput }) {
+  const match = findObjectiveOkrMatch(value);
+  if (match) {
+    poleInput.value = match.pole;
+    okrInput.value = match.okr;
+    renderObjectiveSelections();
+    return;
+  }
+
+  okrInput.value = value;
+  renderObjectiveSelections();
+}
+
+function applyObjectiveKrSelection(value, { poleInput, okrInput, krInput }) {
+  const match = findObjectiveKrMatch(value);
+  if (match) {
+    poleInput.value = match.pole;
+    okrInput.value = match.okr;
+    krInput.value = extractObjectiveKrContent(match.kr);
+    renderObjectiveSelections();
+    return;
+  }
+
+  krInput.value = extractObjectiveKrContent(value);
+  renderObjectiveSelections();
+}
+
+function findObjectiveOkrMatch(rawValue) {
+  const normalized = normalizeText(rawValue);
+  if (!normalized) {
+    return null;
+  }
+
+  for (const item of getObjectiveCatalogRows()) {
+    const candidate = `${item.pole} · ${item.okr}`;
+    if (normalizeText(candidate) === normalized || normalizeText(item.okr) === normalized) {
+      return item;
+    }
+  }
+
+  return null;
+}
+
+function findObjectiveKrMatch(rawValue) {
+  const normalized = normalizeText(rawValue);
+  if (!normalized) {
+    return null;
+  }
+
+  for (const item of getObjectiveCatalogRows()) {
+    for (const kr of item.krs) {
+      const candidates = [
+        kr,
+        `${item.pole} · ${item.okr} · ${kr}`,
+        extractObjectiveKrContent(kr),
+      ];
+
+      if (candidates.some((candidate) => normalizeText(candidate) === normalized)) {
+        return {
+          pole: item.pole,
+          okr: item.okr,
+          kr,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+function renderAutocomplete(query) {
+  autocompletePopover.innerHTML = "";
+
+  const shouldShowHint =
+    autocompleteState.items.length >= 3 &&
+    autocompleteState.items[0]?.type === "option" &&
+    normalizeText(autocompleteState.items[0].value).startsWith(normalizeText(query));
+
+  if (shouldShowHint) {
+    const hint = document.createElement("div");
+    hint.className = "autocomplete-hint";
+    hint.textContent = `Suggestion immediate: ${autocompleteState.items[0].value} · Tab pour completer`;
+    autocompletePopover.append(hint);
+  }
+
+  autocompleteState.items.forEach((item, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "autocomplete-option";
+    if (item.type === "create") {
+      button.classList.add("autocomplete-option-create");
+    }
+    if (index === autocompleteState.activeIndex) {
+      button.classList.add("active");
+    }
+    button.textContent = item.label;
+    button.addEventListener("pointerdown", (event) => {
+      event.preventDefault();
+      void applyAutocompleteItem(item, autocompleteState.config);
+    });
+    autocompletePopover.append(button);
+  });
+}
+
+function positionAutocomplete() {
+  const config = autocompleteState.config;
+  const input = config?.input;
+  if (!input) {
+    return;
+  }
+
+  const anchor = config.anchor ?? input.closest(".token-field") ?? input;
+  const rect = anchor.getBoundingClientRect();
+  autocompletePopover.style.position = "fixed";
+  autocompletePopover.style.left = `${rect.left}px`;
+  autocompletePopover.style.top = `${rect.bottom + 8}px`;
+  autocompletePopover.style.width = `${Math.max(rect.width, 320)}px`;
+}
+
+function moveAutocompleteSelection(direction) {
+  const itemCount = autocompleteState.items.length;
+  if (!itemCount) {
+    return;
+  }
+
+  autocompleteState.activeIndex = (autocompleteState.activeIndex + direction + itemCount) % itemCount;
+  renderAutocomplete(autocompleteState.config?.input.value.trim() ?? "");
+}
+
+async function applyAutocompleteItem(item, config) {
+  let nextValue = item.value;
+
+  if (item.type === "create" && config.createValue) {
+    nextValue = await config.createValue(item.value);
+    if (!nextValue) {
+      return;
+    }
+  }
+
+  config.applyValue(nextValue);
+  hideAutocomplete();
+}
+
+function hideAutocomplete() {
+  clearAutocompleteHideTimeout();
+  autocompletePopover.hidden = true;
+  autocompletePopover.innerHTML = "";
+  autocompleteState = {
+    config: null,
+    items: [],
+    activeIndex: 0,
+  };
+}
+
+function clearAutocompleteHideTimeout() {
+  if (!autocompleteHideTimeoutId) {
+    return;
+  }
+
+  window.clearTimeout(autocompleteHideTimeoutId);
+  autocompleteHideTimeoutId = null;
+}
+
+function scheduleAutocompleteHide() {
+  clearAutocompleteHideTimeout();
+  autocompleteHideTimeoutId = window.setTimeout(() => {
+    const activeInput = autocompleteState.config?.input;
+    if (!activeInput) {
+      hideAutocomplete();
+      return;
+    }
+
+    const focusedInsidePopover = autocompletePopover.contains(document.activeElement);
+    if (document.activeElement === activeInput || focusedInsidePopover || autocompletePopover.matches(":hover")) {
+      return;
+    }
+
+    hideAutocomplete();
+  }, 160);
+}
+
+function getInitialView() {
+  const hash = window.location.hash.replace("#", "");
+  return ["cadre", "manager", "resources", "journal"].includes(hash) ? hash : "cadre";
+}
+
+function initializeObjectiveSelections() {
+  setupObjectiveDisclosure({
+    disclosure: objectiveDisclosure,
+    summaryText: objectiveSummaryText,
+    poleInput: objectivePoleInput,
+    okrInput: objectiveOkrInput,
+    krInput: objectiveKrInput,
+  });
+  setupObjectiveDisclosure({
+    disclosure: manualObjectiveDisclosure,
+    summaryText: manualObjectiveSummaryText,
+    poleInput: manualObjectivePoleInput,
+    okrInput: manualObjectiveOkrInput,
+    krInput: manualObjectiveKrInput,
+  });
+
+  setupSingleSelectionDisplay({
+    input: objectivePoleInput,
+    container: objectivePoleSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: objectiveOkrInput,
+    container: objectiveOkrSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: objectiveKrInput,
+    container: objectiveKrSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: manualObjectivePoleInput,
+    container: manualObjectivePoleSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: manualObjectiveOkrInput,
+    container: manualObjectiveOkrSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: manualObjectiveKrInput,
+    container: manualObjectiveKrSelected,
+  });
+
+  renderObjectiveSelections();
+}
+
+function setupObjectiveDisclosure({ disclosure, summaryText, poleInput, okrInput, krInput }) {
+  if (!disclosure || !summaryText) {
+    return;
+  }
+
+  const updateSummary = () => {
+    renderObjectiveDisclosureSummary(summaryText, {
+      pole: poleInput?.value.trim() ?? "",
+      okr: okrInput?.value.trim() ?? "",
+      kr: krInput?.value.trim() ?? "",
+    });
+  };
+
+  for (const input of [poleInput, okrInput, krInput]) {
+    input?.addEventListener("input", updateSummary);
+    input?.addEventListener("blur", updateSummary);
+  }
+
+  updateSummary();
+}
+
+function setupSingleSelectionDisplay({ input, container }) {
+  if (!input || !container) {
+    return;
+  }
+
+  input.addEventListener("input", () => {
+    renderSingleSelectionTag(input, container, { forceHidden: true });
+  });
+
+  input.addEventListener("blur", () => {
+    renderSingleSelectionTag(input, container);
+  });
+
+  input.addEventListener("focus", () => {
+    renderSingleSelectionTag(input, container, { forceHidden: true });
+  });
+}
+
+function renderObjectiveSelections() {
+  renderSingleSelectionTag(objectivePoleInput, objectivePoleSelected);
+  renderSingleSelectionTag(objectiveOkrInput, objectiveOkrSelected);
+  renderSingleSelectionTag(objectiveKrInput, objectiveKrSelected);
+  renderSingleSelectionTag(manualObjectivePoleInput, manualObjectivePoleSelected);
+  renderSingleSelectionTag(manualObjectiveOkrInput, manualObjectiveOkrSelected);
+  renderSingleSelectionTag(manualObjectiveKrInput, manualObjectiveKrSelected);
+  renderObjectiveDisclosureSummary(objectiveSummaryText, {
+    pole: objectivePoleInput.value.trim(),
+    okr: objectiveOkrInput.value.trim(),
+    kr: objectiveKrInput.value.trim(),
+  });
+  renderObjectiveDisclosureSummary(manualObjectiveSummaryText, {
+    pole: manualObjectivePoleInput.value.trim(),
+    okr: manualObjectiveOkrInput.value.trim(),
+    kr: manualObjectiveKrInput.value.trim(),
+  });
+}
+
+function renderObjectiveDisclosureSummary(summaryNode, values) {
+  if (!summaryNode) {
+    return;
+  }
+
+  const parts = [
+    formatObjectiveSummaryPole(values.pole),
+    formatObjectiveSummaryOkr(values.okr),
+    formatObjectiveSummaryKr(values.kr),
+  ].filter(Boolean);
+
+  summaryNode.textContent = parts.length ? parts.join(" · ") : "A ouvrir seulement si besoin.";
+}
+
+function formatObjectiveSummaryPole(value) {
+  return value?.trim() || "";
+}
+
+function formatObjectiveSummaryOkr(value) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const match = normalized.match(/^O\d+/i);
+  return match ? match[0].toUpperCase() : truncateObjectiveSummary(normalized, 36);
+}
+
+function formatObjectiveSummaryKr(value) {
+  const normalized = value?.trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const match = normalized.match(/^RC\s*\d+(?:\.\d+)?/i);
+  return match ? match[0].replace(/\s+/g, " ").toUpperCase() : truncateObjectiveSummary(normalized, 44);
+}
+
+function truncateObjectiveSummary(value, limit) {
+  if (value.length <= limit) {
+    return value;
+  }
+
+  return `${value.slice(0, Math.max(0, limit - 1)).trimEnd()}…`;
+}
+
+function renderSingleSelectionTag(input, container, options = {}) {
+  if (!input || !container) {
+    return;
+  }
+
+  const value = input.value.trim();
+  container.innerHTML = "";
+
+  if (!value || options.forceHidden) {
+    container.hidden = true;
+    return;
+  }
+
+  const chip = document.createElement("span");
+  chip.className = "token-chip single-token-chip";
+
+  const label = document.createElement("span");
+  label.textContent = value;
+
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.setAttribute("aria-label", `Retirer ${value}`);
+  remove.textContent = "x";
+  remove.addEventListener("click", () => {
+    input.value = "";
+    container.hidden = true;
+    input.focus();
+  });
+
+  chip.append(label, remove);
+  container.append(chip);
+  container.hidden = false;
+}
+
+function initializeViewNavigation() {
+  for (const tab of viewTabs) {
+    tab.addEventListener("click", () => {
+      setCurrentView(tab.dataset.viewTarget);
+    });
+  }
+
+  window.addEventListener("hashchange", () => {
+    const nextView = getInitialView();
+    if (nextView !== currentView) {
+      currentView = nextView;
+      renderViewChrome();
+    }
+  });
+}
+
+function setCurrentView(view) {
+  if (!view || view === currentView) {
+    return;
+  }
+
+  currentView = view;
+  window.history.replaceState(null, "", `#${view}`);
+  renderViewChrome();
+}
+
+function renderViewChrome() {
+  for (const tab of viewTabs) {
+    tab.classList.toggle("active", tab.dataset.viewTarget === currentView);
+  }
+
+  for (const panel of viewPanels) {
+    const isActive = panel.dataset.viewPanel === currentView;
+    panel.classList.toggle("is-active", isActive);
+    panel.hidden = !isActive;
+  }
+
+  const isAnalysisView = currentView === "manager" || currentView === "resources";
+  analysisToolbarPanel.hidden = !isAnalysisView;
+  if (analysisToolbarTitle) {
+    analysisToolbarTitle.textContent = currentView === "resources" ? "Vue ressources" : "Pilotage manager";
+  }
+  if (analysisCollaboratorFilterWrap) {
+    analysisCollaboratorFilterWrap.hidden = currentView !== "manager";
+  }
+}
+
+function loadSessions() {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return parsed.map(normalizeSession);
+  } catch {
+    return [];
+  }
+}
+
+function loadActiveSession() {
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed ? normalizeSession(parsed) : null;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSession(session) {
+  return {
+    ...session,
+    collaborator: session.collaborator ?? "",
+    project: session.project ?? "",
+    task: session.task ?? "",
+    categories: Array.isArray(session.categories) ? session.categories.filter(Boolean) : [],
+    tags: Array.isArray(session.tags) ? session.tags.filter(Boolean) : [],
+    notionRef: session.notionRef ?? "",
+    objectivePole: session.objectivePole ?? "",
+    objectiveOkr: session.objectiveOkr ?? "",
+    objectiveKr: session.objectiveKr ?? "",
+    notes: session.notes ?? "",
+    pausedAt: session.pausedAt ?? null,
+    pausedDurationMs: Number(session.pausedDurationMs) || 0,
+    durationMs: Number(session.durationMs) || 0,
+  };
+}
+
+function persistSessions() {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+}
+
+function persistActiveSession() {
+  if (!activeSession) {
+    window.localStorage.removeItem(ACTIVE_SESSION_KEY);
+    return;
+  }
+
+  window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(activeSession));
+}
+
+function hydrateFormFromActiveSession() {
+  const source = activeSession ?? sessions[0] ?? null;
+  collaboratorInput.value = activeSession?.collaborator ?? source?.collaborator ?? "";
+  projectInput.value = activeSession?.project ?? "";
+  taskInput.value = activeSession?.task ?? "";
+  notionInput.value = activeSession?.notionRef ?? "";
+  objectivePoleInput.value = activeSession?.objectivePole ?? source?.objectivePole ?? "";
+  objectiveOkrInput.value = activeSession?.objectiveOkr ?? source?.objectiveOkr ?? "";
+  objectiveKrInput.value = activeSession?.objectiveKr ?? source?.objectiveKr ?? "";
+  notesInput.value = activeSession?.notes ?? "";
+  currentCategories = [...(activeSession?.categories ?? [])];
+  currentTags = [...(activeSession?.tags ?? [])];
+  renderCategoryTokens();
+  renderTagTokens();
+  renderObjectiveSelections();
+}
+
+function setDefaultReportAnchor() {
+  reportAnchorInput.value = formatDateInput(new Date());
+}
+
+function readFormValues() {
+  return {
+    collaborator: collaboratorInput.value.trim(),
+    project: projectInput.value.trim(),
+    task: taskInput.value.trim(),
+    categories: [...currentCategories],
+    tags: [...currentTags],
+    notionRef: notionInput.value.trim(),
+    objectivePole: objectivePoleInput.value.trim(),
+    objectiveOkr: objectiveOkrInput.value.trim(),
+    objectiveKr: objectiveKrInput.value.trim(),
+    notes: notesInput.value.trim(),
+  };
+}
+
+async function validateAndNormalizeMainForm() {
+  const sessionDraft = readFormValues();
+
+  if (!sessionDraft.collaborator) {
+    collaboratorInput.focus();
+    return null;
+  }
+  if (!sessionDraft.project) {
+    projectInput.focus();
+    return null;
+  }
+
+  const resolved = await resolveDraftReferences(sessionDraft, { allowCreate: true });
+  if (!resolved.loaded) {
+    return sessionDraft;
+  }
+
+  if (!resolved.user) {
+    showFieldResolutionError(
+      collaboratorInput,
+      "Choisissez un collaborateur existant dans la base pour enregistrer ce temps.",
+    );
+    return null;
+  }
+
+  if (!resolved.project) {
+    showFieldResolutionError(projectInput, "Choisissez un projet existant dans la base.");
+    return null;
+  }
+
+  if (!resolved.category) {
+    showFieldResolutionError(
+      categoriesInput,
+      "Choisissez une categorie existante. La categorie par defaut du projet sera reprise si elle existe.",
+    );
+    return null;
+  }
+
+  const normalizedDraft = buildCanonicalSessionDraft(sessionDraft, resolved);
+  applyCanonicalDraftToMainForm(normalizedDraft);
+  return normalizedDraft;
+}
+
+function showFieldResolutionError(input, message) {
+  input.setCustomValidity(message);
+  input.reportValidity();
+  input.setCustomValidity("");
+  input.focus();
+}
+
+function stopActiveSession() {
+  if (!activeSession) {
+    return;
+  }
+
+  const end = getActiveSessionEffectiveEnd(activeSession);
+  const durationMs = getActiveSessionDurationMs(activeSession);
+
+  const finishedSession = {
+    ...activeSession,
+    ...readFormValues(),
+    pausedAt: null,
+    end: end.toISOString(),
+    durationMs,
+  };
+
+  attemptSaveSession(finishedSession, {
+    onSuccess: (sessionToSave) => {
+      upsertSession(sessionToSave);
+      activeSession = null;
+      persistSessions();
+      persistActiveSession();
+      stopTimerLoop();
+      resetFormAfterStop();
+      render();
+      void syncSessionToSupabase(sessionToSave, "timer");
+    },
+  });
+}
+
+
+async function initializeReferenceCatalog() {
+  const loaded = await ensureReferenceCatalogLoaded();
+  if (loaded) {
+    renderSuggestions();
+  }
+}
+
+async function ensureReferenceCatalogLoaded(force = false) {
+  if (!window.supabase) {
+    return false;
+  }
+
+  if (referenceCatalog.loaded && !force) {
+    return true;
+  }
+
+  if (referenceCatalog.loadingPromise && !force) {
+    return referenceCatalog.loadingPromise;
+  }
+
+  referenceCatalog.loadingPromise = (async () => {
+    const [usersResult, projectsResult, categoriesResult] = await Promise.all([
+      window.supabase.from("users").select("user_id,user_name,team_name,role,status"),
+      window.supabase
+        .from("projects")
+        .select(
+          "project_id,project_name,client_name,status,default_activity_category_id,default_activity_category_label",
+        ),
+      window.supabase
+        .from("categories")
+        .select("activity_category_id,activity_category_label,kpi_category_label,team_name,active"),
+    ]);
+
+    if (usersResult.error || projectsResult.error || categoriesResult.error) {
+      console.error("Supabase catalog load error:", {
+        users: usersResult.error,
+        projects: projectsResult.error,
+        categories: categoriesResult.error,
+      });
+      return false;
+    }
+
+    referenceCatalog.users = usersResult.data ?? [];
+    referenceCatalog.projects = projectsResult.data ?? [];
+    referenceCatalog.categories = categoriesResult.data ?? [];
+    referenceCatalog.loaded = true;
+    return true;
+  })();
+
+  const result = await referenceCatalog.loadingPromise;
+  referenceCatalog.loadingPromise = null;
+  return result;
+}
+
+async function resolveDraftReferences(sessionDraft, options = {}) {
+  const loaded = await ensureReferenceCatalogLoaded();
+  if (!loaded) {
+    return {
+      loaded: false,
+      user: null,
+      project: null,
+      category: null,
+      selectedCategoryLabel: sessionDraft.categories?.[0] ?? "",
+    };
+  }
+
+  let user = findReferenceMatch(referenceCatalog.users, "user_name", sessionDraft.collaborator);
+  if (!user && options.allowCreate && sessionDraft.collaborator?.trim()) {
+    const createdUserName = await createUserReference(sessionDraft.collaborator.trim());
+    user = createdUserName
+      ? findReferenceMatch(referenceCatalog.users, "user_name", createdUserName)
+      : null;
+  }
+
+  let project = findReferenceMatch(referenceCatalog.projects, "project_name", sessionDraft.project);
+  if (!project && options.allowCreate && sessionDraft.project?.trim()) {
+    const createdProjectName = await createProjectReference(sessionDraft.project.trim(), sessionDraft.categories?.[0] ?? "");
+    project = createdProjectName
+      ? findReferenceMatch(referenceCatalog.projects, "project_name", createdProjectName)
+      : null;
+  }
+
+  const selectedCategoryLabel = sessionDraft.categories?.[0] || project?.default_activity_category_label || "";
+  const category = findReferenceMatch(referenceCatalog.categories, "activity_category_label", selectedCategoryLabel);
+
+  return {
+    loaded: true,
+    user,
+    project,
+    category,
+    selectedCategoryLabel,
+  };
+}
+
+async function createUserReference(rawName) {
+  const userName = rawName.trim();
+  if (!userName) {
+    return null;
+  }
+  if (!window.supabase) {
+    return userName;
+  }
+
+  await ensureReferenceCatalogLoaded();
+
+  const existing = findReferenceMatch(referenceCatalog.users, "user_name", userName);
+  if (existing) {
+    return existing.user_name;
+  }
+
+  const nextId = await getNextPrefixedId("users", "user_id", "USR-", 3);
+  if (!nextId) {
+    return null;
+  }
+
+  const teamName = referenceCatalog.users[0]?.team_name ?? "Conseil Operations France";
+  const managerId = referenceCatalog.users.find((item) => item.role === "manager" && item.status === "active")?.user_id ?? null;
+
+  const payload = {
+    user_id: nextId,
+    user_name: userName,
+    role: "cadre",
+    team_name: teamName,
+    manager_user_id: managerId,
+    weekly_capacity_hours: 40,
+    status: "active",
+  };
+
+  const { data, error } = await window.supabase.from("users").insert([payload]).select();
+  if (error) {
+    console.error("Supabase user insert error:", error);
+    return null;
+  }
+
+  const insertedUser = data?.[0] ?? payload;
+  referenceCatalog.users = [...referenceCatalog.users, insertedUser].sort((left, right) =>
+    left.user_name.localeCompare(right.user_name, "fr"),
+  );
+  renderSuggestions();
+  return insertedUser.user_name;
+}
+
+async function createProjectReference(rawName, defaultCategoryLabel = "") {
+  const projectName = rawName.trim();
+  if (!projectName) {
+    return null;
+  }
+  if (!window.supabase) {
+    return projectName;
+  }
+
+  await ensureReferenceCatalogLoaded();
+
+  const existing = findReferenceMatch(referenceCatalog.projects, "project_name", projectName);
+  if (existing) {
+    return existing.project_name;
+  }
+
+  const nextId = await getNextPrefixedId("projects", "project_id", "PRJ-", 3);
+  if (!nextId) {
+    return null;
+  }
+
+  const defaultCategory = findReferenceMatch(
+    referenceCatalog.categories,
+    "activity_category_label",
+    defaultCategoryLabel,
+  );
+
+  const payload = {
+    project_id: nextId,
+    project_name: projectName,
+    client_name: "A renseigner",
+    status: "active",
+    default_activity_category_id: defaultCategory?.activity_category_id ?? null,
+    default_activity_category_label: defaultCategory?.activity_category_label ?? null,
+  };
+
+  const { data, error } = await window.supabase.from("projects").insert([payload]).select();
+  if (error) {
+    console.error("Supabase project insert error:", error);
+    return null;
+  }
+
+  const insertedProject = data?.[0] ?? payload;
+  referenceCatalog.projects = [...referenceCatalog.projects, insertedProject].sort((left, right) =>
+    left.project_name.localeCompare(right.project_name, "fr"),
+  );
+  renderSuggestions();
+  return insertedProject.project_name;
+}
+
+function findReferenceMatch(rows, labelField, rawValue) {
+  const normalized = normalizeText(rawValue ?? "");
+  if (!normalized) {
+    return null;
+  }
+
+  const exact = rows.find((row) => normalizeText(row[labelField] ?? "") === normalized);
+  if (exact) {
+    return exact;
+  }
+
+  const startsWithMatches = rows.filter((row) => normalizeText(row[labelField] ?? "").startsWith(normalized));
+  return startsWithMatches.length === 1 ? startsWithMatches[0] : null;
+}
+
+function buildCanonicalSessionDraft(sessionDraft, resolved) {
+  const normalizedCategories = resolved.category
+    ? [resolved.category.activity_category_label]
+    : sessionDraft.categories.slice(0, 1);
+
+  return {
+    ...sessionDraft,
+    collaborator: resolved.user?.user_name ?? sessionDraft.collaborator,
+    project: resolved.project?.project_name ?? sessionDraft.project,
+    categories: normalizedCategories,
+    dbUserId: resolved.user?.user_id ?? null,
+    dbProjectId: resolved.project?.project_id ?? null,
+    dbActivityCategoryId: resolved.category?.activity_category_id ?? null,
+    dbTeamName: resolved.user?.team_name ?? "",
+    dbClientName: resolved.project?.client_name ?? "",
+    dbKpiCategoryLabel: resolved.category?.kpi_category_label ?? "",
+  };
+}
+
+function applyCanonicalDraftToMainForm(sessionDraft) {
+  collaboratorInput.value = sessionDraft.collaborator ?? "";
+  projectInput.value = sessionDraft.project ?? "";
+  currentCategories = [...(sessionDraft.categories ?? []).slice(0, 1)];
+  renderCategoryTokens();
+  renderObjectiveSelections();
+}
+
+async function canonicalizeCollaboratorInput() {
+  const collaborator = collaboratorInput.value.trim();
+  if (!collaborator) {
+    return;
+  }
+
+  const resolved = await resolveDraftReferences({
+    collaborator,
+    project: projectInput.value.trim(),
+    categories: [...currentCategories],
+  });
+  if (resolved.user) {
+    collaboratorInput.value = resolved.user.user_name;
+  }
+}
+
+async function canonicalizeProjectInput() {
+  const project = projectInput.value.trim();
+  if (!project) {
+    return;
+  }
+
+  const resolved = await resolveDraftReferences({
+    collaborator: collaboratorInput.value.trim(),
+    project,
+    categories: [...currentCategories],
+  });
+  if (resolved.project) {
+    projectInput.value = resolved.project.project_name;
+  }
+  if (!currentCategories.length && resolved.project?.default_activity_category_label) {
+    currentCategories = [resolved.project.default_activity_category_label];
+    renderCategoryTokens();
+  }
+}
+
+async function canonicalizeCategorySelection() {
+  if (!currentCategories.length) {
+    const resolved = await resolveDraftReferences({
+      collaborator: collaboratorInput.value.trim(),
+      project: projectInput.value.trim(),
+      categories: [],
+    });
+    if (resolved.category) {
+      currentCategories = [resolved.category.activity_category_label];
+      renderCategoryTokens();
+    }
+    return;
+  }
+
+  const resolved = await resolveDraftReferences({
+    collaborator: collaboratorInput.value.trim(),
+    project: projectInput.value.trim(),
+    categories: [...currentCategories],
+  });
+  if (resolved.category) {
+    currentCategories = [resolved.category.activity_category_label];
+    renderCategoryTokens();
+  }
+}
+
+async function resolveSessionReferences(session) {
+  const resolved = await resolveDraftReferences(session);
+  if (!resolved.loaded) {
+    return null;
+  }
+  const { user, project, category, selectedCategoryLabel } = resolved;
+
+  if (!user || !project || !category) {
+    console.warn("Supabase sync skipped because references could not be resolved.", {
+      collaborator: session.collaborator,
+      project: session.project,
+      category: selectedCategoryLabel,
+      userResolved: Boolean(user),
+      projectResolved: Boolean(project),
+      categoryResolved: Boolean(category),
+    });
+    return null;
+  }
+
+  return { user, project, category };
+}
+
+async function getNextTimeEntryId() {
+  const generated = await getNextPrefixedId("time_entries", "time_entry_id", "TE-", 6);
+  if (generated) {
+    return generated;
+  }
+  return `TE-${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
+}
+
+async function getNextPrefixedId(tableName, columnName, prefix, padLength) {
+  if (!window.supabase) {
+    return null;
+  }
+
+  const { data, error } = await window.supabase
+    .from(tableName)
+    .select(columnName)
+    .order(columnName, { ascending: false })
+    .limit(1);
+
+  if (error) {
+    console.error(`Supabase ID lookup error for ${tableName}:`, error);
+    return null;
+  }
+
+  const lastId = data?.[0]?.[columnName] ?? null;
+  const lastNumber = lastId ? Number.parseInt(String(lastId).replace(prefix, ""), 10) : 0;
+  const nextNumber = Number.isFinite(lastNumber) ? lastNumber + 1 : 1;
+  return `${prefix}${String(nextNumber).padStart(padLength, "0")}`;
+}
+
+async function buildTimeEntryPayloadFromSession(session, source = "manual") {
+  const references = await resolveSessionReferences(session);
+  if (!references) {
+    return null;
+  }
+
+  const nextId = await getNextTimeEntryId();
+  if (!nextId) {
+    return null;
+  }
+
+  return {
+    time_entry_id: nextId,
+    entry_date: new Date(session.start).toISOString().slice(0, 10),
+    user_id: references.user.user_id,
+    user_name: references.user.user_name,
+    team_name: references.user.team_name ?? "",
+    project_id: references.project.project_id,
+    project_name: references.project.project_name,
+    client_name: references.project.client_name ?? "",
+    activity_category_id: references.category.activity_category_id,
+    activity_category_label: references.category.activity_category_label,
+    kpi_category_label: references.category.kpi_category_label ?? "",
+    duration_minutes: Math.max(1, Math.round((Number(session.durationMs) || 0) / 60000)),
+    duration_hours: Number(((Number(session.durationMs) || 0) / 3600000).toFixed(2)),
+    task_label: session.task || "",
+    source,
+    status: "saved",
+  };
+}
+
+async function syncSessionToSupabase(session, source = "manual") {
+  const payload = await buildTimeEntryPayloadFromSession(session, source);
+  if (!payload) {
+    return false;
+  }
+
+  return createTimeEntry(payload);
+}
+
+async function createTimeEntry(data) {
+  if (!window.supabase) {
+    return false;
+  }
+
+  try {
+    const { data: inserted, error } = await window.supabase
+      .from("time_entries")
+      .insert([data])
+      .select();
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      return false;
+    }
+
+    console.log("Supabase insert success:", inserted);
+    return true;
+  } catch (e) {
+    console.error("Unexpected Supabase error:", e);
+    return false;
+  }
+}
+
+
+function resetFormAfterStop() {
+  const lastCollaborator = collaboratorInput.value.trim();
+  form.reset();
+  collaboratorInput.value = lastCollaborator;
+  currentCategories = [];
+  currentTags = [];
+  renderCategoryTokens();
+  renderTagTokens();
+  notionInput.value = "";
+  objectivePoleInput.value = "";
+  objectiveOkrInput.value = "";
+  objectiveKrInput.value = "";
+  notesInput.value = "";
+  renderObjectiveSelections();
+  projectMemoryHint.textContent =
+    "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
+  delete projectInput.dataset.lastHydratedKey;
+}
+
+function togglePauseSession() {
+  if (!activeSession) {
+    return;
+  }
+
+  if (activeSession.pausedAt) {
+    const pausedAt = new Date(activeSession.pausedAt).getTime();
+    activeSession.pausedDurationMs =
+      (Number(activeSession.pausedDurationMs) || 0) + Math.max(Date.now() - pausedAt, 0);
+    activeSession.pausedAt = null;
+    startTimerLoopIfNeeded();
+  } else {
+    activeSession.pausedAt = new Date().toISOString();
+    stopTimerLoop();
+  }
+
+  persistActiveSession();
+  render();
+}
+
+function updateActiveSessionStart() {
+  if (!activeSession || !activeStartInput.value) {
+    return;
+  }
+
+  const nextStart = new Date(activeStartInput.value);
+  const effectiveEnd = getActiveSessionEffectiveEnd(activeSession);
+  const nextDurationMs =
+    effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
+
+  if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
+    activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
+    activeStartInput.reportValidity();
+    activeStartInput.setCustomValidity("");
+    renderActiveSession();
+    return;
+  }
+
+  const candidate = {
+    ...activeSession,
+    start: nextStart.toISOString(),
+    end: effectiveEnd.toISOString(),
+    durationMs: nextDurationMs,
+  };
+
+  const overlap = findOverlappingSession(candidate);
+  if (overlap) {
+    activeStartInput.setCustomValidity("Ce collaborateur a deja une autre session sur ce creneau.");
+    activeStartInput.reportValidity();
+    activeStartInput.setCustomValidity("");
+    renderActiveSession();
+    return;
+  }
+
+  activeSession.start = candidate.start;
+  persistActiveSession();
+  hideActiveStartEditor();
+  render();
+}
+
+function openManualDialog(session = null, preset = null) {
+  const end = preset?.end ? new Date(preset.end) : new Date();
+  const start = preset?.start ? new Date(preset.start) : new Date(end.getTime() - 30 * 60 * 1000);
+
+  manualEditingSessionId = session?.id ?? null;
+  manualCollaboratorInput.value =
+    session?.collaborator ?? preset?.collaborator ?? collaboratorInput.value.trim();
+  manualProjectInput.value = session?.project ?? preset?.project ?? projectInput.value.trim();
+  manualTaskInput.value = session?.task ?? preset?.task ?? taskInput.value.trim();
+  manualCategoriesInput.value = (session?.categories ?? preset?.categories ?? currentCategories).join(", ");
+  manualTagsInput.value = (session?.tags ?? preset?.tags ?? currentTags).join(", ");
+  manualNotionInput.value = session?.notionRef ?? preset?.notionRef ?? notionInput.value.trim();
+  manualObjectivePoleInput.value = session?.objectivePole ?? preset?.objectivePole ?? objectivePoleInput.value.trim();
+  manualObjectiveOkrInput.value = session?.objectiveOkr ?? preset?.objectiveOkr ?? objectiveOkrInput.value.trim();
+  manualObjectiveKrInput.value = session?.objectiveKr ?? preset?.objectiveKr ?? objectiveKrInput.value.trim();
+  manualNotesInput.value = session?.notes ?? preset?.notes ?? notesInput.value.trim();
+  manualStartInput.value = formatDateTimeLocal(session ? new Date(session.start) : start);
+  manualEndInput.value = formatDateTimeLocal(session ? new Date(session.end) : end);
+  saveManualButton.textContent = session ? "Enregistrer les changements" : "Enregistrer";
+  renderObjectiveSelections();
+  manualDialog.showModal();
+}
+
+function saveManualEntry() {
+  const collaborator = manualCollaboratorInput.value.trim();
+  const project = manualProjectInput.value.trim();
+  const startValue = manualStartInput.value;
+  const endValue = manualEndInput.value;
+
+  if (!collaborator) {
+    manualCollaboratorInput.focus();
+    return;
+  }
+  if (!project) {
+    manualProjectInput.focus();
+    return;
+  }
+  if (!startValue || !endValue) {
+    return;
+  }
+
+  const start = new Date(startValue);
+  const end = new Date(endValue);
+  const durationMs = end.getTime() - start.getTime();
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || durationMs <= 0) {
+    manualEndInput.focus();
+    return;
+  }
+
+  const manualSession = {
+    id: manualEditingSessionId ?? crypto.randomUUID(),
+    collaborator,
+    project,
+    task: manualTaskInput.value.trim(),
+    categories: parseTokenString(manualCategoriesInput.value),
+    tags: parseTokenString(manualTagsInput.value),
+    notionRef: manualNotionInput.value.trim(),
+    objectivePole: manualObjectivePoleInput.value.trim(),
+    objectiveOkr: manualObjectiveOkrInput.value.trim(),
+    objectiveKr: manualObjectiveKrInput.value.trim(),
+    notes: manualNotesInput.value.trim(),
+    start: start.toISOString(),
+    end: end.toISOString(),
+    durationMs,
+  };
+
+  attemptSaveSession(manualSession, {
+    excludeId: manualEditingSessionId,
+    onSuccess: (sessionToSave) => {
+      upsertSession(sessionToSave);
+      persistSessions();
+      manualEditingSessionId = null;
+      manualDialog.close();
+      saveManualButton.textContent = "Enregistrer";
+      renderObjectiveSelections();
+      render();
+    },
+  });
+}
+
+function attemptSaveSession(session, options = {}) {
+  const overlap = findOverlappingSession(session, options.excludeId);
+  if (overlap) {
+    showConflict(session, overlap, options.onSuccess);
+    return false;
+  }
+
+  if (options.onSuccess) {
+    options.onSuccess(session);
+  } else {
+    upsertSession(session);
+    persistSessions();
+    render();
+  }
+  return true;
+}
+
+function upsertSession(session) {
+  const index = sessions.findIndex((item) => item.id === session.id);
+  if (index >= 0) {
+    sessions[index] = session;
+  } else {
+    sessions.unshift(session);
+  }
+  sessions.sort((a, b) => new Date(b.start) - new Date(a.start));
+}
+
+function findOverlappingSession(session, excludeId = null) {
+  const start = new Date(session.start).getTime();
+  const end = new Date(session.end).getTime();
+  const collaboratorKey = normalizeText(session.collaborator);
+
+  return (
+    sessions.find((existing) => {
+      if (existing.id === excludeId) {
+        return false;
+      }
+      if (normalizeText(existing.collaborator) !== collaboratorKey) {
+        return false;
+      }
+      const existingStart = new Date(existing.start).getTime();
+      const existingEnd = new Date(existing.end).getTime();
+      return start < existingEnd && end > existingStart;
+    }) ?? null
+  );
+}
+
+function showConflict(newSession, existingSession, onResolve) {
+  pendingConflict = { newSession, existingSession, onResolve };
+  const adjusted = getAdjustedSession(newSession, existingSession);
+  conflictMessage.textContent =
+    "Le meme collaborateur a deja une session qui chevauche ce creneau.";
+  conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
+    existingSession.start,
+  )} · ${formatDuration(existingSession.durationMs)}`;
+  adjustConflictButton.disabled = !adjusted;
+  conflictDialog.showModal();
+}
+
+function getAdjustedSession(newSession, existingSession) {
+  const start = new Date(newSession.start).getTime();
+  const end = new Date(newSession.end).getTime();
+  const existingStart = new Date(existingSession.start).getTime();
+  const existingEnd = new Date(existingSession.end).getTime();
+  const candidates = [];
+
+  if (start < existingStart) {
+    candidates.push({ start, end: existingStart });
+  }
+  if (end > existingEnd) {
+    candidates.push({ start: existingEnd, end });
+  }
+
+  const best = candidates
+    .map((candidate) => ({ ...candidate, durationMs: candidate.end - candidate.start }))
+    .filter((candidate) => candidate.durationMs > 0)
+    .sort((a, b) => b.durationMs - a.durationMs)[0];
+
+  if (!best) {
+    return null;
+  }
+
+  return {
+    ...newSession,
+    start: new Date(best.start).toISOString(),
+    end: new Date(best.end).toISOString(),
+    durationMs: best.durationMs,
+  };
+}
+
+function startTimerLoopIfNeeded() {
+  if (!activeSession || activeSession.pausedAt || timerIntervalId) {
+    return;
+  }
+
+  timerIntervalId = window.setInterval(() => {
+    updateLiveTimer();
+    renderCadreViews();
+    renderManagerViews();
+  }, 1000);
+}
+
+function stopTimerLoop() {
+  if (!timerIntervalId) {
+    return;
+  }
+
+  window.clearInterval(timerIntervalId);
+  timerIntervalId = null;
+}
+
+function updateLiveTimer() {
+  timerDisplay.textContent = activeSession ? formatClock(getActiveSessionDurationMs(activeSession)) : "00:00:00";
+}
+
+function render() {
+  renderViewChrome();
+  renderCurrentUserContext();
+  renderActiveSession();
+  renderSuggestions();
+  renderQuickProjects();
+  renderProjectMemoryList();
+  renderSessionList();
+  renderCadreViews();
+  renderManagerControls();
+  renderManagerViews();
+  renderResourcesViews();
+}
+
+function renderCurrentUserContext() {
+  const collaborator = getCurrentCollaborator();
+  currentUserName.textContent = collaborator || "Aucun collaborateur";
+}
+
+function renderActiveSession() {
+  if (!activeSession) {
+    timerDisplay.textContent = "00:00:00";
+    activeTaskLabel.textContent = "Pret a lancer une nouvelle session.";
+    toggleButton.textContent = "Demarrer";
+    toggleButton.classList.remove("running");
+    pauseButton.hidden = true;
+    pauseButton.classList.remove("paused");
+    activeStartDisplay.textContent = "Le depart se regle si besoin";
+    activeStartDisplay.disabled = true;
+    activeStartDisplay.hidden = false;
+    activeStartInput.hidden = true;
+    activeStartInput.value = "";
+    activeStartInput.disabled = true;
+    return;
+  }
+
+  const isPaused = Boolean(activeSession.pausedAt);
+  activeTaskLabel.textContent = isPaused ? "Session en pause." : "Session en cours.";
+  toggleButton.textContent = "Arreter";
+  toggleButton.classList.toggle("running", !isPaused);
+  pauseButton.hidden = false;
+  pauseButton.textContent = isPaused ? "Reprendre" : "Mettre en pause";
+  pauseButton.classList.toggle("paused", isPaused);
+  activeStartDisplay.textContent = `Demarre a ${formatTimeLabel(new Date(activeSession.start))}`;
+  activeStartDisplay.disabled = false;
+  activeStartDisplay.hidden = false;
+  activeStartInput.hidden = true;
+  activeStartInput.disabled = false;
+  activeStartInput.value = formatDateTimeLocal(new Date(activeSession.start));
+  updateLiveTimer();
+}
+
+function showActiveStartEditor() {
+  if (!activeSession) {
+    return;
+  }
+
+  activeStartDisplay.hidden = true;
+  activeStartInput.hidden = false;
+  activeStartInput.disabled = false;
+  activeStartInput.focus();
+  if (typeof activeStartInput.showPicker === "function") {
+    try {
+      activeStartInput.showPicker();
+    } catch (error) {
+      // Some browsers refuse showPicker outside strict user gesture timing.
+    }
+  }
+}
+
+function hideActiveStartEditor() {
+  if (!activeSession) {
+    activeStartInput.hidden = true;
+    activeStartDisplay.hidden = false;
+    return;
+  }
+
+  activeStartInput.hidden = true;
+  activeStartDisplay.hidden = false;
+}
+
+function renderSuggestions() {
+  fillDatalist(
+    projectSuggestions,
+    referenceCatalog.loaded
+      ? referenceCatalog.projects.map((item) => item.project_name).sort((a, b) => a.localeCompare(b, "fr"))
+      : uniqueValues("project"),
+  );
+  fillDatalist(
+    collaboratorSuggestions,
+    referenceCatalog.loaded
+      ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+      : uniqueValues("collaborator"),
+  );
+  fillDatalist(
+    categorySuggestions,
+    referenceCatalog.loaded
+      ? referenceCatalog.categories
+          .map((item) => item.activity_category_label)
+          .sort((a, b) => a.localeCompare(b, "fr"))
+      : uniqueTokenValues("categories"),
+  );
+  fillDatalist(tagSuggestions, uniqueTokenValues("tags"));
+
+  const currentValue = managerCollaboratorFilter.value || "all";
+  const collaborators = referenceCatalog.loaded
+    ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+    : uniqueValues("collaborator");
+  managerCollaboratorFilter.innerHTML = "";
+
+  const teamOption = document.createElement("option");
+  teamOption.value = "all";
+  teamOption.textContent = "Toute l'equipe";
+  managerCollaboratorFilter.append(teamOption);
+
+  for (const collaborator of collaborators) {
+    const option = document.createElement("option");
+    option.value = collaborator;
+    option.textContent = collaborator;
+    managerCollaboratorFilter.append(option);
+  }
+
+  managerCollaboratorFilter.value = collaborators.includes(currentValue) ? currentValue : "all";
+}
+
+function renderQuickProjects() {
+  quickProjects.innerHTML = "";
+  const collaborator = getCurrentCollaborator();
+  const memories = getProjectMemories(collaborator).slice(0, 6);
+
+  if (!memories.length) {
+    const message = collaborator
+      ? `Les dernieres reprises de ${collaborator} apparaitront ici.`
+      : "Choisissez un collaborateur pour voir ses reprises recentes.";
+    quickProjects.append(createEmptyState(message));
+    return;
+  }
+
+  for (const memory of memories) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "chip";
+    button.dataset.memoryKey = memory.key;
+    button.textContent = collaborator ? memory.project : `${memory.project} · ${memory.collaborator}`;
+    quickProjects.append(button);
+  }
+}
+
+function renderProjectMemoryList() {
+  projectMemoryList.innerHTML = "";
+  const collaborator = getCurrentCollaborator();
+  const memories = getProjectMemories(collaborator).slice(0, 8);
+
+  if (!memories.length) {
+    const message = collaborator
+      ? `Les contextes memorises de ${collaborator} apparaitront ici.`
+      : "Choisissez un collaborateur pour afficher ses contextes memorises.";
+    projectMemoryList.append(createEmptyState(message));
+    return;
+  }
+
+  for (const memory of memories) {
+    const card = document.createElement("article");
+    card.className = "memory-card";
+
+    const copy = document.createElement("div");
+    copy.className = "memory-copy";
+
+    const title = document.createElement("h3");
+    title.textContent = memory.project;
+
+    const meta = document.createElement("p");
+    meta.className = "muted-copy";
+    meta.textContent = `${memory.collaborator} · ${memory.task || "Travail recurrent"} · ${formatDate(memory.start)}`;
+
+    const tags = document.createElement("div");
+    tags.className = "memory-meta";
+
+    if (memory.objectivePole) {
+      tags.append(createPill(memory.objectivePole));
+    }
+    for (const category of memory.categories) {
+      tags.append(createPill(category));
+    }
+    for (const tag of memory.tags) {
+      tags.append(createPill(`#${tag}`));
+    }
+    if (memory.notionRef) {
+      tags.append(createPill("Lien"));
+    }
+
+    copy.append(title, meta, tags);
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "btn btn-secondary";
+    action.dataset.memoryKey = memory.key;
+    action.textContent = "Recharger";
+
+    card.append(copy, action);
+    projectMemoryList.append(card);
+  }
+}
+
+function renderSessionList() {
+  sessionList.innerHTML = "";
+
+  if (!sessions.length) {
+    sessionList.append(createEmptyState("Le journal affichera ici les entrees enregistrees."));
+    return;
+  }
+
+  for (const session of sessions.slice(0, 10)) {
+    const fragment = sessionItemTemplate.content.cloneNode(true);
+    const item = fragment.querySelector(".session-item");
+    item.dataset.sessionId = session.id;
+
+    fragment.querySelector(".session-task").textContent = session.task || session.project;
+    fragment.querySelector(".session-secondary").textContent = `${session.collaborator} · ${session.project}${
+      session.notionRef ? " · Lien" : ""
+    }`;
+    fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
+    fragment.querySelector(".session-date").textContent = formatDate(session.start);
+
+    const notesElement = fragment.querySelector(".session-notes");
+    notesElement.textContent = session.notes || "";
+    notesElement.hidden = !session.notes;
+
+    renderPills(fragment.querySelector(".session-categories"), session.categories);
+    renderPills(fragment.querySelector(".session-tags"), [
+      ...(session.objectivePole ? [session.objectivePole] : []),
+      ...(session.objectiveOkr ? [`OKR ${session.objectiveOkr}`] : []),
+      ...(session.objectiveKr ? [`KR ${session.objectiveKr}`] : []),
+      ...session.tags.map((tag) => `#${tag}`),
+    ]);
+
+    sessionList.append(fragment);
+  }
+}
+
+function renderCadreViews() {
+  renderPersonalStats();
+  renderPersonalDistribution();
+  renderAgenda();
+}
+
+function renderPersonalStats() {
+  const collaborator = getCurrentCollaborator();
+  const rows = collaborator ? getSessionsForCollaborator(collaborator) : getAllSessionsWithActive();
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = getStartOfWeek(now);
+
+  let todayMs = 0;
+  let weekMs = 0;
+  for (const session of rows) {
+    const start = new Date(session.start);
+    const durationMs = Number(session.durationMs) || 0;
+    if (start >= todayStart) {
+      todayMs += durationMs;
+    }
+    if (start >= weekStart) {
+      weekMs += durationMs;
+    }
+  }
+
+  todayTotal.textContent = formatDuration(todayMs);
+  weekTotal.textContent = formatDuration(weekMs);
+  todayPanelCopy.textContent = collaborator
+    ? `Temps saisi aujourd'hui pour ${collaborator}.`
+    : "Temps saisi pour la personne en cours.";
+
+  const collaborators = new Set(getAllSessionsWithActive().map((session) => session.collaborator).filter(Boolean));
+  teamCount.textContent = String(collaborators.size);
+  activeCountCopy.textContent = activeSession
+    ? `Session en cours pour ${activeSession.collaborator}.`
+    : "Aucune session en cours.";
+}
+
+function renderPersonalDistribution() {
+  const collaborator = getCurrentCollaborator();
+  const usesObjectives = statsMode === "objectives";
+
+  personalStatsTitle.textContent = usesObjectives ? "Objectifs en cours" : "Categories en cours";
+  personalStatsCopy.textContent = usesObjectives
+    ? "Lecture compacte par OKR et KR quand ils sont renseignes."
+    : "Lecture compacte par type de travail sur la semaine.";
+
+  if (!collaborator) {
+    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Renseignez un collaborateur pour voir sa semaine.");
+    return;
+  }
+
+  const range = getPeriodRange(getReportAnchorDate(), "week");
+  const rows = getSessionsForCollaborator(collaborator).filter((session) => isSessionInRange(session, range));
+  const objectiveRows = buildObjectiveOkrRows(rows);
+  const fallbackRows = buildReportRows(rows, "categories");
+  const displayRows = usesObjectives ? objectiveRows : fallbackRows;
+  const totalMs = displayRows.reduce((sum, row) => sum + row.durationMs, 0);
+
+  renderDistribution(
+    personalDistributionBar,
+    personalDistributionLegend,
+    displayRows,
+    totalMs,
+    usesObjectives
+      ? "Aucun objectif 2026 renseigne cette semaine pour ce collaborateur."
+      : "Aucune categorie enregistree cette semaine pour ce collaborateur.",
+  );
+}
+
+function renderAgenda() {
+  agendaBoard.innerHTML = "";
+  const collaborator = getCurrentCollaborator();
+  const range = getPeriodRange(getReportAnchorDate(), "week");
+  const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
+  const scopedRows = collaborator
+    ? rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator))
+    : rows;
+
+  const startHour = 7;
+  const endHour = 21;
+  const hourHeight = 38;
+  agendaBoard.style.setProperty("--agenda-hour-height", `${hourHeight}px`);
+
+  const timeRail = document.createElement("div");
+  timeRail.className = "agenda-time-rail";
+
+  const timeRailHead = document.createElement("div");
+  timeRailHead.className = "agenda-time-head";
+  timeRail.append(timeRailHead);
+
+  const timeRailBody = document.createElement("div");
+  timeRailBody.className = "agenda-time-body";
+  timeRailBody.style.height = `${(endHour - startHour) * hourHeight}px`;
+
+  for (let hour = startHour; hour <= endHour; hour += 1) {
+    const mark = document.createElement("div");
+    mark.className = "agenda-time-mark";
+    mark.style.top = `${(hour - startHour) * hourHeight}px`;
+    mark.textContent = `${String(hour).padStart(2, "0")}:00`;
+    timeRailBody.append(mark);
+  }
+
+  timeRail.append(timeRailBody);
+  agendaBoard.append(timeRail);
+
+  for (let index = 0; index < 7; index += 1) {
+    const day = new Date(range.start);
+    day.setDate(day.getDate() + index);
+
+    const dayCard = document.createElement("article");
+    dayCard.className = "agenda-day";
+
+    const dayRows = scopedRows
+      .filter((session) => isSameDay(new Date(session.start), day))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    const dayTotal = dayRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+
+    const headMeta = document.createElement("div");
+    headMeta.className = "agenda-day-meta";
+
+    const dayNumber = document.createElement("strong");
+    dayNumber.className = "agenda-day-number";
+    dayNumber.textContent = String(day.getDate());
+
+    const headCopy = document.createElement("div");
+    headCopy.className = "agenda-day-copy";
+
+    const title = document.createElement("h3");
+    title.textContent = formatAgendaDayLabel(day);
+
+    const subtitle = document.createElement("p");
+    subtitle.textContent = dayTotal ? formatDurationHours(dayTotal) : "0 h";
+
+    const dayHead = document.createElement("div");
+    dayHead.className = "agenda-day-head";
+    headCopy.append(title, subtitle);
+    headMeta.append(dayNumber, headCopy);
+    dayHead.append(headMeta);
+    dayCard.append(dayHead);
+
+    const dayTrack = document.createElement("div");
+    dayTrack.className = "agenda-day-track";
+    dayTrack.style.height = `${(endHour - startHour) * hourHeight}px`;
+    dayTrack.dataset.dayDate = formatDateInput(day);
+    dayTrack.dataset.startHour = String(startHour);
+    dayTrack.dataset.endHour = String(endHour);
+    dayTrack.dataset.hourHeight = String(hourHeight);
+
+    if (!dayRows.length) {
+      const empty = createEmptyState("Aucun creneau.");
+      empty.classList.add("agenda-empty-state");
+      dayTrack.append(empty);
+      dayCard.append(dayTrack);
+      agendaBoard.append(dayCard);
+      continue;
+    }
+
+    const laidOutRows = layoutAgendaSessions(dayRows, startHour, endHour, hourHeight);
+
+    for (const row of laidOutRows) {
+      const session = row.session;
+      const visualSize = getAgendaEventVisualSize(row.heightPx);
+
+      const event = document.createElement("button");
+      event.type = "button";
+      event.className = "agenda-event";
+      if (visualSize !== "full") {
+        event.classList.add(`agenda-event--${visualSize}`);
+      }
+      event.dataset.sessionId = session.id;
+      event.style.top = `${row.topPx}px`;
+      event.style.height = `${row.heightPx}px`;
+      event.style.left = `${row.leftOffset}%`;
+      event.style.width = `${row.widthPercent}%`;
+      event.title = buildAgendaTooltip(session);
+      applyAgendaEventColor(event, session);
+
+      if (visualSize !== "tiny") {
+        const time = document.createElement("p");
+        time.className = "agenda-event-time";
+        time.textContent = `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`;
+        event.append(time);
+
+        const client = document.createElement("p");
+        client.className = "agenda-event-client";
+        client.textContent = getSessionClientLabel(session);
+        event.append(client);
+      }
+
+      if (visualSize === "full") {
+        const icon = document.createElement("span");
+        icon.className = "agenda-event-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "i";
+        event.append(icon);
+      }
+
+      dayTrack.append(event);
+    }
+
+    dayCard.append(dayTrack);
+    agendaBoard.append(dayCard);
+  }
+}
+
+function layoutAgendaSessions(dayRows, startHour, endHour, hourHeight) {
+  const preparedRows = dayRows.map((session) => {
+    const start = new Date(session.start);
+    const end = new Date(session.end);
+    const visibleStartMinutes = Math.max(0, (start.getHours() - startHour) * 60 + start.getMinutes());
+    const visibleEndMinutes = Math.min((endHour - startHour) * 60, (end.getHours() - startHour) * 60 + end.getMinutes());
+    return {
+      session,
+      startMinutes: visibleStartMinutes,
+      endMinutes: Math.max(visibleEndMinutes, visibleStartMinutes + 15),
+    };
+  });
+
+  const groups = [];
+  let currentGroup = [];
+  let currentMaxEnd = -1;
+
+  for (const row of preparedRows) {
+    if (!currentGroup.length || row.startMinutes < currentMaxEnd) {
+      currentGroup.push(row);
+      currentMaxEnd = Math.max(currentMaxEnd, row.endMinutes);
+      continue;
+    }
+
+    groups.push(currentGroup);
+    currentGroup = [row];
+    currentMaxEnd = row.endMinutes;
+  }
+
+  if (currentGroup.length) {
+    groups.push(currentGroup);
+  }
+
+  return groups.flatMap((group) => assignAgendaGroupLanes(group, hourHeight));
+}
+
+function assignAgendaGroupLanes(group, hourHeight) {
+  const active = [];
+  let maxLane = 0;
+
+  for (const row of group) {
+    for (let index = active.length - 1; index >= 0; index -= 1) {
+      if (active[index].endMinutes <= row.startMinutes) {
+        active.splice(index, 1);
+      }
+    }
+
+    let lane = 0;
+    while (active.some((item) => item.lane === lane)) {
+      lane += 1;
+    }
+
+    row.lane = lane;
+    active.push(row);
+    maxLane = Math.max(maxLane, lane);
+  }
+
+  const columns = Math.max(maxLane + 1, 1);
+  const gutterPercent = columns > 1 ? 2.2 : 0;
+  const widthPercent = columns > 1 ? (100 - gutterPercent * (columns - 1)) / columns : 100;
+
+  return group.map((row) => ({
+    session: row.session,
+    topPx: (row.startMinutes / 60) * hourHeight,
+    heightPx: Math.max(((row.endMinutes - row.startMinutes) / 60) * hourHeight, 6),
+    leftOffset: row.lane * (widthPercent + gutterPercent),
+    widthPercent,
+  }));
+}
+
+function getAgendaEventVisualSize(heightPx) {
+  if (heightPx < 18) {
+    return "tiny";
+  }
+  if (heightPx < 34) {
+    return "compact";
+  }
+  return "full";
+}
+
+function applyAgendaEventColor(element, session) {
+  const label = session.objectivePole || session.categories?.[0] || session.project || session.collaborator || "agenda";
+  const baseColor = colorForLabel(label);
+  element.style.background = `${baseColor}1A`;
+  element.style.borderColor = `${baseColor}33`;
+}
+
+function resolveAgendaSlotFromClick(track, event) {
+  const dayDate = track.dataset.dayDate;
+  const startHour = Number(track.dataset.startHour);
+  const endHour = Number(track.dataset.endHour);
+  const hourHeight = Number(track.dataset.hourHeight);
+
+  if (!dayDate || !Number.isFinite(startHour) || !Number.isFinite(endHour) || !Number.isFinite(hourHeight)) {
+    return null;
+  }
+
+  const rect = track.getBoundingClientRect();
+  const relativeY = Math.min(Math.max(event.clientY - rect.top, 0), rect.height);
+  const minutesFromStart = roundToQuarterHour((relativeY / hourHeight) * 60);
+  const boundedMinutes = Math.min(Math.max(minutesFromStart, 0), (endHour - startHour) * 60 - 15);
+
+  const start = new Date(`${dayDate}T00:00:00`);
+  start.setHours(startHour, 0, 0, 0);
+  start.setMinutes(start.getMinutes() + boundedMinutes);
+
+  const end = new Date(start.getTime() + 30 * 60 * 1000);
+
+  return {
+    collaborator: getCurrentCollaborator() || collaboratorInput.value.trim(),
+    start,
+    end,
+  };
+}
+
+function roundToQuarterHour(minutes) {
+  return Math.round(minutes / 15) * 15;
+}
+
+function renderManagerControls() {
+  for (const button of periodSwitch.querySelectorAll("[data-period]")) {
+    button.classList.toggle("active", button.dataset.period === reportPeriod);
+  }
+
+  syncStatsSwitch(personalStatsSwitch);
+  syncStatsSwitch(analysisStatsSwitch);
+}
+
+function syncStatsSwitch(container) {
+  if (!container) {
+    return;
+  }
+
+  for (const button of container.querySelectorAll("[data-stats-mode]")) {
+    button.classList.toggle("active", button.dataset.statsMode === statsMode);
+  }
+}
+
+function renderManagerViews() {
+  const anchor = getReportAnchorDate();
+  const range = getPeriodRange(anchor, reportPeriod);
+  const filterCollaborator = managerCollaboratorFilter.value;
+  const allRows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
+  const scopedRows =
+    filterCollaborator === "all"
+      ? allRows
+      : allRows.filter((session) => normalizeText(session.collaborator) === normalizeText(filterCollaborator));
+
+  const usesObjectives = statsMode === "objectives";
+  renderManagerSummary(allRows, scopedRows, range, filterCollaborator);
+  const managerObjectiveRows = buildObjectiveOkrRows(scopedRows);
+  const managerCategoryRows = buildReportRows(scopedRows, "categories");
+  const managerDisplayRows = usesObjectives ? managerObjectiveRows : managerCategoryRows;
+  const managerObjectiveTotalMs = managerObjectiveRows.reduce((sum, row) => sum + row.durationMs, 0);
+  const managerCategoryTotalMs = scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+  managerDistributionTitle.textContent = usesObjectives ? "Repartition OKR" : "Repartition categories";
+  managerDistributionCopy.textContent = usesObjectives
+    ? "Poids relatif des objectifs sur la periode."
+    : "Poids relatif des categories sur la periode.";
+  reportCategoryHead.textContent = usesObjectives ? "OKR" : "Categorie";
+  managerObjectivesPanel.hidden = !usesObjectives;
+  reportKrShell.hidden = !usesObjectives;
+  renderDistribution(
+    managerDistributionBar,
+    managerDistributionLegend,
+    managerDisplayRows,
+    usesObjectives ? managerObjectiveTotalMs : managerCategoryTotalMs,
+    usesObjectives ? "Aucun OKR renseigne sur cette plage." : "Aucune categorie disponible sur cette plage.",
+  );
+  renderEvolutionGrid(evolutionGrid, anchor, filterCollaborator);
+  if (usesObjectives) {
+    renderManagerObjectives(scopedRows);
+  } else {
+    managerObjectivesGrid.innerHTML = "";
+  }
+  renderTeamTable(allRows);
+  renderReportTable(
+    reportProjectList,
+    buildReportRows(scopedRows, "project"),
+    scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0),
+    "Aucun projet pour cette plage.",
+  );
+  renderReportTable(
+    reportCategoryList,
+    managerDisplayRows,
+    usesObjectives ? managerObjectiveTotalMs : managerCategoryTotalMs,
+    usesObjectives ? "Aucun OKR pour cette plage." : "Aucune categorie pour cette plage.",
+  );
+  if (usesObjectives) {
+    renderReportTable(
+      reportKrList,
+      buildObjectiveKrRowsFromSessions(scopedRows),
+      scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0),
+      "Aucun KR pour cette plage.",
+    );
+  } else {
+    reportKrList.innerHTML = "";
+  }
+}
+
+function renderResourcesViews() {
+  const anchor = getReportAnchorDate();
+  const range = getPeriodRange(anchor, reportPeriod);
+  const allRows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
+  const usesObjectives = statsMode === "objectives";
+  const totalMs = allRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+  const projectTotals = buildReportRows(allRows, "project");
+  const objectiveTotals = buildObjectiveOkrRows(allRows);
+  const categoryTotals = buildReportRows(allRows, "categories");
+  const krTotals = buildObjectiveKrRowsFromSessions(allRows);
+  const collaboratorTotals = buildReportRows(allRows, "collaborator");
+
+  resourceTotal.textContent = formatDuration(totalMs);
+  resourceRange.textContent = formatPeriodLabel(range.start, range.end, reportPeriod);
+  resourceTopProject.textContent = projectTotals[0]?.label ?? "-";
+  resourceTopProjectTime.textContent = projectTotals[0] ? formatDuration(projectTotals[0].durationMs) : "0 h 00";
+  resourceDistributionTitle.textContent = usesObjectives ? "Repartition globale OKR" : "Repartition globale categories";
+  resourceDistributionCopy.textContent = usesObjectives
+    ? "Lecture transversale des objectifs sur la plage choisie."
+    : "Lecture transversale des categories sur la plage choisie.";
+  resourceCategoryHead.textContent = usesObjectives ? "OKR" : "Categorie";
+  resourceObjectivesPanel.hidden = !usesObjectives;
+  resourceKrShell.hidden = !usesObjectives;
+  resourceTopCategoryLabel.textContent = usesObjectives ? "OKR principal" : "Categorie principale";
+  resourceTopCategory.textContent = (usesObjectives ? objectiveTotals[0] : categoryTotals[0])?.label ?? "-";
+  resourceTopCategoryTime.textContent = (usesObjectives ? objectiveTotals[0] : categoryTotals[0])
+    ? formatDuration((usesObjectives ? objectiveTotals[0] : categoryTotals[0]).durationMs)
+    : "0 h 00";
+  resourceTopKrCard.hidden = !usesObjectives;
+  resourceTopKr.textContent = krTotals[0]?.label ?? "-";
+  resourceTopKrTime.textContent = krTotals[0] ? formatDuration(krTotals[0].durationMs) : "0 h 00";
+
+  renderDistribution(
+    resourceDistributionBar,
+    resourceDistributionLegend,
+    usesObjectives ? objectiveTotals : categoryTotals,
+    totalMs,
+    usesObjectives ? "Aucun OKR renseigne sur cette plage." : "Aucune categorie disponible sur cette plage.",
+  );
+  renderEvolutionGrid(resourceEvolutionGrid, anchor, "all");
+  if (usesObjectives) {
+    renderManagerObjectivesInto(resourceObjectivesGrid, allRows);
+  } else {
+    resourceObjectivesGrid.innerHTML = "";
+  }
+  renderReportTable(
+    resourceTeamList,
+    collaboratorTotals,
+    totalMs,
+    "Aucune donnee collaborateur sur cette plage.",
+  );
+  renderReportTable(
+    resourceProjectList,
+    projectTotals,
+    totalMs,
+    "Aucun projet sur cette plage.",
+  );
+  renderReportTable(
+    resourceCategoryList,
+    usesObjectives ? objectiveTotals : categoryTotals,
+    totalMs,
+    usesObjectives ? "Aucun OKR sur cette plage." : "Aucune categorie sur cette plage.",
+  );
+  if (usesObjectives) {
+    renderReportTable(
+      resourceKrList,
+      krTotals,
+      totalMs,
+      "Aucun KR sur cette plage.",
+    );
+  } else {
+    resourceKrList.innerHTML = "";
+  }
+}
+
+function renderManagerObjectives(rows) {
+  renderManagerObjectivesInto(managerObjectivesGrid, rows);
+}
+
+function renderManagerObjectivesInto(container, rows) {
+  container.innerHTML = "";
+
+  const cards = OBJECTIVE_2026_CATALOG.map((objective) => buildObjectiveReportCardData(objective, rows));
+  const nonEmptyCards = cards.filter((card) => card.totalMs > 0);
+  const visibleCards = nonEmptyCards.length ? nonEmptyCards : cards.slice(0, 6);
+
+  if (!visibleCards.length) {
+    container.append(createEmptyState("Les objectifs suivis apparaitront ici."));
+    return;
+  }
+
+  for (const card of visibleCards) {
+    container.append(createObjectiveReportCard(card));
+  }
+}
+
+function buildObjectiveReportCardData(objective, rows) {
+  const scopedRows = rows.filter((session) => matchesObjectiveOkr(session.objectiveOkr, objective));
+  const totalMs = scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+  const krRows = buildObjectiveKrRows(scopedRows, objective);
+  const topKr = krRows[0]?.label ?? "Aucun KR dominant";
+
+  return {
+    ...objective,
+    totalMs,
+    sessionCount: scopedRows.length,
+    krRows,
+    topKr,
+  };
+}
+
+function buildObjectiveKrRows(rows, objective) {
+  const grouped = new Map();
+
+  for (const session of rows) {
+    const matchedKr = objective.krs.find((kr) => matchesObjectiveKr(session.objectiveKr, kr));
+    const label = matchedKr ? shortenObjectiveLegend(matchedKr) : "Sans KR";
+    const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+    current.durationMs += Number(session.durationMs) || 0;
+    current.count += 1;
+    grouped.set(label, current);
+  }
+
+  return Array.from(grouped.values()).sort((left, right) => right.durationMs - left.durationMs);
+}
+
+function matchesObjectiveOkr(rawValue, objective) {
+  const normalized = normalizeObjectiveLabel(rawValue);
+  if (!normalized) {
+    return false;
+  }
+
+  const code = normalizeObjectiveLabel(objective.okrCode);
+  const label = normalizeObjectiveLabel(objective.okrLabel);
+  return normalized === code || normalized.startsWith(`${code} ·`) || normalized === label || normalized.endsWith(label);
+}
+
+function matchesObjectiveKr(rawValue, targetKr) {
+  const normalized = normalizeObjectiveLabel(rawValue);
+  if (!normalized) {
+    return false;
+  }
+
+  const target = normalizeObjectiveLabel(targetKr);
+  const codeMatch = target.match(/^(rc\s*\d+(?:\.\d+)?|r\d+)/i)?.[0] ?? "";
+  return normalized === target || (codeMatch && normalized.startsWith(codeMatch));
+}
+
+function normalizeObjectiveLabel(value) {
+  return normalizeText(String(value ?? "").replace(/\s+/g, " ").trim());
+}
+
+function createObjectiveReportCard(card) {
+  const article = document.createElement("article");
+  article.className = "objective-report-card";
+
+  const header = document.createElement("div");
+  header.className = "objective-report-head";
+
+  const pole = document.createElement("p");
+  pole.className = "eyebrow";
+  pole.textContent = card.pole;
+
+  const title = document.createElement("h4");
+  title.textContent = `${card.okrCode} · ${card.okrLabel}`;
+
+  header.append(pole, title);
+
+  const content = document.createElement("div");
+  content.className = "objective-report-content";
+
+  const donut = document.createElement("div");
+  donut.className = "objective-donut";
+  donut.style.background = buildObjectiveDonutGradient(card.krRows, card.totalMs);
+
+  const donutInner = document.createElement("div");
+  donutInner.className = "objective-donut-inner";
+  donutInner.innerHTML = `<strong>${card.totalMs ? formatDurationHours(card.totalMs) : "0,0 h"}</strong><span>${card.sessionCount} session${card.sessionCount > 1 ? "s" : ""}</span>`;
+  donut.append(donutInner);
+
+  const details = document.createElement("div");
+  details.className = "objective-report-details";
+
+  const top = document.createElement("p");
+  top.className = "objective-report-top";
+  top.textContent = card.totalMs ? `KR dominant · ${card.topKr}` : "Aucun temps rattache sur la plage.";
+
+  const legend = document.createElement("div");
+  legend.className = "objective-report-legend";
+
+  if (!card.krRows.length) {
+    legend.append(createEmptyState("Aucune saisie rattachee."));
+  } else {
+    for (const [index, row] of card.krRows.slice(0, 4).entries()) {
+      const item = document.createElement("div");
+      item.className = "objective-legend-item";
+
+      const swatch = document.createElement("span");
+      swatch.className = "objective-legend-swatch";
+      swatch.style.background = colorForLabel(`${card.okrCode}-${row.label}-${index}`);
+
+      const label = document.createElement("span");
+      label.className = "objective-legend-label";
+      label.textContent = `${row.label} · ${formatDurationHours(row.durationMs)}`;
+
+      item.append(swatch, label);
+      legend.append(item);
+    }
+  }
+
+  details.append(top, legend);
+  content.append(donut, details);
+  article.append(header, content);
+  return article;
+}
+
+function buildObjectiveDonutGradient(rows, totalMs) {
+  if (!totalMs || !rows.length) {
+    return "conic-gradient(rgba(24, 56, 74, 0.08) 0deg 360deg)";
+  }
+
+  let cursor = 0;
+  const segments = rows.map((row, index) => {
+    const start = cursor;
+    cursor += (row.durationMs / totalMs) * 360;
+    const end = index === rows.length - 1 ? 360 : cursor;
+    return `${colorForLabel(`objective-${row.label}-${index}`)} ${start}deg ${end}deg`;
+  });
+
+  return `conic-gradient(${segments.join(", ")})`;
+}
+
+function shortenObjectiveLegend(value) {
+  const content = extractObjectiveKrContent(value);
+  return content.length <= 42 ? content : `${content.slice(0, 41).trimEnd()}…`;
+}
+
+function renderManagerSummary(allRows, scopedRows, range, filterCollaborator) {
+  const usesObjectives = statsMode === "objectives";
+  const totalMs = scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+  const projectTotals = buildReportRows(scopedRows, "project");
+  const categoryTotals = usesObjectives ? buildObjectiveOkrRows(scopedRows) : buildReportRows(scopedRows, "categories");
+  const krTotals = buildObjectiveKrRowsFromSessions(scopedRows);
+  const topProject = projectTotals[0];
+  const topCategory = categoryTotals[0];
+  const topKr = krTotals[0];
+
+  reportTotal.textContent = formatDuration(totalMs);
+  reportRange.textContent = formatPeriodLabel(range.start, range.end, reportPeriod);
+  reportTopProject.textContent = topProject ? topProject.label : "-";
+  reportTopProjectTime.textContent = topProject ? formatDuration(topProject.durationMs) : "0 h 00";
+  reportTopCategoryLabel.textContent = usesObjectives ? "OKR principal" : "Categorie principale";
+  reportTopCategory.textContent = topCategory ? topCategory.label : "-";
+  reportTopCategoryTime.textContent = topCategory ? formatDuration(topCategory.durationMs) : "0 h 00";
+  reportTopKrCard.hidden = !usesObjectives;
+  reportTopKr.textContent = topKr ? topKr.label : "-";
+  reportTopKrTime.textContent = topKr ? formatDuration(topKr.durationMs) : "0 h 00";
+}
+
+function buildObjectiveOkrRows(rows) {
+  const grouped = new Map();
+
+  for (const row of rows) {
+    const label = formatObjectiveOkrDisplay(row.objectiveOkr);
+    if (!label) {
+      continue;
+    }
+
+    const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+    current.durationMs += Number(row.durationMs) || 0;
+    current.count += 1;
+    grouped.set(label, current);
+  }
+
+  return Array.from(grouped.values()).sort((left, right) => right.durationMs - left.durationMs);
+}
+
+function buildObjectiveKrRowsFromSessions(rows) {
+  const grouped = new Map();
+
+  for (const row of rows) {
+    const label = formatObjectiveKrDisplay(row.objectiveKr);
+    if (!label) {
+      continue;
+    }
+
+    const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+    current.durationMs += Number(row.durationMs) || 0;
+    current.count += 1;
+    grouped.set(label, current);
+  }
+
+  return Array.from(grouped.values()).sort((left, right) => right.durationMs - left.durationMs);
+}
+
+function formatObjectiveOkrDisplay(value) {
+  const normalized = String(value ?? "").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  const codeMatch = normalized.match(/^O\d+/i)?.[0]?.toUpperCase();
+  const label = normalized.replace(/^O\d+\s*[·.-]?\s*/i, "").trim();
+
+  if (codeMatch && label) {
+    return `${codeMatch} · ${truncateObjectiveSummary(label, 44)}`;
+  }
+
+  if (codeMatch) {
+    return codeMatch;
+  }
+
+  return truncateObjectiveSummary(normalized, 50);
+}
+
+function formatObjectiveKrDisplay(value) {
+  const content = extractObjectiveKrContent(value);
+  return content ? truncateObjectiveSummary(content, 56) : "";
+}
+
+function extractObjectiveKrContent(value) {
+  const normalized = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized
+    .replace(/^(RC\s*\d+(?:\.\d+)?|R\d+)\s*[:·.-]?\s*/i, "")
+    .trim();
+}
+
+function renderEvolutionGrid(container, anchor, filterCollaborator) {
+  container.innerHTML = "";
+  const weeks = [];
+
+  for (let offset = 5; offset >= 0; offset -= 1) {
+    const reference = new Date(anchor);
+    reference.setDate(reference.getDate() - offset * 7);
+    const range = getPeriodRange(reference, "week");
+    const rows = getAllSessionsWithActive().filter((session) => {
+      if (!isSessionInRange(session, range)) {
+        return false;
+      }
+      if (filterCollaborator === "all") {
+        return true;
+      }
+      return normalizeText(session.collaborator) === normalizeText(filterCollaborator);
+    });
+
+    weeks.push({
+      label: formatShortDate(range.start),
+      totalMs: rows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0),
+    });
+  }
+
+  const maxValue = Math.max(...weeks.map((week) => week.totalMs), 0);
+  if (!maxValue) {
+    container.append(createEmptyState("L'evolution apparaitra des que plusieurs semaines seront renseignees."));
+    return;
+  }
+
+  for (const week of weeks) {
+    const item = document.createElement("div");
+    item.className = "evolution-item";
+
+    const value = document.createElement("span");
+    value.className = "evolution-value";
+    value.textContent = formatDuration(week.totalMs);
+
+    const bar = document.createElement("div");
+    bar.className = "evolution-bar";
+    bar.style.height = `${Math.max((week.totalMs / maxValue) * 150, 14)}px`;
+
+    const label = document.createElement("span");
+    label.className = "evolution-label";
+    label.textContent = week.label;
+
+    item.append(value, bar, label);
+    container.append(item);
+  }
+}
+
+function renderTeamTable(rows) {
+  const teamRows = buildReportRows(rows, "collaborator").map((row) => ({
+    ...row,
+    mainProject: getMainProjectForCollaborator(rows, row.label),
+  }));
+
+  teamReportList.innerHTML = "";
+  if (!teamRows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 5;
+    td.append(createEmptyState("Aucune donnee equipe sur cette plage."));
+    tr.append(td);
+    teamReportList.append(tr);
+    return;
+  }
+
+  const totalMs = rows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+  for (const row of teamRows) {
+    const tr = document.createElement("tr");
+    tr.append(
+      createCell(row.label),
+      createCell(formatDuration(row.durationMs)),
+      createCell(formatShare(row.durationMs, totalMs)),
+      createCell(row.mainProject || "-"),
+      createCell(String(row.count)),
+    );
+    teamReportList.append(tr);
+  }
+}
+
+function renderReportTable(container, rows, totalMs, emptyMessage) {
+  container.innerHTML = "";
+  if (!rows.length) {
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    td.append(createEmptyState(emptyMessage));
+    tr.append(td);
+    container.append(tr);
+    return;
+  }
+
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    tr.append(
+      createCell(row.label),
+      createCell(formatDuration(row.durationMs)),
+      createCell(formatShare(row.durationMs, totalMs)),
+      createCell(String(row.count)),
+    );
+    container.append(tr);
+  }
+}
+
+function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyMessage) {
+  barContainer.innerHTML = "";
+  legendContainer.innerHTML = "";
+
+  if (!rows.length || !totalMs) {
+    legendContainer.append(createEmptyState(emptyMessage));
+    return;
+  }
+
+  for (const row of rows) {
+    const color = colorForLabel(row.label);
+
+    const segment = document.createElement("div");
+    segment.className = "distribution-segment";
+    segment.style.width = `${Math.max((row.durationMs / totalMs) * 100, 2)}%`;
+    segment.style.background = color;
+    segment.title = `${row.label} · ${formatShare(row.durationMs, totalMs)}`;
+    barContainer.append(segment);
+
+    const legend = document.createElement("span");
+    legend.className = "legend-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "legend-swatch";
+    swatch.style.background = color;
+
+    const label = document.createElement("span");
+    label.textContent = `${row.label} · ${formatDuration(row.durationMs)} · ${formatShare(row.durationMs, totalMs)}`;
+
+    legend.append(swatch, label);
+    legendContainer.append(legend);
+  }
+}
+
+function getProjectMemories(collaboratorName = "") {
+  const allRows = getAllSessionsWithActive()
+    .slice()
+    .sort((a, b) => new Date(b.start) - new Date(a.start));
+  const memories = [];
+  const seen = new Set();
+  const normalizedCollaborator = normalizeText(collaboratorName);
+
+  for (const session of allRows) {
+    if (!session.project || !session.collaborator) {
+      continue;
+    }
+
+    if (normalizedCollaborator && normalizeText(session.collaborator) !== normalizedCollaborator) {
+      continue;
+    }
+
+    const key = `${normalizeText(session.collaborator)}::${normalizeText(session.project)}`;
+    if (seen.has(key)) {
+      continue;
+    }
+
+    if (referenceCatalog.loaded) {
+      const projectResolved = findReferenceMatch(referenceCatalog.projects, "project_name", session.project);
+      const collaboratorResolved = findReferenceMatch(referenceCatalog.users, "user_name", session.collaborator);
+      if (!projectResolved || !collaboratorResolved) {
+        continue;
+      }
+    }
+
+    seen.add(key);
+
+    memories.push({
+      key,
+      collaborator: session.collaborator,
+      project: session.project,
+      task: session.task,
+      categories: [...(session.categories ?? []).slice(0, 1)],
+      tags: [...(session.tags ?? [])],
+      notionRef: session.notionRef ?? "",
+      objectivePole: session.objectivePole ?? "",
+      objectiveOkr: session.objectiveOkr ?? "",
+      objectiveKr: session.objectiveKr ?? "",
+      notes: session.notes ?? "",
+      start: session.start,
+    });
+  }
+
+  return memories;
+}
+
+function fillFormFromMemory(memory) {
+  collaboratorInput.value = memory.collaborator;
+  projectInput.value = memory.project;
+  taskInput.value = memory.task ?? "";
+  currentCategories = [...memory.categories].slice(0, 1);
+  currentTags = [...memory.tags];
+  notionInput.value = memory.notionRef ?? "";
+  objectivePoleInput.value = memory.objectivePole ?? "";
+  objectiveOkrInput.value = memory.objectiveOkr ?? "";
+  objectiveKrInput.value = memory.objectiveKr ?? "";
+  renderCategoryTokens();
+  renderTagTokens();
+  renderObjectiveSelections();
+  projectInput.dataset.lastHydratedKey = memory.key;
+  projectMemoryHint.textContent = `${memory.project} reconnu pour ${memory.collaborator}. Les champs reutilisables ont ete recharges.`;
+  renderCadreViews();
+}
+
+function applyProjectMemoryFromInput() {
+  const rawProject = projectInput.value.trim();
+  if (!rawProject) {
+    delete projectInput.dataset.lastHydratedKey;
+    projectMemoryHint.textContent =
+      "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
+    return;
+  }
+
+  const memory = resolveProjectMemory(rawProject, collaboratorInput.value.trim());
+  if (!memory) {
+    projectMemoryHint.textContent = "Aucun projet connu ne correspond encore completement a cette saisie.";
+    return;
+  }
+
+  projectMemoryHint.textContent = `${memory.project} reconnu pour ${memory.collaborator}. Categories, tags et lien d'interet rechargeables.`;
+
+  if (projectInput.dataset.lastHydratedKey === memory.key) {
+    return;
+  }
+
+  if (!collaboratorInput.value.trim()) {
+    collaboratorInput.value = memory.collaborator;
+  }
+  if (!taskInput.value.trim()) {
+    taskInput.value = memory.task ?? "";
+  }
+  if (!currentCategories.length) {
+    currentCategories = [...memory.categories].slice(0, 1);
+    renderCategoryTokens();
+  }
+  if (!currentTags.length) {
+    currentTags = [...memory.tags];
+    renderTagTokens();
+  }
+  if (!notionInput.value.trim()) {
+    notionInput.value = memory.notionRef ?? "";
+  }
+  if (!objectivePoleInput.value.trim()) {
+    objectivePoleInput.value = memory.objectivePole ?? "";
+  }
+  if (!objectiveOkrInput.value.trim()) {
+    objectiveOkrInput.value = memory.objectiveOkr ?? "";
+  }
+  if (!objectiveKrInput.value.trim()) {
+    objectiveKrInput.value = memory.objectiveKr ?? "";
+  }
+  renderObjectiveSelections();
+
+  projectInput.dataset.lastHydratedKey = memory.key;
+}
+
+function resolveProjectMemory(projectName, collaboratorName) {
+  const targetProject = normalizeText(projectName);
+  const targetCollaborator = normalizeText(collaboratorName);
+  const scopedMemories = targetCollaborator ? getProjectMemories(collaboratorName) : getProjectMemories();
+  const candidates = scopedMemories.filter((memory) => normalizeText(memory.project).startsWith(targetProject));
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  const exactCollaborator = targetCollaborator
+    ? candidates.find(
+        (memory) =>
+          normalizeText(memory.project) === targetProject &&
+          normalizeText(memory.collaborator) === targetCollaborator,
+      )
+    : null;
+  if (exactCollaborator) {
+    return exactCollaborator;
+  }
+
+  const exactProject = candidates.find((memory) => normalizeText(memory.project) === targetProject);
+  if (exactProject) {
+    return exactProject;
+  }
+
+  return candidates.length === 1 ? candidates[0] : null;
+}
+
+function getCurrentCollaborator() {
+  return activeSession?.collaborator || collaboratorInput.value.trim() || sessions[0]?.collaborator || "";
+}
+
+function getSessionsForCollaborator(collaborator) {
+  return getAllSessionsWithActive().filter(
+    (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
+  );
+}
+
+function getAllSessionsWithActive() {
+  const rows = [...sessions];
+  if (activeSession) {
+    rows.unshift({
+      ...activeSession,
+      end: getActiveSessionEffectiveEnd(activeSession).toISOString(),
+      durationMs: getActiveSessionDurationMs(activeSession),
+    });
+  }
+  return rows;
+}
+
+function getActiveSessionEffectiveEnd(session) {
+  return session.pausedAt ? new Date(session.pausedAt) : new Date();
+}
+
+function getActiveSessionDurationMs(session) {
+  const start = new Date(session.start).getTime();
+  const end = getActiveSessionEffectiveEnd(session).getTime();
+  return Math.max(end - start - (Number(session.pausedDurationMs) || 0), 0);
+}
+
+function getReportAnchorDate() {
+  return reportAnchorInput.value ? new Date(`${reportAnchorInput.value}T12:00:00`) : new Date();
+}
+
+function getPeriodRange(anchor, period) {
+  if (period === "month") {
+    return {
+      start: new Date(anchor.getFullYear(), anchor.getMonth(), 1),
+      end: new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1),
+    };
+  }
+
+  if (period === "year") {
+    return {
+      start: new Date(anchor.getFullYear(), 0, 1),
+      end: new Date(anchor.getFullYear() + 1, 0, 1),
+    };
+  }
+
+  const start = getStartOfWeek(anchor);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return { start, end };
+}
+
+function isSessionInRange(session, range) {
+  const start = new Date(session.start);
+  return start >= range.start && start < range.end;
+}
+
+function buildReportRows(rows, key) {
+  const grouped = new Map();
+
+  for (const row of rows) {
+    if (key === "categories") {
+      const labels = row.categories.length ? row.categories : ["Sans categorie"];
+      for (const label of labels) {
+        const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+        current.durationMs += Number(row.durationMs) || 0;
+        current.count += 1;
+        grouped.set(label, current);
+      }
+      continue;
+    }
+
+    const label = row[key] || getFallbackLabel(key);
+    const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+    current.durationMs += Number(row.durationMs) || 0;
+    current.count += 1;
+    grouped.set(label, current);
+  }
+
+  return Array.from(grouped.values()).sort((a, b) => b.durationMs - a.durationMs);
+}
+
+function getFallbackLabel(key) {
+  if (key === "collaborator") {
+    return "Sans collaborateur";
+  }
+  if (key === "project") {
+    return "Sans projet";
+  }
+  return "Sans categorie";
+}
+
+function getMainProjectForCollaborator(rows, collaborator) {
+  const projectRows = buildReportRows(
+    rows.filter((row) => normalizeText(row.collaborator) === normalizeText(collaborator)),
+    "project",
+  );
+  return projectRows[0]?.label ?? "";
+}
+
+function setupTokenInput(input, config) {
+  input.addEventListener("keydown", (event) => {
+    const autocompleteOpenForInput =
+      !autocompletePopover.hidden && autocompleteState.config?.input === input;
+
+    if (autocompleteOpenForInput && (event.key === "Enter" || event.key === "Tab" || event.key === "ArrowDown" || event.key === "ArrowUp")) {
+      return;
+    }
+
+    if (event.key === "Enter" || event.key === ",") {
+      event.preventDefault();
+      commitTokenInput(input, config);
+      return;
+    }
+
+    if (event.key === "Backspace" && !input.value.trim()) {
+      const values = config.getValues();
+      if (values.length) {
+        config.setValues(values.slice(0, -1));
+      }
+    }
+  });
+
+  input.addEventListener("blur", () => {
+    if (!autocompletePopover.hidden && autocompleteState.config?.input === input) {
+      return;
+    }
+    commitTokenInput(input, config);
+  });
+}
+
+function commitTokenInput(input, config) {
+  const tokens = parseTokenString(input.value);
+  if (!tokens.length) {
+    input.value = "";
+    return;
+  }
+
+  const nextValues = config.singleValue
+    ? [tokens[tokens.length - 1]]
+    : Array.from(new Set([...config.getValues(), ...tokens]));
+
+  config.setValues(nextValues);
+  input.value = "";
+}
+
+function renderCategoryTokens() {
+  renderTokenList(categoriesList, currentCategories, (index) => {
+    currentCategories = currentCategories.filter((_, itemIndex) => itemIndex !== index);
+    renderCategoryTokens();
+  });
+}
+
+function renderTagTokens() {
+  renderTokenList(tagsList, currentTags, (index) => {
+    currentTags = currentTags.filter((_, itemIndex) => itemIndex !== index);
+    renderTagTokens();
+  });
+}
+
+function renderTokenList(container, values, onRemove) {
+  container.innerHTML = "";
+  for (const [index, value] of values.entries()) {
+    const chip = document.createElement("span");
+    chip.className = "token-chip";
+
+    const label = document.createElement("span");
+    label.textContent = value;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Retirer ${value}`);
+    remove.textContent = "x";
+    remove.addEventListener("click", () => onRemove(index));
+
+    chip.append(label, remove);
+    container.append(chip);
+  }
+}
+
+function renderPills(container, values) {
+  container.innerHTML = "";
+  for (const value of values) {
+    container.append(createPill(value));
+  }
+}
+
+function createPill(label) {
+  const pill = document.createElement("span");
+  pill.className = "pill";
+  pill.textContent = label;
+  return pill;
+}
+
+function fillDatalist(element, values) {
+  element.innerHTML = "";
+  for (const value of values) {
+    const option = document.createElement("option");
+    option.value = value;
+    element.append(option);
+  }
+}
+
+function mergeSuggestionValues(...lists) {
+  return Array.from(new Set(lists.flat().filter(Boolean))).sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+function uniqueValues(key) {
+  return Array.from(new Set(getAllSessionsWithActive().map((session) => session[key]).filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, "fr"),
+  );
+}
+
+function uniqueTokenValues(key) {
+  const values = new Set();
+  for (const session of getAllSessionsWithActive()) {
+    for (const token of session[key] ?? []) {
+      if (token) {
+        values.add(token);
+      }
+    }
+  }
+  return Array.from(values).sort((a, b) => a.localeCompare(b, "fr"));
+}
+
+function createEmptyState(message) {
+  const element = document.createElement("div");
+  element.className = "empty-state";
+  element.textContent = message;
+  return element;
+}
+
+function getSessionClientLabel(session) {
+  if (session.dbClientName) {
+    return session.dbClientName;
+  }
+
+  const project = referenceCatalog.projects.find(
+    (item) => normalizeText(item.project_name) === normalizeText(session.project ?? ""),
+  );
+  return project?.client_name || session.project || "Sans client";
+}
+
+function createCell(value) {
+  const cell = document.createElement("td");
+  cell.textContent = value;
+  return cell;
+}
+
+function parseTokenString(rawValue) {
+  return rawValue
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function formatClock(durationMs) {
+  const totalSeconds = Math.floor(durationMs / 1000);
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatDuration(durationMs) {
+  const totalMinutes = Math.round(durationMs / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${hours} h ${String(minutes).padStart(2, "0")}`;
+}
+
+function formatShare(durationMs, totalMs) {
+  if (!totalMs) {
+    return "0 %";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(durationMs / totalMs);
+}
+
+function formatDate(dateValue) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(dateValue));
+}
+
+function formatShortDate(dateValue) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+  }).format(new Date(dateValue));
+}
+
+function formatDayLabel(dateValue) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "long",
+  }).format(new Date(dateValue));
+}
+
+function formatAgendaDayLabel(dateValue) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+  })
+    .format(new Date(dateValue))
+    .replace(".", "")
+    .toUpperCase();
+}
+
+function formatTimeRange(session) {
+  const formatter = new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${formatter.format(new Date(session.start))} - ${formatter.format(new Date(session.end))}`;
+}
+
+function formatDurationHours(durationMs) {
+  return `${new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format((Number(durationMs) || 0) / 3600000)} h`;
+}
+
+function buildAgendaTooltip(session) {
+  const parts = [
+    `${session.collaborator} · ${session.project}`,
+    `${getSessionClientLabel(session)}`,
+    `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`,
+    session.task || "",
+    session.categories?.length ? `Categorie: ${session.categories.join(", ")}` : "",
+    session.tags?.length ? `Tags: ${session.tags.join(", ")}` : "",
+    session.notes || "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
+}
+
+function formatPeriodLabel(start, end, period) {
+  if (period === "year") {
+    return new Intl.DateTimeFormat("fr-FR", { year: "numeric" }).format(start);
+  }
+
+  if (period === "month") {
+    return new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" }).format(start);
+  }
+
+  const inclusiveEnd = new Date(end);
+  inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
+  return `${formatShortDate(start)} - ${formatShortDate(inclusiveEnd)}`;
+}
+
+function formatDateInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateTimeLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function formatTimeLabel(date) {
+  return new Intl.DateTimeFormat("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function getStartOfWeek(dateValue) {
+  const date = new Date(dateValue);
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  date.setHours(0, 0, 0, 0);
+  return date;
+}
+
+function isSameDay(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function normalizeText(value) {
+  return value.trim().toLowerCase();
+}
+
+function colorForLabel(label) {
+  let hash = 0;
+  for (const char of label) {
+    hash = (hash << 5) - hash + char.charCodeAt(0);
+    hash |= 0;
+  }
+  return COLOR_PALETTE[Math.abs(hash) % COLOR_PALETTE.length];
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}

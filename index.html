@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Grand Livre de la Comté</title>
+    <meta name="theme-color" content="#18384a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Grand Livre de la Comté" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      const { createClient } = window.supabase;
+
+      window.supabase = createClient(
+        "https://mubyqnuajybakibzkxau.supabase.co",
+        "sb_publishable_FCIUSQCUz8f0bPA8lzdUWg_7bsrvsTV",
+      );
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div class="topbar-brand">
+          <p class="eyebrow">Grand Livre de la Comté</p>
+          <h1>Voir juste. Saisir vite.</h1>
+          <p>Une base claire pour la saisie, la lecture de la semaine et le pilotage.</p>
+        </div>
+        <nav class="topbar-nav">
+          <button type="button" data-view-target="cadre" class="active">Cadre</button>
+          <button type="button" data-view-target="manager">Manager</button>
+          <button type="button" data-view-target="resources">Ressources</button>
+          <button type="button" data-view-target="journal">Journal</button>
+        </nav>
+        <div class="topbar-context">
+          <span class="topbar-context-label">Utilisateur actif</span>
+          <strong id="current-user-name">Aucun collaborateur</strong>
+        </div>
+      </header>
+
+      <section class="app-view is-active" id="cadre" data-view-panel="cadre">
+        <section class="cadre-layout">
+        <section class="workspace-grid">
+        <section class="panel composer-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Espace cadre</p>
+              <h2>Saisie rapide</h2>
+            </div>
+            <p class="panel-copy">Projet, categorie, action. Le reste doit rester secondaire.</p>
+          </div>
+
+          <form id="time-form" class="time-form">
+            <div class="capture-layout">
+              <section class="capture-quick-column">
+                <section class="memory-strip memory-strip-inline">
+                  <div class="section-minihead">
+                    <h3>Reprises</h3>
+                    <p>Les derniers contextes utiles du collaborateur actif.</p>
+                  </div>
+                  <div id="quick-projects" class="chip-row"></div>
+                </section>
+
+                <section class="timer-panel">
+                  <p class="timer-label">Session active</p>
+                  <p id="timer-display" class="timer-display">00:00:00</p>
+                  <p id="active-task-label" class="active-task-label">Pret a lancer une nouvelle session.</p>
+                  <div class="start-inline">
+                    <button id="active-start-display" type="button" class="start-display-button" disabled>
+                      Le depart se regle si besoin
+                    </button>
+                    <input id="active-start-input" type="datetime-local" hidden />
+                  </div>
+                  <div class="button-row timer-actions">
+                    <button id="toggle-button" type="submit" class="btn btn-primary">Demarrer</button>
+                    <button id="pause-button" type="button" class="btn btn-secondary" hidden>Mettre en pause</button>
+                    <button id="open-manual-button" type="button" class="btn btn-secondary">Saisie manuelle</button>
+                  </div>
+                </section>
+              </section>
+
+              <section class="capture-form-panel">
+                <div class="section-minihead">
+                  <h3>Contexte (optionnel)</h3>
+                  <p>A ignorer completement si la reprise suffit.</p>
+                </div>
+
+                <div class="form-grid">
+                  <label class="field">
+                    <span>Collaborateur</span>
+                    <input
+                      id="collaborator-input"
+                      type="text"
+                      placeholder="Ex. Claire Martin"
+                      required
+                      list="collaborator-suggestions"
+                    />
+                    <datalist id="collaborator-suggestions"></datalist>
+                  </label>
+
+                  <label class="field">
+                    <span>Note rapide</span>
+                    <input
+                      id="notes-input"
+                      type="text"
+                      placeholder="Contexte, precision ou correction a retenir"
+                    />
+                  </label>
+
+                  <label class="field field-wide">
+                    <span>Projet</span>
+                    <input
+                      id="project-input"
+                      type="text"
+                      placeholder="Client, dossier ou projet interne"
+                      required
+                      list="project-suggestions"
+                    />
+                    <small id="project-memory-hint" class="hint">
+                      Un projet connu recharge automatiquement son contexte utile.
+                    </small>
+                    <datalist id="project-suggestions"></datalist>
+                  </label>
+
+                  <label class="field">
+                    <span>Travail en cours</span>
+                    <input
+                      id="task-input"
+                      type="text"
+                      placeholder="Optionnel"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>Categorie</span>
+                    <div class="token-field">
+                      <div class="token-list" id="categories-list"></div>
+                      <input
+                        id="categories-input"
+                        type="text"
+                        placeholder="Choisir une categorie"
+                        list="category-suggestions"
+                      />
+                    </div>
+                    <datalist id="category-suggestions"></datalist>
+                  </label>
+
+                  <label class="field">
+                    <span>Tags</span>
+                    <div class="token-field">
+                      <div class="token-list" id="tags-list"></div>
+                      <input
+                        id="tags-input"
+                        type="text"
+                        placeholder="Atelier, revue, admin..."
+                        list="tag-suggestions"
+                      />
+                    </div>
+                    <datalist id="tag-suggestions"></datalist>
+                  </label>
+
+                  <label class="field">
+                    <span>Lien d'interet</span>
+                    <input
+                      id="notion-input"
+                      type="text"
+                      placeholder="Notion, Google Sheets ou autre lien utile"
+                    />
+                  </label>
+
+                  <div class="field field-full objective-shell">
+                    <details id="objective-disclosure" class="objective-disclosure">
+                      <summary class="objective-summary">
+                        <div class="objective-summary-copy">
+                          <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
+                          <span id="objective-summary-text" class="objective-summary-text">A ouvrir seulement si besoin.</span>
+                        </div>
+                      </summary>
+
+                      <div class="objective-block">
+                        <div class="objective-grid">
+                          <label class="field objective-subfield">
+                            <span>Pole</span>
+                            <div class="single-select-field">
+                              <div class="single-select-token" id="objective-pole-selected"></div>
+                              <input
+                                id="objective-pole-input"
+                                type="text"
+                                placeholder="Ex. Cyclologistique"
+                              />
+                            </div>
+                          </label>
+
+                          <label class="field objective-subfield">
+                            <span>OKR</span>
+                            <div class="single-select-field">
+                              <div class="single-select-token" id="objective-okr-selected"></div>
+                              <input
+                                id="objective-okr-input"
+                                type="text"
+                                placeholder="Choisir un objectif 2026"
+                              />
+                            </div>
+                          </label>
+
+                          <label class="field objective-subfield objective-subfield-wide">
+                            <span>KR</span>
+                            <div class="single-select-field">
+                              <div class="single-select-token" id="objective-kr-selected"></div>
+                              <input
+                                id="objective-kr-input"
+                                type="text"
+                                placeholder="Choisir un resultat cle si besoin"
+                              />
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </details>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </form>
+        </section>
+
+        <section class="panel cadre-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Lecture personnelle</p>
+              <h2>Ma semaine</h2>
+            </div>
+            <p class="panel-copy">Lecture immediate de la charge et de la repartition.</p>
+          </div>
+          <div id="personal-stats-switch" class="view-switch">
+            <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
+            <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+          </div>
+
+          <div class="cadre-summary">
+            <article class="summary-card">
+              <p>Aujourd'hui</p>
+              <strong id="today-total">0 h 00</strong>
+              <span id="today-panel-copy">Temps saisi pour la personne en cours.</span>
+            </article>
+            <article class="summary-card">
+              <p>Cette semaine</p>
+              <strong id="week-total">0 h 00</strong>
+              <span>Vue du lundi au dimanche.</span>
+            </article>
+            <article class="summary-card">
+              <p>Collaborateurs suivis</p>
+              <strong id="team-count">0</strong>
+              <span id="active-count-copy">Aucune session en cours.</span>
+            </article>
+          </div>
+
+          <section class="cadre-stack">
+            <article class="inner-card">
+              <div class="section-minihead">
+                <h3 id="personal-stats-title">Objectifs en cours</h3>
+                <p id="personal-stats-copy">Lecture compacte par OKR et KR quand ils sont renseignes.</p>
+              </div>
+              <div id="personal-distribution-bar" class="distribution-bar"></div>
+              <div id="personal-distribution-legend" class="distribution-legend"></div>
+            </article>
+          </section>
+        </section>
+        </section>
+
+        <section class="panel agenda-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Agenda</p>
+              <h2>Vue semaine</h2>
+            </div>
+            <p class="panel-copy">Le calendrier prend toute la largeur utile pour mieux lire la semaine.</p>
+          </div>
+          <div id="agenda-board" class="agenda-board agenda-board-wide"></div>
+        </section>
+        </section>
+      </section>
+
+      <section id="analysis-toolbar-panel" class="panel view-toolbar" hidden>
+        <div class="panel-head panel-head-inline">
+          <div>
+            <p class="eyebrow">Lecture d'analyse</p>
+            <h2 id="analysis-toolbar-title">Pilotage manager</h2>
+          </div>
+          <p class="panel-copy">Une meme plage de lecture pour piloter l'equipe ou lire les ressources globales.</p>
+        </div>
+
+        <div class="manager-toolbar">
+          <div id="period-switch" class="period-switch">
+            <button type="button" class="period-btn active" data-period="week">Semaine</button>
+            <button type="button" class="period-btn" data-period="month">Mois</button>
+            <button type="button" class="period-btn" data-period="year">Annee</button>
+          </div>
+          <div id="analysis-stats-switch" class="view-switch">
+            <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
+            <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+          </div>
+          <input id="report-anchor" class="date-input" type="date" />
+          <div id="analysis-collaborator-filter-wrap" class="toolbar-filter">
+            <select id="manager-collaborator-filter" class="select-input">
+              <option value="all">Toute l'equipe</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-view" id="manager" data-view-panel="manager">
+      <section class="panel manager-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Vue manager</p>
+            <h2>Pilotage equipe</h2>
+          </div>
+          <p class="panel-copy">Charge, repartition et ecarts de lecture en un seul endroit.</p>
+        </div>
+
+        <div class="manager-kpis">
+          <article class="summary-card">
+            <p>Temps suivi</p>
+            <strong id="report-total">0 h 00</strong>
+            <span id="report-range">Aucune plage selectionnee</span>
+          </article>
+          <article class="summary-card">
+            <p>Projet dominant</p>
+            <strong id="report-top-project">-</strong>
+            <span id="report-top-project-time">0 h 00</span>
+          </article>
+          <article class="summary-card">
+            <p id="report-top-category-label">OKR principal</p>
+            <strong id="report-top-category">-</strong>
+            <span id="report-top-category-time">0 h 00</span>
+          </article>
+          <article id="report-top-kr-card" class="summary-card">
+            <p>KR principal</p>
+            <strong id="report-top-kr">-</strong>
+            <span id="report-top-kr-time">0 h 00</span>
+          </article>
+        </div>
+
+        <div class="manager-grid">
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3 id="manager-distribution-title">Repartition OKR</h3>
+              <p id="manager-distribution-copy">Poids relatif des objectifs sur la periode.</p>
+            </div>
+            <div id="manager-distribution-bar" class="distribution-bar"></div>
+            <div id="manager-distribution-legend" class="distribution-legend"></div>
+          </article>
+
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3>Evolution</h3>
+              <p>Tendance de la periode ou d'une personne.</p>
+            </div>
+            <div id="evolution-grid" class="evolution-grid"></div>
+          </article>
+        </div>
+
+        <article id="manager-objectives-panel" class="inner-card objective-report-panel">
+          <div class="section-minihead">
+            <h3>Objectifs 2026</h3>
+            <p>Lecture par objectif avec repartition interne des KR sur la plage active.</p>
+          </div>
+          <div id="manager-objectives-grid" class="objective-report-grid"></div>
+        </article>
+
+        <div class="manager-analysis-grid">
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3>Equipe</h3>
+              <p>Lecture compacte par collaborateur.</p>
+            </div>
+            <div class="table-shell">
+              <table class="report-table">
+                <thead>
+                  <tr>
+                    <th>Collaborateur</th>
+                    <th>Temps</th>
+                    <th>%</th>
+                    <th>Projet principal</th>
+                    <th>Sessions</th>
+                  </tr>
+                </thead>
+                <tbody id="team-report-list"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3>Analyse detaillee</h3>
+              <p>Projets et categories sur la plage active.</p>
+            </div>
+            <div class="table-stack">
+              <div class="table-shell">
+                <table class="report-table compact-table">
+                  <thead>
+                    <tr>
+                      <th>Projet</th>
+                      <th>Temps</th>
+                      <th>%</th>
+                      <th>Sessions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="report-project-list"></tbody>
+                </table>
+              </div>
+
+              <div class="table-shell">
+                <table class="report-table compact-table">
+                  <thead>
+                    <tr>
+                      <th id="report-category-head">OKR</th>
+                      <th>Temps</th>
+                      <th>%</th>
+                      <th>Sessions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="report-category-list"></tbody>
+                </table>
+              </div>
+
+              <div id="report-kr-shell" class="table-shell">
+                <table class="report-table compact-table">
+                  <thead>
+                    <tr>
+                      <th>KR</th>
+                      <th>Temps</th>
+                      <th>%</th>
+                      <th>Sessions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="report-kr-list"></tbody>
+                </table>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+      </section>
+
+      <section class="app-view" id="resources" data-view-panel="resources">
+        <section class="panel resources-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Vue ressources</p>
+              <h2>Lecture globale</h2>
+            </div>
+            <p class="panel-copy">Une lecture transversale pour comprendre le mouvement global des ressources.</p>
+          </div>
+
+          <div class="manager-kpis">
+            <article class="summary-card">
+              <p>Temps total</p>
+              <strong id="resource-total">0 h 00</strong>
+              <span id="resource-range">Aucune plage selectionnee</span>
+            </article>
+            <article class="summary-card">
+              <p>Projet principal</p>
+              <strong id="resource-top-project">-</strong>
+              <span id="resource-top-project-time">0 h 00</span>
+            </article>
+          <article class="summary-card">
+            <p id="resource-top-category-label">OKR principal</p>
+            <strong id="resource-top-category">-</strong>
+            <span id="resource-top-category-time">0 h 00</span>
+          </article>
+          <article id="resource-top-kr-card" class="summary-card">
+            <p>KR principal</p>
+            <strong id="resource-top-kr">-</strong>
+            <span id="resource-top-kr-time">0 h 00</span>
+          </article>
+        </div>
+
+        <div class="manager-grid">
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3 id="resource-distribution-title">Repartition globale OKR</h3>
+              <p id="resource-distribution-copy">Lecture transversale des objectifs sur la plage choisie.</p>
+            </div>
+            <div id="resource-distribution-bar" class="distribution-bar"></div>
+            <div id="resource-distribution-legend" class="distribution-legend"></div>
+          </article>
+
+            <article class="inner-card">
+              <div class="section-minihead">
+                <h3>Tendance globale</h3>
+                <p>Vue synthese des semaines recentes.</p>
+              </div>
+            <div id="resource-evolution-grid" class="evolution-grid"></div>
+          </article>
+        </div>
+
+        <article id="resource-objectives-panel" class="inner-card objective-report-panel">
+          <div class="section-minihead">
+            <h3>Objectifs 2026</h3>
+            <p>Lecture globale des OKR et repartition des KR sur la plage active.</p>
+          </div>
+          <div id="resource-objectives-grid" class="objective-report-grid"></div>
+        </article>
+
+        <div class="manager-analysis-grid">
+          <article class="inner-card">
+            <div class="section-minihead">
+              <h3>Collaborateurs</h3>
+                <p>Poids relatif des personnes sur la plage active.</p>
+              </div>
+              <div class="table-shell">
+                <table class="report-table compact-table">
+                  <thead>
+                    <tr>
+                      <th>Collaborateur</th>
+                      <th>Temps</th>
+                      <th>%</th>
+                      <th>Sessions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="resource-team-list"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="inner-card">
+              <div class="section-minihead">
+                <h3>Allocation globale</h3>
+                <p>Top projets et categories sur la meme plage.</p>
+              </div>
+              <div class="table-stack">
+                <div class="table-shell">
+                  <table class="report-table compact-table">
+                    <thead>
+                      <tr>
+                        <th>Projet</th>
+                        <th>Temps</th>
+                        <th>%</th>
+                        <th>Sessions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resource-project-list"></tbody>
+                  </table>
+                </div>
+
+                <div class="table-shell">
+                  <table class="report-table compact-table">
+                    <thead>
+                      <tr>
+                        <th id="resource-category-head">OKR</th>
+                        <th>Temps</th>
+                        <th>%</th>
+                        <th>Sessions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resource-category-list"></tbody>
+                  </table>
+                </div>
+
+                <div id="resource-kr-shell" class="table-shell">
+                  <table class="report-table compact-table">
+                    <thead>
+                      <tr>
+                        <th>KR</th>
+                        <th>Temps</th>
+                        <th>%</th>
+                        <th>Sessions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="resource-kr-list"></tbody>
+                  </table>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <section class="app-view" id="journal" data-view-panel="journal">
+      <section class="journal-grid">
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Journal</p>
+              <h2>Entrees recentes</h2>
+            </div>
+            <p class="panel-copy">Lecture recente et correction rapide.</p>
+          </div>
+          <div id="session-list" class="session-list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Memoire projet</p>
+              <h2>Contextes memorises</h2>
+            </div>
+            <p class="panel-copy">Les derniers contextes reutilisables reviennent ici.</p>
+          </div>
+          <div id="project-memory-list" class="memory-list"></div>
+        </section>
+      </section>
+      </section>
+    </main>
+
+    <dialog id="manual-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Saisie manuelle</p>
+            <h2>Ajouter ou corriger une entree</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+
+        <div class="dialog-grid">
+          <label class="field">
+            <span>Collaborateur</span>
+            <input id="manual-collaborator-input" type="text" list="collaborator-suggestions" />
+          </label>
+
+          <label class="field">
+            <span>Projet</span>
+            <input id="manual-project-input" type="text" list="project-suggestions" />
+          </label>
+
+          <label class="field field-full">
+            <span>Travail</span>
+            <input id="manual-task-input" type="text" placeholder="Ce qui a ete fait" />
+          </label>
+
+          <label class="field">
+            <span>Categories</span>
+            <input id="manual-categories-input" type="text" placeholder="Conseil, delivery" />
+          </label>
+
+          <label class="field">
+            <span>Tags</span>
+            <input id="manual-tags-input" type="text" placeholder="Atelier, revue" />
+          </label>
+
+          <label class="field">
+            <span>Lien d'interet</span>
+            <input id="manual-notion-input" type="text" placeholder="Notion, Google Sheets ou autre lien utile" />
+          </label>
+
+          <div class="field field-full objective-shell">
+            <details id="manual-objective-disclosure" class="objective-disclosure">
+              <summary class="objective-summary">
+                <div class="objective-summary-copy">
+                  <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
+                  <span id="manual-objective-summary-text" class="objective-summary-text">A ouvrir seulement si besoin.</span>
+                </div>
+              </summary>
+
+              <div class="objective-block">
+                <div class="objective-grid">
+                  <label class="field objective-subfield">
+                    <span>Pole</span>
+                    <div class="single-select-field">
+                      <div class="single-select-token" id="manual-objective-pole-selected"></div>
+                      <input id="manual-objective-pole-input" type="text" placeholder="Pole principal" />
+                    </div>
+                  </label>
+
+                  <label class="field objective-subfield">
+                    <span>OKR</span>
+                    <div class="single-select-field">
+                      <div class="single-select-token" id="manual-objective-okr-selected"></div>
+                      <input id="manual-objective-okr-input" type="text" placeholder="Objectif principal" />
+                    </div>
+                  </label>
+
+                  <label class="field objective-subfield objective-subfield-wide">
+                    <span>KR</span>
+                    <div class="single-select-field">
+                      <div class="single-select-token" id="manual-objective-kr-selected"></div>
+                      <input id="manual-objective-kr-input" type="text" placeholder="Resultat cle si besoin" />
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <label class="field">
+            <span>Debut</span>
+            <input id="manual-start-input" type="datetime-local" />
+          </label>
+
+          <label class="field">
+            <span>Fin</span>
+            <input id="manual-end-input" type="datetime-local" />
+          </label>
+
+          <label class="field field-full">
+            <span>Note</span>
+            <input id="manual-notes-input" type="text" placeholder="Precision ou correction" />
+          </label>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="cancel-manual-button" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="save-manual-button" type="button" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="conflict-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Chevauchement</p>
+            <h2>Une autre session existe deja</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+
+        <div class="conflict-copy">
+          <p id="conflict-message"></p>
+          <p id="conflict-detail" class="muted-copy"></p>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="cancel-conflict-button" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="edit-conflict-button" type="button" class="btn btn-secondary">Ouvrir l'existante</button>
+          <button id="adjust-conflict-button" type="button" class="btn btn-primary">Garder la partie libre</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="session-item-template">
+      <article class="session-item">
+        <div class="session-copy">
+          <p class="session-task"></p>
+          <p class="session-secondary"></p>
+          <div class="token-row">
+            <span class="session-categories"></span>
+            <span class="session-tags"></span>
+          </div>
+          <p class="session-notes"></p>
+        </div>
+        <div class="session-side">
+          <p class="session-duration"></p>
+          <p class="session-date"></p>
+          <button type="button" class="btn btn-secondary session-edit-button">Corriger</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>

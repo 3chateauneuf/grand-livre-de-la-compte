@@ -1,0 +1,16 @@
+{
+  "name": "Grand Livre de la Comté",
+  "short_name": "Comté",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f0e6",
+  "theme_color": "#18384a",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
