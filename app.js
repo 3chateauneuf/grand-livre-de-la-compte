@@ -625,6 +625,13 @@ function initializeAutocomplete() {
         referenceCatalog.loaded
           ? referenceCatalog.categories.map((item) => item.activity_category_label)
           : uniqueTokenValues("categories"),
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
+      createValue: (value) =>
+        createCategoryReference(value, {
+          userName: collaboratorInput.value.trim(),
+          projectName: projectInput.value.trim(),
+        }),
       applyValue: (value) => {
         currentCategories = [value];
         renderCategoryTokens();
@@ -715,6 +722,13 @@ function initializeAutocomplete() {
         referenceCatalog.loaded
           ? referenceCatalog.categories.map((item) => item.activity_category_label)
           : uniqueTokenValues("categories"),
+      allowCreate: true,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
+      createValue: (value) =>
+        createCategoryReference(value, {
+          userName: manualCollaboratorInput.value.trim(),
+          projectName: manualProjectInput.value.trim(),
+        }),
       applyValue: (value) => {
         manualCategoriesInput.value = value;
       },
@@ -1530,7 +1544,7 @@ async function validateAndNormalizeMainForm() {
   if (!resolved.category) {
     showFieldResolutionError(
       categoriesInput,
-      "Choisissez une categorie existante. La categorie par defaut du projet sera reprise si elle existe.",
+      "Impossible de rattacher cette categorie pour le moment. Reessayez ou choisissez une categorie existante.",
     );
     return null;
   }
@@ -1660,8 +1674,18 @@ async function resolveDraftReferences(sessionDraft, options = {}) {
       : null;
   }
 
-  const selectedCategoryLabel = sessionDraft.categories?.[0] || project?.default_activity_category_label || "";
-  const category = findReferenceMatch(referenceCatalog.categories, "activity_category_label", selectedCategoryLabel);
+  let selectedCategoryLabel = sessionDraft.categories?.[0] || project?.default_activity_category_label || "";
+  let category = findReferenceMatch(referenceCatalog.categories, "activity_category_label", selectedCategoryLabel);
+  if (!category && options.allowCreate && selectedCategoryLabel?.trim()) {
+    const createdCategoryLabel = await createCategoryReference(selectedCategoryLabel.trim(), {
+      userName: user?.user_name ?? sessionDraft.collaborator?.trim() ?? "",
+      projectName: project?.project_name ?? sessionDraft.project?.trim() ?? "",
+    });
+    if (createdCategoryLabel) {
+      selectedCategoryLabel = createdCategoryLabel;
+      category = findReferenceMatch(referenceCatalog.categories, "activity_category_label", createdCategoryLabel);
+    }
+  }
 
   return {
     loaded: true,
@@ -1768,6 +1792,71 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
   );
   renderSuggestions();
   return insertedProject.project_name;
+}
+
+async function createCategoryReference(rawLabel, options = {}) {
+  const categoryLabel = rawLabel.trim();
+  if (!categoryLabel) {
+    return null;
+  }
+  if (!window.supabase) {
+    return categoryLabel;
+  }
+
+  await ensureReferenceCatalogLoaded();
+
+  const existing = findReferenceMatch(referenceCatalog.categories, "activity_category_label", categoryLabel);
+  if (existing) {
+    return existing.activity_category_label;
+  }
+
+  const nextId = await getNextPrefixedId("categories", "activity_category_id", "CAT-", 3);
+  if (!nextId) {
+    return null;
+  }
+
+  const linkedUser = options.userName
+    ? findReferenceMatch(referenceCatalog.users, "user_name", options.userName)
+    : null;
+  const linkedProject = options.projectName
+    ? findReferenceMatch(referenceCatalog.projects, "project_name", options.projectName)
+    : null;
+
+  let inheritedCategory = null;
+  if (linkedProject?.default_activity_category_id) {
+    inheritedCategory =
+      referenceCatalog.categories.find(
+        (item) => item.activity_category_id === linkedProject.default_activity_category_id,
+      ) ?? null;
+  }
+  if (!inheritedCategory && linkedProject?.default_activity_category_label) {
+    inheritedCategory = findReferenceMatch(
+      referenceCatalog.categories,
+      "activity_category_label",
+      linkedProject.default_activity_category_label,
+    );
+  }
+
+  const payload = {
+    activity_category_id: nextId,
+    activity_category_label: categoryLabel,
+    kpi_category_label: inheritedCategory?.kpi_category_label ?? "Internal / Admin",
+    team_name: linkedUser?.team_name ?? referenceCatalog.users[0]?.team_name ?? null,
+    active: true,
+  };
+
+  const { data, error } = await window.supabase.from("categories").insert([payload]).select();
+  if (error) {
+    console.error("Supabase category insert error:", error);
+    return null;
+  }
+
+  const insertedCategory = data?.[0] ?? payload;
+  referenceCatalog.categories = [...referenceCatalog.categories, insertedCategory].sort((left, right) =>
+    left.activity_category_label.localeCompare(right.activity_category_label, "fr"),
+  );
+  renderSuggestions();
+  return insertedCategory.activity_category_label;
 }
 
 function findReferenceMatch(rows, labelField, rawValue) {
