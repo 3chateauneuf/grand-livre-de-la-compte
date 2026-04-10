@@ -1307,7 +1307,7 @@ function renderObjectiveDisclosureSummary(summaryNode, values) {
     formatObjectiveSummaryKr(values.kr),
   ].filter(Boolean);
 
-  summaryNode.textContent = parts.length ? parts.join(" · ") : "A ouvrir seulement si besoin.";
+  summaryNode.textContent = parts.length ? parts.join(" · ") : "";
 }
 
 function formatObjectiveSummaryPole(value) {
@@ -2570,10 +2570,14 @@ function renderSessionList() {
     const item = fragment.querySelector(".session-item");
     item.dataset.sessionId = session.id;
 
-    fragment.querySelector(".session-task").textContent = session.task || session.project;
-    fragment.querySelector(".session-secondary").textContent = `${session.collaborator} · ${session.project}${
-      session.notionRef ? " · Lien" : ""
-    }`;
+    fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans projet";
+    fragment.querySelector(".session-secondary").textContent = [
+      session.collaborator,
+      session.task,
+      session.notionRef ? "Lien" : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
     fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
     fragment.querySelector(".session-date").textContent = formatDate(session.start);
 
@@ -2581,13 +2585,19 @@ function renderSessionList() {
     notesElement.textContent = session.notes || "";
     notesElement.hidden = !session.notes;
 
-    renderPills(fragment.querySelector(".session-categories"), session.categories);
-    renderPills(fragment.querySelector(".session-tags"), [
-      ...(session.objectivePole ? [session.objectivePole] : []),
-      ...(session.objectiveOkr ? [`OKR ${session.objectiveOkr}`] : []),
-      ...(session.objectiveKr ? [`KR ${session.objectiveKr}`] : []),
-      ...session.tags.map((tag) => `#${tag}`),
-    ]);
+    const metaParts = [
+      ...(session.categories ?? []).slice(0, 1).map((category) => `Categorie · ${category}`),
+      ...(session.objectiveOkr ? [`OKR · ${formatObjectiveOkrDisplay(session.objectiveOkr)}`] : []),
+      ...(session.objectiveKr ? [`KR · ${formatObjectiveKrDisplay(session.objectiveKr)}`] : []),
+    ];
+    const categoriesElement = fragment.querySelector(".session-categories");
+    categoriesElement.textContent = metaParts.join(" · ");
+    categoriesElement.hidden = !metaParts.length;
+
+    renderPills(
+      fragment.querySelector(".session-tags"),
+      session.tags.map((tag) => `#${tag}`),
+    );
 
     sessionList.append(fragment);
   }
@@ -2778,14 +2788,14 @@ function renderAgenda() {
         time.className = "agenda-event-time";
         time.textContent = `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`;
         event.append(time);
+      }
 
+      if (visualSize === "full") {
         const client = document.createElement("p");
         client.className = "agenda-event-client";
         client.textContent = getSessionClientLabel(session);
         event.append(client);
-      }
 
-      if (visualSize === "full") {
         const icon = document.createElement("span");
         icon.className = "agenda-event-icon";
         icon.setAttribute("aria-hidden", "true");
@@ -2865,17 +2875,17 @@ function assignAgendaGroupLanes(group, hourHeight) {
   return group.map((row) => ({
     session: row.session,
     topPx: (row.startMinutes / 60) * hourHeight,
-    heightPx: Math.max(((row.endMinutes - row.startMinutes) / 60) * hourHeight, 6),
+    heightPx: Math.max(((row.endMinutes - row.startMinutes) / 60) * hourHeight, 4),
     leftOffset: row.lane * (widthPercent + gutterPercent),
     widthPercent,
   }));
 }
 
 function getAgendaEventVisualSize(heightPx) {
-  if (heightPx < 18) {
+  if (heightPx < 24) {
     return "tiny";
   }
-  if (heightPx < 34) {
+  if (heightPx < 46) {
     return "compact";
   }
   return "full";

@@ -131,11 +131,11 @@
                   </label>
 
                   <label class="field">
-                    <span>Travail en cours</span>
+                    <span>Client</span>
                     <input
                       id="task-input"
                       type="text"
-                      placeholder="Optionnel"
+                      placeholder="Ex. Yumi"
                     />
                   </label>
 
@@ -181,7 +181,7 @@
                       <summary class="objective-summary">
                         <div class="objective-summary-copy">
                           <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
-                          <span id="objective-summary-text" class="objective-summary-text">A ouvrir seulement si besoin.</span>
+                          <span id="objective-summary-text" class="objective-summary-text"></span>
                         </div>
                       </summary>
 
@@ -299,20 +299,28 @@
         </div>
 
         <div class="manager-toolbar">
-          <div id="period-switch" class="period-switch">
-            <button type="button" class="period-btn active" data-period="week">Semaine</button>
-            <button type="button" class="period-btn" data-period="month">Mois</button>
-            <button type="button" class="period-btn" data-period="year">Annee</button>
+          <div class="toolbar-group">
+            <span class="toolbar-group-label">Periode</span>
+            <div id="period-switch" class="period-switch">
+              <button type="button" class="period-btn active" data-period="week">Semaine</button>
+              <button type="button" class="period-btn" data-period="month">Mois</button>
+              <button type="button" class="period-btn" data-period="year">Annee</button>
+            </div>
           </div>
-          <div id="analysis-stats-switch" class="view-switch">
-            <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
-            <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+          <div class="toolbar-group">
+            <span class="toolbar-group-label">Lecture</span>
+            <div id="analysis-stats-switch" class="view-switch">
+              <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
+              <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+            </div>
           </div>
-          <input id="report-anchor" class="date-input" type="date" />
-          <div id="analysis-collaborator-filter-wrap" class="toolbar-filter">
-            <select id="manager-collaborator-filter" class="select-input">
-              <option value="all">Toute l'equipe</option>
-            </select>
+          <div class="toolbar-meta">
+            <input id="report-anchor" class="date-input" type="date" />
+            <div id="analysis-collaborator-filter-wrap" class="toolbar-filter">
+              <select id="manager-collaborator-filter" class="select-input">
+                <option value="all">Toute l'equipe</option>
+              </select>
+            </div>
           </div>
         </div>
       </section>
@@ -635,8 +643,8 @@
           </label>
 
           <label class="field field-full">
-            <span>Travail</span>
-            <input id="manual-task-input" type="text" placeholder="Ce qui a ete fait" />
+            <span>Client</span>
+            <input id="manual-task-input" type="text" placeholder="Ex. Yumi" />
           </label>
 
           <label class="field">
@@ -659,7 +667,7 @@
               <summary class="objective-summary">
                 <div class="objective-summary-copy">
                   <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
-                  <span id="manual-objective-summary-text" class="objective-summary-text">A ouvrir seulement si besoin.</span>
+                  <span id="manual-objective-summary-text" class="objective-summary-text"></span>
                 </div>
               </summary>
 
@@ -744,7 +752,7 @@
         <div class="session-copy">
           <p class="session-task"></p>
           <p class="session-secondary"></p>
-          <div class="token-row">
+          <div class="session-meta-row">
             <span class="session-categories"></span>
             <span class="session-tags"></span>
           </div>
