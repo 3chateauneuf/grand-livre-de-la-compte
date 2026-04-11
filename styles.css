@@ -27,6 +27,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -42,7 +46,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -68,16 +73,12 @@ button {
 
 .topbar {
   border-radius: var(--radius-panel);
-  padding: 18px 22px;
+  padding: 14px 18px;
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-}
-
-.topbar-brand {
-  display: grid;
-  gap: 6px;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .eyebrow,
@@ -102,7 +103,6 @@ button {
   color: var(--muted);
 }
 
-.topbar-brand h1,
 .panel-head h2,
 .dialog-head h2 {
   margin: 0;
@@ -110,12 +110,6 @@ button {
   letter-spacing: -0.045em;
   line-height: 0.94;
 }
-
-.topbar-brand h1 {
-  font-size: clamp(2rem, 3vw, 3.2rem);
-}
-
-.topbar-brand p:last-child,
 .panel-copy,
 .section-minihead p,
 .hint,
@@ -126,10 +120,6 @@ button {
 .session-notes,
 .active-task-label {
   color: var(--muted);
-}
-
-.topbar-brand p:last-child {
-  max-width: 52ch;
 }
 
 .topbar-nav,
@@ -152,7 +142,9 @@ button {
 }
 
 .topbar-nav {
+  flex: 0 0 auto;
   justify-content: flex-end;
+  align-items: center;
 }
 
 .manager-toolbar {
@@ -193,14 +185,16 @@ button {
 }
 
 .topbar-context {
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  min-width: 180px;
-  padding: 10px 14px;
+  flex: 1 1 560px;
+  min-width: min(520px, 100%);
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 8px 10px;
   border-radius: 16px;
   background: rgba(24, 56, 74, 0.05);
   border: 1px solid rgba(24, 56, 74, 0.08);
+  gap: 12px;
 }
 
 .topbar-context-label {
@@ -211,10 +205,56 @@ button {
   font-weight: 800;
 }
 
+.topbar-context-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.topbar-identity {
+  display: grid;
+  gap: 1px;
+  flex: 0 0 auto;
+  min-width: 138px;
+}
+
 .topbar-context strong {
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.2;
   letter-spacing: -0.03em;
+}
+
+.auth-panel {
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.auth-oauth-button {
+  justify-content: center;
+  min-height: 40px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.auth-actions {
+  gap: 6px;
+  flex-wrap: nowrap;
+  align-self: center;
+}
+
+.auth-actions .btn {
+  min-height: 40px;
+  padding: 10px 12px;
+  white-space: nowrap;
+}
+
+#auth-status {
+  grid-column: 1 / -1;
+  min-height: 1em;
+  font-size: 0.78rem;
 }
 
 .topbar-nav a,
@@ -235,7 +275,7 @@ button {
 
 .topbar-nav a,
 .topbar-nav button {
-  padding: 11px 15px;
+  padding: 10px 13px;
   color: var(--text);
   background: rgba(24, 56, 74, 0.05);
   border: 1px solid rgba(24, 56, 74, 0.08);
@@ -362,12 +402,40 @@ button {
   min-width: 0;
 }
 
+.field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .field span {
   font-size: 0.82rem;
   font-weight: 800;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+}
+
+.field-manage-button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 0;
+  min-height: auto;
+  padding: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  text-decoration: underline;
+  text-decoration-color: rgba(24, 56, 74, 0.18);
+  text-underline-offset: 0.16em;
+}
+
+.field-manage-button:hover {
+  color: var(--text);
+  text-decoration-color: rgba(24, 56, 74, 0.34);
 }
 
 .field-full,
@@ -483,6 +551,7 @@ button {
 }
 
 .field input,
+.field textarea,
 .date-input,
 .select-input {
   width: 100%;
@@ -496,17 +565,28 @@ button {
 }
 
 .field input::placeholder,
+.field textarea::placeholder,
 .token-field input::placeholder {
   color: rgba(107, 115, 120, 0.78);
 }
 
 .field input:focus,
+.field textarea:focus,
 .date-input:focus,
 .select-input:focus,
 .token-field:focus-within {
   outline: none;
   border-color: rgba(15, 118, 110, 0.46);
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 110px;
+}
+
+.note-textarea {
+  min-height: 118px;
 }
 
 .token-field {
@@ -1324,7 +1404,19 @@ button {
   }
 
   .topbar-context {
+    min-width: 100%;
+    flex-wrap: wrap;
     align-items: flex-start;
+  }
+
+  .auth-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-oauth-button,
+  .auth-actions,
+  #auth-status {
+    grid-column: 1 / -1;
   }
 
   .manager-toolbar {
@@ -1346,6 +1438,11 @@ button {
   .topbar,
   .panel {
     padding: 18px;
+  }
+
+  .topbar-context,
+  .auth-panel {
+    grid-template-columns: 1fr;
   }
 
   .form-grid {

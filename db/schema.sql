@@ -12,9 +12,12 @@ create table users (
   user_id text primary key
     check (user_id ~ '^USR-[0-9]{3}$'),
   user_name text not null,
+  email text unique,
+  auth_user_id uuid unique,
   role text not null
-    check (role in ('cadre', 'manager')),
+    check (role in ('cadre', 'manager', 'admin')),
   team_name text not null,
+  managed_team_name text,
   manager_user_id text references users(user_id)
     check (manager_user_id is null or manager_user_id ~ '^USR-[0-9]{3}$'),
   weekly_capacity_hours numeric(5,2) not null default 40.00
@@ -87,6 +90,8 @@ create index idx_time_entries_project_id on time_entries(project_id);
 create index idx_time_entries_category_id on time_entries(activity_category_id);
 create index idx_time_entries_team_name on time_entries(team_name);
 create index idx_time_entries_created_at on time_entries(created_at);
+create index idx_users_auth_user_id on users(auth_user_id);
+create index idx_users_email on users(email);
 
 -- Write-time rules enforced by the application layer
 --
@@ -103,3 +108,5 @@ create index idx_time_entries_created_at on time_entries(created_at);
 -- - Denormalized labels are never manually entered by users.
 -- - duration_hours should be derived from duration_minutes when present.
 -- - Historical time_entries should not be rewritten if source labels change later.
+-- - auth_user_id is the link to Supabase Auth when multi-user access is enabled.
+-- - managed_team_name can scope manager-level visibility without introducing more tables in V1.5.

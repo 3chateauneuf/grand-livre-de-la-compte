@@ -29,10 +29,23 @@
   <body>
     <main class="app-shell">
       <header class="topbar">
-        <div class="topbar-brand">
-          <p class="eyebrow">Grand Livre de la Comté</p>
-          <h1>Voir juste. Saisir vite.</h1>
-          <p>Une base claire pour la saisie, la lecture de la semaine et le pilotage.</p>
+        <div class="topbar-context">
+          <div class="topbar-identity">
+            <span class="topbar-context-label">Profil actif</span>
+            <strong id="current-user-name">Connexion requise</strong>
+            <span id="current-user-role" class="topbar-context-meta">Connectez-vous pour saisir</span>
+          </div>
+          <section id="auth-panel" class="auth-panel">
+            <button id="google-login-button" type="button" class="btn btn-secondary auth-oauth-button">
+              Continuer avec Google
+            </button>
+
+            <div class="button-row auth-actions">
+              <button id="logout-button" type="button" class="btn btn-secondary" hidden>Se déconnecter</button>
+            </div>
+
+            <p id="auth-status" class="muted-copy"></p>
+          </section>
         </div>
         <nav class="topbar-nav">
           <button type="button" data-view-target="cadre" class="active">Cadre</button>
@@ -40,31 +53,19 @@
           <button type="button" data-view-target="resources">Ressources</button>
           <button type="button" data-view-target="journal">Journal</button>
         </nav>
-        <div class="topbar-context">
-          <span class="topbar-context-label">Utilisateur actif</span>
-          <strong id="current-user-name">Aucun collaborateur</strong>
-        </div>
       </header>
 
       <section class="app-view is-active" id="cadre" data-view-panel="cadre">
         <section class="cadre-layout">
         <section class="workspace-grid">
         <section class="panel composer-panel">
-          <div class="panel-head">
-            <div>
-              <p class="eyebrow">Espace cadre</p>
-              <h2>Saisie rapide</h2>
-            </div>
-            <p class="panel-copy">Projet, categorie, action. Le reste doit rester secondaire.</p>
-          </div>
-
           <form id="time-form" class="time-form">
             <div class="capture-layout">
               <section class="capture-quick-column">
                 <section class="memory-strip memory-strip-inline">
                   <div class="section-minihead">
                     <h3>Reprises</h3>
-                    <p>Les derniers contextes utiles du collaborateur actif.</p>
+                    <p>Les derniers contextes utiles du cargonaute actif.</p>
                   </div>
                   <div id="quick-projects" class="chip-row"></div>
                 </section>
@@ -94,29 +95,14 @@
                 </div>
 
                 <div class="form-grid">
-                  <label class="field">
-                    <span>Collaborateur</span>
-                    <input
-                      id="collaborator-input"
-                      type="text"
-                      placeholder="Ex. Claire Martin"
-                      required
-                      list="collaborator-suggestions"
-                    />
-                    <datalist id="collaborator-suggestions"></datalist>
-                  </label>
-
-                  <label class="field">
-                    <span>Note rapide</span>
-                    <input
-                      id="notes-input"
-                      type="text"
-                      placeholder="Contexte, precision ou correction a retenir"
-                    />
-                  </label>
+                  <input id="collaborator-input" type="hidden" list="collaborator-suggestions" />
+                  <datalist id="collaborator-suggestions"></datalist>
 
                   <label class="field field-wide">
-                    <span>Projet</span>
+                    <div class="field-head">
+                      <span>Projet</span>
+                      <button id="manage-project-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                    </div>
                     <input
                       id="project-input"
                       type="text"
@@ -131,7 +117,10 @@
                   </label>
 
                   <label class="field">
-                    <span>Client</span>
+                    <div class="field-head">
+                      <span>Client</span>
+                      <button id="manage-client-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                    </div>
                     <input
                       id="task-input"
                       type="text"
@@ -140,7 +129,10 @@
                   </label>
 
                   <label class="field">
-                    <span>Categorie</span>
+                    <div class="field-head">
+                      <span>Categorie</span>
+                      <button id="manage-category-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                    </div>
                     <div class="token-field">
                       <div class="token-list" id="categories-list"></div>
                       <input
@@ -154,7 +146,10 @@
                   </label>
 
                   <label class="field">
-                    <span>Tags</span>
+                    <div class="field-head">
+                      <span>Tags</span>
+                      <button id="manage-tags-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                    </div>
                     <div class="token-field">
                       <div class="token-list" id="tags-list"></div>
                       <input
@@ -168,12 +163,24 @@
                   </label>
 
                   <label class="field">
-                    <span>Lien d'interet</span>
+                    <div class="field-head">
+                      <span>Lien d'interet</span>
+                      <button id="manage-link-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                    </div>
                     <input
                       id="notion-input"
                       type="text"
                       placeholder="Notion, Google Sheets ou autre lien utile"
                     />
+                  </label>
+
+                  <label class="field field-wide">
+                    <span>Note rapide</span>
+                    <textarea
+                      id="notes-input"
+                      class="note-textarea"
+                      placeholder="Contexte, precision ou correction a retenir"
+                    ></textarea>
                   </label>
 
                   <div class="field field-full objective-shell">
@@ -188,7 +195,10 @@
                       <div class="objective-block">
                         <div class="objective-grid">
                           <label class="field objective-subfield">
-                            <span>Pole</span>
+                            <div class="field-head">
+                              <span>Pole</span>
+                              <button id="manage-pole-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                            </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-pole-selected"></div>
                               <input
@@ -200,7 +210,10 @@
                           </label>
 
                           <label class="field objective-subfield">
-                            <span>OKR</span>
+                            <div class="field-head">
+                              <span>OKR</span>
+                              <button id="manage-okr-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                            </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-okr-selected"></div>
                               <input
@@ -212,7 +225,10 @@
                           </label>
 
                           <label class="field objective-subfield objective-subfield-wide">
-                            <span>KR</span>
+                            <div class="field-head">
+                              <span>KR</span>
+                              <button id="manage-kr-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                            </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-kr-selected"></div>
                               <input
@@ -257,7 +273,7 @@
               <span>Vue du lundi au dimanche.</span>
             </article>
             <article class="summary-card">
-              <p>Collaborateurs suivis</p>
+              <p>Cargonautes suivis</p>
               <strong id="team-count">0</strong>
               <span id="active-count-copy">Aucune session en cours.</span>
             </article>
@@ -321,6 +337,7 @@
                 <option value="all">Toute l'equipe</option>
               </select>
             </div>
+            <button id="export-csv-button" type="button" class="btn btn-secondary">Exporter CSV</button>
           </div>
         </div>
       </section>
@@ -389,13 +406,13 @@
           <article class="inner-card">
             <div class="section-minihead">
               <h3>Equipe</h3>
-              <p>Lecture compacte par collaborateur.</p>
+              <p>Lecture compacte par cargonaute.</p>
             </div>
             <div class="table-shell">
               <table class="report-table">
                 <thead>
                   <tr>
-                    <th>Collaborateur</th>
+                    <th>Cargonaute</th>
                     <th>Temps</th>
                     <th>%</th>
                     <th>Projet principal</th>
@@ -523,14 +540,14 @@
         <div class="manager-analysis-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Collaborateurs</h3>
+              <h3>Cargonautes</h3>
                 <p>Poids relatif des personnes sur la plage active.</p>
               </div>
               <div class="table-shell">
                 <table class="report-table compact-table">
                   <thead>
                     <tr>
-                      <th>Collaborateur</th>
+                      <th>Cargonaute</th>
                       <th>Temps</th>
                       <th>%</th>
                       <th>Sessions</th>
@@ -632,10 +649,7 @@
         </div>
 
         <div class="dialog-grid">
-          <label class="field">
-            <span>Collaborateur</span>
-            <input id="manual-collaborator-input" type="text" list="collaborator-suggestions" />
-          </label>
+          <input id="manual-collaborator-input" type="hidden" list="collaborator-suggestions" />
 
           <label class="field">
             <span>Projet</span>
@@ -743,6 +757,30 @@
           <button id="cancel-conflict-button" type="button" class="btn btn-secondary">Annuler</button>
           <button id="edit-conflict-button" type="button" class="btn btn-secondary">Ouvrir l'existante</button>
           <button id="adjust-conflict-button" type="button" class="btn btn-primary">Garder la partie libre</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="field-manage-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Champ</p>
+            <h2 id="field-manage-title">Gerer la valeur</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+
+        <div class="conflict-copy">
+          <p id="field-manage-copy"></p>
+          <p id="field-manage-detail" class="muted-copy"></p>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="field-manage-cancel" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="field-manage-edit" type="button" class="btn btn-secondary">Modifier</button>
+          <button id="field-manage-delete" type="button" class="btn btn-primary">Supprimer</button>
+          <button id="field-manage-confirm" type="button" class="btn btn-primary" hidden>Confirmer la suppression</button>
         </div>
       </form>
     </dialog>

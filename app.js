@@ -9,24 +9,33 @@ const analysisToolbarPanel = document.querySelector("#analysis-toolbar-panel");
 const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
 const currentUserName = document.querySelector("#current-user-name");
+const currentUserRole = document.querySelector("#current-user-role");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
 const projectInput = document.querySelector("#project-input");
 const projectSuggestions = document.querySelector("#project-suggestions");
 const projectMemoryHint = document.querySelector("#project-memory-hint");
+const manageProjectButton = document.querySelector("#manage-project-button");
 const taskInput = document.querySelector("#task-input");
+const manageClientButton = document.querySelector("#manage-client-button");
 const categoriesInput = document.querySelector("#categories-input");
 const categoriesList = document.querySelector("#categories-list");
 const categorySuggestions = document.querySelector("#category-suggestions");
+const manageCategoryButton = document.querySelector("#manage-category-button");
 const tagsInput = document.querySelector("#tags-input");
 const tagsList = document.querySelector("#tags-list");
 const tagSuggestions = document.querySelector("#tag-suggestions");
+const manageTagsButton = document.querySelector("#manage-tags-button");
 const notionInput = document.querySelector("#notion-input");
+const manageLinkButton = document.querySelector("#manage-link-button");
 const objectiveDisclosure = document.querySelector("#objective-disclosure");
 const objectiveSummaryText = document.querySelector("#objective-summary-text");
 const objectivePoleInput = document.querySelector("#objective-pole-input");
 const objectiveOkrInput = document.querySelector("#objective-okr-input");
 const objectiveKrInput = document.querySelector("#objective-kr-input");
+const managePoleButton = document.querySelector("#manage-pole-button");
+const manageOkrButton = document.querySelector("#manage-okr-button");
+const manageKrButton = document.querySelector("#manage-kr-button");
 const objectivePoleSelected = document.querySelector("#objective-pole-selected");
 const objectiveOkrSelected = document.querySelector("#objective-okr-selected");
 const objectiveKrSelected = document.querySelector("#objective-kr-selected");
@@ -54,6 +63,7 @@ const periodSwitch = document.querySelector("#period-switch");
 const analysisStatsSwitch = document.querySelector("#analysis-stats-switch");
 const reportAnchorInput = document.querySelector("#report-anchor");
 const managerCollaboratorFilter = document.querySelector("#manager-collaborator-filter");
+const exportCsvButton = document.querySelector("#export-csv-button");
 const reportTotal = document.querySelector("#report-total");
 const reportRange = document.querySelector("#report-range");
 const reportTopProject = document.querySelector("#report-top-project");
@@ -131,6 +141,14 @@ const conflictDetail = document.querySelector("#conflict-detail");
 const cancelConflictButton = document.querySelector("#cancel-conflict-button");
 const editConflictButton = document.querySelector("#edit-conflict-button");
 const adjustConflictButton = document.querySelector("#adjust-conflict-button");
+const fieldManageDialog = document.querySelector("#field-manage-dialog");
+const fieldManageTitle = document.querySelector("#field-manage-title");
+const fieldManageCopy = document.querySelector("#field-manage-copy");
+const fieldManageDetail = document.querySelector("#field-manage-detail");
+const fieldManageCancelButton = document.querySelector("#field-manage-cancel");
+const fieldManageEditButton = document.querySelector("#field-manage-edit");
+const fieldManageDeleteButton = document.querySelector("#field-manage-delete");
+const fieldManageConfirmButton = document.querySelector("#field-manage-confirm");
 
 const OBJECTIVE_2026_CATALOG = [
   {
@@ -314,6 +332,12 @@ let referenceCatalog = {
   loaded: false,
   loadingPromise: null,
 };
+let accessProfile = {
+  mode: "open",
+  role: "open",
+  session: null,
+  appUser: null,
+};
 const autocompletePopover = createAutocompletePopover();
 let autocompleteState = {
   config: null,
@@ -321,6 +345,8 @@ let autocompleteState = {
   activeIndex: 0,
 };
 let autocompleteHideTimeoutId = null;
+let fieldManageState = null;
+let fieldManageConfirmMode = false;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -349,6 +375,7 @@ startTimerLoopIfNeeded();
 render();
 registerServiceWorker();
 void initializeReferenceCatalog();
+void initializeAccessProfile();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -399,6 +426,7 @@ activeStartDisplay.addEventListener("click", () => {
 projectInput.addEventListener("input", () => {
   projectInput.setCustomValidity("");
   applyProjectMemoryFromInput();
+  updateFieldManageButtons();
 });
 
 projectInput.addEventListener("blur", () => {
@@ -422,10 +450,24 @@ collaboratorInput.addEventListener("input", () => {
 
 categoriesInput.addEventListener("input", () => {
   categoriesInput.setCustomValidity("");
+  updateFieldManageButtons();
 });
 
 categoriesInput.addEventListener("blur", () => {
   void canonicalizeCategorySelection();
+});
+
+[
+  taskInput,
+  notionInput,
+  tagsInput,
+  objectivePoleInput,
+  objectiveOkrInput,
+  objectiveKrInput,
+].forEach((input) => {
+  input.addEventListener("input", () => {
+    updateFieldManageButtons();
+  });
 });
 
 quickProjects.addEventListener("click", (event) => {
@@ -494,6 +536,10 @@ reportAnchorInput.addEventListener("change", () => {
 
 managerCollaboratorFilter.addEventListener("change", () => {
   renderManagerViews();
+});
+
+exportCsvButton?.addEventListener("click", () => {
+  exportCurrentAnalysisCsv();
 });
 
 sessionList.addEventListener("click", (event) => {
@@ -576,6 +622,49 @@ adjustConflictButton.addEventListener("click", () => {
   }
 });
 
+[
+  [manageProjectButton, "project"],
+  [manageClientButton, "client"],
+  [manageCategoryButton, "category"],
+  [manageTagsButton, "tags"],
+  [manageLinkButton, "link"],
+  [managePoleButton, "pole"],
+  [manageOkrButton, "okr"],
+  [manageKrButton, "kr"],
+].forEach(([button, kind]) => {
+  button?.addEventListener("click", () => {
+    openFieldManageDialog(kind);
+  });
+});
+
+fieldManageCancelButton?.addEventListener("click", () => {
+  resetFieldManageDialog();
+  fieldManageDialog?.close();
+});
+
+fieldManageEditButton?.addEventListener("click", () => {
+  if (!fieldManageState) {
+    return;
+  }
+  focusFieldForEditing(fieldManageState.kind);
+  resetFieldManageDialog();
+  fieldManageDialog?.close();
+});
+
+fieldManageDeleteButton?.addEventListener("click", () => {
+  fieldManageConfirmMode = true;
+  syncFieldManageDialogMode();
+});
+
+fieldManageConfirmButton?.addEventListener("click", () => {
+  if (!fieldManageState) {
+    return;
+  }
+  applyFieldManageDeletion(fieldManageState.kind);
+  resetFieldManageDialog();
+  fieldManageDialog?.close();
+});
+
 function createAutocompletePopover() {
   const popover = document.createElement("div");
   popover.className = "autocomplete-popover";
@@ -590,14 +679,14 @@ function initializeAutocomplete() {
       input: collaboratorInput,
       getOptions: () =>
         referenceCatalog.loaded
-          ? referenceCatalog.users.map((item) => item.user_name)
+          ? getVisibleReferenceUsers().map((item) => item.user_name)
           : uniqueValues("collaborator"),
       applyValue: (value) => {
         collaboratorInput.value = value;
         collaboratorInput.dispatchEvent(new Event("change", { bubbles: true }));
       },
-      allowCreate: true,
-      createLabel: (value) => `Ajouter "${value}" comme nouveau collaborateur`,
+      allowCreate: () => canCreateCollaboratorReference(),
+      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -689,13 +778,13 @@ function initializeAutocomplete() {
       input: manualCollaboratorInput,
       getOptions: () =>
         referenceCatalog.loaded
-          ? referenceCatalog.users.map((item) => item.user_name)
+          ? getVisibleReferenceUsers().map((item) => item.user_name)
           : uniqueValues("collaborator"),
       applyValue: (value) => {
         manualCollaboratorInput.value = value;
       },
-      allowCreate: true,
-      createLabel: (value) => `Ajouter "${value}" comme nouveau collaborateur`,
+      allowCreate: () => canCreateCollaboratorReference(),
+      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -913,7 +1002,9 @@ function buildAutocompleteItems(config, query) {
     ? options.some((value) => normalizeText(value) === normalizedQuery)
     : false;
 
-  if (config.allowCreate && normalizedQuery && !exactMatch) {
+  const allowCreate = typeof config.allowCreate === "function" ? config.allowCreate() : config.allowCreate;
+
+  if (allowCreate && normalizedQuery && !exactMatch) {
     matches.push({
       type: "create",
       value: query,
@@ -1294,6 +1385,7 @@ function renderObjectiveSelections() {
     okr: manualObjectiveOkrInput.value.trim(),
     kr: manualObjectiveKrInput.value.trim(),
   });
+  updateFieldManageButtons();
 }
 
 function renderObjectiveDisclosureSummary(summaryNode, values) {
@@ -1368,6 +1460,7 @@ function renderSingleSelectionTag(input, container, options = {}) {
   remove.addEventListener("click", () => {
     input.value = "";
     container.hidden = true;
+    updateFieldManageButtons();
     input.focus();
   });
 
@@ -1403,17 +1496,26 @@ function setCurrentView(view) {
 }
 
 function renderViewChrome() {
+  const allowedViews = getAllowedViewsForRole();
+  if (!allowedViews.includes(currentView)) {
+    currentView = allowedViews[0];
+    window.history.replaceState(null, "", `#${currentView}`);
+  }
+
   for (const tab of viewTabs) {
-    tab.classList.toggle("active", tab.dataset.viewTarget === currentView);
+    const isAllowed = allowedViews.includes(tab.dataset.viewTarget);
+    tab.hidden = !isAllowed;
+    tab.classList.toggle("active", isAllowed && tab.dataset.viewTarget === currentView);
   }
 
   for (const panel of viewPanels) {
-    const isActive = panel.dataset.viewPanel === currentView;
+    const isAllowed = allowedViews.includes(panel.dataset.viewPanel);
+    const isActive = isAllowed && panel.dataset.viewPanel === currentView;
     panel.classList.toggle("is-active", isActive);
     panel.hidden = !isActive;
   }
 
-  const isAnalysisView = currentView === "manager" || currentView === "resources";
+  const isAnalysisView = allowedViews.includes(currentView) && (currentView === "manager" || currentView === "resources");
   analysisToolbarPanel.hidden = !isAnalysisView;
   if (analysisToolbarTitle) {
     analysisToolbarTitle.textContent = currentView === "resources" ? "Vue ressources" : "Pilotage manager";
@@ -1498,7 +1600,7 @@ function setDefaultReportAnchor() {
 
 function readFormValues() {
   return {
-    collaborator: collaboratorInput.value.trim(),
+    collaborator: getEffectiveCollaboratorValue(collaboratorInput.value),
     project: projectInput.value.trim(),
     task: taskInput.value.trim(),
     categories: [...currentCategories],
@@ -1515,7 +1617,7 @@ async function validateAndNormalizeMainForm() {
   const sessionDraft = readFormValues();
 
   if (!sessionDraft.collaborator) {
-    collaboratorInput.focus();
+    showAuthRequiredMessage();
     return null;
   }
   if (!sessionDraft.project) {
@@ -1531,7 +1633,7 @@ async function validateAndNormalizeMainForm() {
   if (!resolved.user) {
     showFieldResolutionError(
       collaboratorInput,
-      "Choisissez un collaborateur existant dans la base pour enregistrer ce temps.",
+      "Choisissez un cargonaute existant dans la base pour enregistrer ce temps.",
     );
     return null;
   }
@@ -1559,6 +1661,186 @@ function showFieldResolutionError(input, message) {
   input.reportValidity();
   input.setCustomValidity("");
   input.focus();
+}
+
+function showAuthRequiredMessage() {
+  if (authStatus) {
+    authStatus.textContent = "Connectez-vous avec Google pour lancer une session avec votre profil.";
+  }
+  googleLoginButton?.focus();
+}
+
+function updateFieldManageButtons() {
+  syncFieldManageButton(manageProjectButton, Boolean(projectInput.value.trim()));
+  syncFieldManageButton(manageClientButton, Boolean(taskInput.value.trim()));
+  syncFieldManageButton(manageCategoryButton, currentCategories.length > 0);
+  syncFieldManageButton(manageTagsButton, currentTags.length > 0);
+  syncFieldManageButton(manageLinkButton, Boolean(notionInput.value.trim()));
+  syncFieldManageButton(managePoleButton, Boolean(objectivePoleInput.value.trim()));
+  syncFieldManageButton(manageOkrButton, Boolean(objectiveOkrInput.value.trim()));
+  syncFieldManageButton(manageKrButton, Boolean(objectiveKrInput.value.trim()));
+}
+
+function syncFieldManageButton(button, isVisible) {
+  if (!button) {
+    return;
+  }
+  button.hidden = !isVisible;
+}
+
+function openFieldManageDialog(kind) {
+  const payload = getFieldManagePayload(kind);
+  if (!payload || !fieldManageDialog) {
+    return;
+  }
+
+  fieldManageState = payload;
+  fieldManageConfirmMode = false;
+  fieldManageTitle.textContent = payload.title;
+  fieldManageCopy.textContent = payload.copy;
+  fieldManageDetail.textContent = payload.detail;
+  syncFieldManageDialogMode();
+  fieldManageDialog.showModal();
+}
+
+function getFieldManagePayload(kind) {
+  const payloads = {
+    project: {
+      kind,
+      title: "Gerer le projet",
+      copy: "Vous pouvez modifier le projet courant ou le supprimer du contexte.",
+      detail: projectInput.value.trim(),
+    },
+    client: {
+      kind,
+      title: "Gerer le client",
+      copy: "Vous pouvez corriger le client courant ou l'effacer du contexte.",
+      detail: taskInput.value.trim(),
+    },
+    category: {
+      kind,
+      title: "Gerer la categorie",
+      copy: "Vous pouvez modifier la categorie choisie ou la retirer.",
+      detail: currentCategories.join(", "),
+    },
+    tags: {
+      kind,
+      title: "Gerer les tags",
+      copy: "Vous pouvez corriger les tags ou tous les retirer en une fois.",
+      detail: currentTags.join(", "),
+    },
+    link: {
+      kind,
+      title: "Gerer le lien d'interet",
+      copy: "Vous pouvez modifier ce lien ou le supprimer du contexte.",
+      detail: notionInput.value.trim(),
+    },
+    pole: {
+      kind,
+      title: "Gerer le pole",
+      copy: "Vous pouvez corriger le pole ou vider toute l'association objectif.",
+      detail: objectivePoleInput.value.trim(),
+    },
+    okr: {
+      kind,
+      title: "Gerer l'OKR",
+      copy: "Vous pouvez corriger l'OKR ou le retirer avec son KR.",
+      detail: objectiveOkrInput.value.trim(),
+    },
+    kr: {
+      kind,
+      title: "Gerer le KR",
+      copy: "Vous pouvez corriger le KR ou le retirer.",
+      detail: objectiveKrInput.value.trim(),
+    },
+  };
+
+  const payload = payloads[kind];
+  if (!payload?.detail) {
+    return null;
+  }
+
+  return payload;
+}
+
+function syncFieldManageDialogMode() {
+  if (!fieldManageDeleteButton || !fieldManageConfirmButton || !fieldManageCopy || !fieldManageState) {
+    return;
+  }
+
+  fieldManageDeleteButton.hidden = fieldManageConfirmMode;
+  fieldManageConfirmButton.hidden = !fieldManageConfirmMode;
+
+  if (fieldManageConfirmMode) {
+    fieldManageCopy.textContent = `Confirmer la suppression pour ${fieldManageState.title.toLowerCase()} ?`;
+  } else {
+    fieldManageCopy.textContent = fieldManageState.copy;
+  }
+}
+
+function resetFieldManageDialog() {
+  fieldManageState = null;
+  fieldManageConfirmMode = false;
+}
+
+function focusFieldForEditing(kind) {
+  const map = {
+    project: projectInput,
+    client: taskInput,
+    category: categoriesInput,
+    tags: tagsInput,
+    link: notionInput,
+    pole: objectivePoleInput,
+    okr: objectiveOkrInput,
+    kr: objectiveKrInput,
+  };
+
+  const input = map[kind];
+  if (!input) {
+    return;
+  }
+
+  if (kind === "pole" || kind === "okr" || kind === "kr") {
+    objectiveDisclosure.open = true;
+  }
+
+  input.focus();
+  input.select?.();
+}
+
+function applyFieldManageDeletion(kind) {
+  if (kind === "project") {
+    projectInput.value = "";
+    delete projectInput.dataset.lastHydratedKey;
+    projectMemoryHint.textContent =
+      "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
+  } else if (kind === "client") {
+    taskInput.value = "";
+  } else if (kind === "category") {
+    currentCategories = [];
+    categoriesInput.value = "";
+    renderCategoryTokens();
+  } else if (kind === "tags") {
+    currentTags = [];
+    tagsInput.value = "";
+    renderTagTokens();
+  } else if (kind === "link") {
+    notionInput.value = "";
+  } else if (kind === "pole") {
+    objectivePoleInput.value = "";
+    objectiveOkrInput.value = "";
+    objectiveKrInput.value = "";
+    renderObjectiveSelections();
+  } else if (kind === "okr") {
+    objectiveOkrInput.value = "";
+    objectiveKrInput.value = "";
+    renderObjectiveSelections();
+  } else if (kind === "kr") {
+    objectiveKrInput.value = "";
+    renderObjectiveSelections();
+  }
+
+  updateFieldManageButtons();
 }
 
 function stopActiveSession() {
@@ -1614,7 +1896,7 @@ async function ensureReferenceCatalogLoaded(force = false) {
 
   referenceCatalog.loadingPromise = (async () => {
     const [usersResult, projectsResult, categoriesResult] = await Promise.all([
-      window.supabase.from("users").select("user_id,user_name,team_name,role,status"),
+      window.supabase.from("users").select("*"),
       window.supabase
         .from("projects")
         .select(
@@ -1644,6 +1926,168 @@ async function ensureReferenceCatalogLoaded(force = false) {
   const result = await referenceCatalog.loadingPromise;
   referenceCatalog.loadingPromise = null;
   return result;
+}
+
+async function initializeAccessProfile() {
+  if (!window.supabase?.auth) {
+    return;
+  }
+
+  await applyAccessProfileFromSession();
+  window.supabase.auth.onAuthStateChange((_event, session) => {
+    void applyAccessProfileFromSession(session);
+  });
+}
+
+async function applyAccessProfileFromSession(providedSession = undefined) {
+  let session = providedSession;
+  if (typeof session === "undefined" && window.supabase?.auth) {
+    const { data, error } = await window.supabase.auth.getSession();
+    if (error) {
+      console.error("Supabase auth session error:", error);
+      return;
+    }
+    session = data?.session ?? null;
+  }
+
+  if (!session?.user) {
+    accessProfile = {
+      mode: "open",
+      role: "open",
+      session: null,
+      appUser: null,
+    };
+    render();
+    return;
+  }
+
+  await ensureReferenceCatalogLoaded();
+  const appUser = findAppUserForSession(session);
+
+  accessProfile = {
+    mode: appUser ? "authenticated" : "authenticated-unmapped",
+    role: appUser?.role ?? "cadre",
+    session,
+    appUser,
+  };
+
+  render();
+}
+
+function findAppUserForSession(session) {
+  const authUserId = session?.user?.id ?? "";
+  const email = session?.user?.email ?? "";
+
+  return (
+    referenceCatalog.users.find((item) => item.auth_user_id === authUserId) ??
+    referenceCatalog.users.find((item) => normalizeText(item.email ?? "") === normalizeText(email))
+  );
+}
+
+function getAccessRole() {
+  return accessProfile.role || "open";
+}
+
+function getAllowedViewsForRole(role = getAccessRole()) {
+  if (role === "cadre") {
+    return ["cadre", "journal"];
+  }
+  if (role === "manager" || role === "admin" || role === "open") {
+    return ["cadre", "manager", "resources", "journal"];
+  }
+  return ["cadre"];
+}
+
+function getManagedTeamNames() {
+  const names = new Set();
+  const appUser = accessProfile.appUser;
+
+  if (appUser?.team_name) {
+    names.add(appUser.team_name);
+  }
+  if (appUser?.managed_team_name) {
+    names.add(appUser.managed_team_name);
+  }
+
+  return Array.from(names);
+}
+
+function getVisibleReferenceUsers() {
+  if (!referenceCatalog.loaded) {
+    return [];
+  }
+
+  const role = getAccessRole();
+  const appUser = accessProfile.appUser;
+
+  if (role === "admin" || role === "open" || !appUser) {
+    return [...referenceCatalog.users];
+  }
+
+  if (role === "cadre") {
+    return referenceCatalog.users.filter((item) => item.user_id === appUser.user_id);
+  }
+
+  const teams = getManagedTeamNames();
+  if (!teams.length) {
+    return referenceCatalog.users.filter((item) => item.user_id === appUser.user_id);
+  }
+
+  return referenceCatalog.users.filter(
+    (item) => item.user_id === appUser.user_id || teams.includes(item.team_name),
+  );
+}
+
+function canCreateCollaboratorReference() {
+  const role = getAccessRole();
+  return role === "admin" || role === "open";
+}
+
+function getEffectiveCollaboratorValue(rawValue = "") {
+  if (accessProfile.appUser?.user_name) {
+    return accessProfile.appUser.user_name;
+  }
+
+  return rawValue.trim();
+}
+
+function getSessionTeamName(session) {
+  if (session.dbTeamName) {
+    return session.dbTeamName;
+  }
+  if (session.teamName) {
+    return session.teamName;
+  }
+
+  const matchedUser =
+    referenceCatalog.users.find((item) => item.user_id === session.dbUserId) ??
+    referenceCatalog.users.find((item) => normalizeText(item.user_name) === normalizeText(session.collaborator ?? ""));
+
+  return matchedUser?.team_name ?? "";
+}
+
+function getScopedSessions(rows) {
+  const role = getAccessRole();
+  const appUser = accessProfile.appUser;
+
+  if (role === "open" || role === "admin" || !appUser) {
+    return rows;
+  }
+
+  if (role === "cadre") {
+    return rows.filter((session) => normalizeText(session.collaborator) === normalizeText(appUser.user_name));
+  }
+
+  const teams = getManagedTeamNames();
+  if (!teams.length) {
+    return rows.filter((session) => normalizeText(session.collaborator) === normalizeText(appUser.user_name));
+  }
+
+  return rows.filter(
+    (session) =>
+      normalizeText(session.collaborator) === normalizeText(appUser.user_name) ||
+      teams.includes(getSessionTeamName(session)),
+  );
 }
 
 async function resolveDraftReferences(sessionDraft, options = {}) {
@@ -2145,7 +2589,7 @@ function updateActiveSessionStart() {
 
   const overlap = findOverlappingSession(candidate);
   if (overlap) {
-    activeStartInput.setCustomValidity("Ce collaborateur a deja une autre session sur ce creneau.");
+    activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
     activeStartInput.reportValidity();
     activeStartInput.setCustomValidity("");
     renderActiveSession();
@@ -2182,13 +2626,13 @@ function openManualDialog(session = null, preset = null) {
 }
 
 function saveManualEntry() {
-  const collaborator = manualCollaboratorInput.value.trim();
+  const collaborator = getEffectiveCollaboratorValue(manualCollaboratorInput.value);
   const project = manualProjectInput.value.trim();
   const startValue = manualStartInput.value;
   const endValue = manualEndInput.value;
 
   if (!collaborator) {
-    manualCollaboratorInput.focus();
+    showAuthRequiredMessage();
     return;
   }
   if (!project) {
@@ -2289,7 +2733,7 @@ function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "Le meme collaborateur a deja une session qui chevauche ce creneau.";
+    "Le meme cargonaute a deja une session qui chevauche ce creneau.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
@@ -2355,7 +2799,10 @@ function updateLiveTimer() {
 
 function render() {
   renderViewChrome();
+  renderAccessControlledInputs();
   renderCurrentUserContext();
+  renderAuthPanel();
+  updateFieldManageButtons();
   renderActiveSession();
   renderSuggestions();
   renderQuickProjects();
@@ -2368,8 +2815,72 @@ function render() {
 }
 
 function renderCurrentUserContext() {
+  if (accessProfile.appUser?.user_name) {
+    currentUserName.textContent = accessProfile.appUser.user_name;
+    if (currentUserRole) {
+      currentUserRole.textContent = formatRoleLabel(getAccessRole());
+    }
+    return;
+  }
+
   const collaborator = getCurrentCollaborator();
-  currentUserName.textContent = collaborator || "Aucun collaborateur";
+  currentUserName.textContent = collaborator || "Connexion requise";
+  if (currentUserRole) {
+    currentUserRole.textContent = collaborator ? "Mode local" : "Connectez-vous pour saisir";
+  }
+}
+
+function renderAccessControlledInputs() {
+  const hasAuthenticatedUser = Boolean(accessProfile.appUser?.user_name);
+
+  if (hasAuthenticatedUser) {
+    collaboratorInput.value = accessProfile.appUser.user_name;
+    manualCollaboratorInput.value = accessProfile.appUser.user_name;
+  } else {
+    collaboratorInput.value = "";
+    manualCollaboratorInput.value = "";
+  }
+
+  collaboratorInput.readOnly = hasAuthenticatedUser;
+  manualCollaboratorInput.readOnly = hasAuthenticatedUser;
+}
+
+function formatRoleLabel(role) {
+  if (role === "admin") {
+    return "Admin";
+  }
+  if (role === "manager") {
+    return "Manager";
+  }
+  if (role === "cadre") {
+    return "Cadre";
+  }
+  return "Mode local";
+}
+
+function renderAuthPanel() {
+  if (!logoutButton || !authStatus || !googleLoginButton) {
+    return;
+  }
+
+  const authenticated = Boolean(accessProfile.session?.user);
+  const email = accessProfile.session?.user?.email ?? "";
+
+  if (authenticated) {
+    googleLoginButton.hidden = true;
+    logoutButton.hidden = false;
+    authStatus.textContent =
+      accessProfile.mode === "authenticated"
+        ? `Connecte en tant que ${email}.`
+        : `Connecte en tant que ${email}, mais aucun profil metier n'est encore relie.`;
+    return;
+  }
+
+  googleLoginButton.hidden = false;
+  logoutButton.hidden = true;
+  if (!authStatus.textContent || authStatus.textContent.startsWith("Connecte")) {
+    authStatus.textContent = "Connectez-vous avec Google.";
+  }
 }
 
 function renderActiveSession() {
@@ -2444,7 +2955,7 @@ function renderSuggestions() {
   fillDatalist(
     collaboratorSuggestions,
     referenceCatalog.loaded
-      ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+      ? getVisibleReferenceUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
       : uniqueValues("collaborator"),
   );
   fillDatalist(
@@ -2459,7 +2970,7 @@ function renderSuggestions() {
 
   const currentValue = managerCollaboratorFilter.value || "all";
   const collaborators = referenceCatalog.loaded
-    ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+    ? getVisibleReferenceUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
     : uniqueValues("collaborator");
   managerCollaboratorFilter.innerHTML = "";
 
@@ -2485,8 +2996,8 @@ function renderQuickProjects() {
 
   if (!memories.length) {
     const message = collaborator
-      ? `Les dernieres reprises de ${collaborator} apparaitront ici.`
-      : "Choisissez un collaborateur pour voir ses reprises recentes.";
+      ? "Les dernieres reprises apparaitront ici."
+      : "Connectez-vous pour retrouver vos reprises recentes.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -2509,7 +3020,7 @@ function renderProjectMemoryList() {
   if (!memories.length) {
     const message = collaborator
       ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Choisissez un collaborateur pour afficher ses contextes memorises.";
+      : "Choisissez un cargonaute pour afficher ses contextes memorises.";
     projectMemoryList.append(createEmptyState(message));
     return;
   }
@@ -2559,13 +3070,14 @@ function renderProjectMemoryList() {
 
 function renderSessionList() {
   sessionList.innerHTML = "";
+  const visibleSessions = getScopedSessions(sessions);
 
-  if (!sessions.length) {
+  if (!visibleSessions.length) {
     sessionList.append(createEmptyState("Le journal affichera ici les entrees enregistrees."));
     return;
   }
 
-  for (const session of sessions.slice(0, 10)) {
+  for (const session of visibleSessions.slice(0, 10)) {
     const fragment = sessionItemTemplate.content.cloneNode(true);
     const item = fragment.querySelector(".session-item");
     item.dataset.sessionId = session.id;
@@ -2611,7 +3123,7 @@ function renderCadreViews() {
 
 function renderPersonalStats() {
   const collaborator = getCurrentCollaborator();
-  const rows = collaborator ? getSessionsForCollaborator(collaborator) : getAllSessionsWithActive();
+  const rows = collaborator ? getSessionsForCollaborator(collaborator) : getScopedSessions(getAllSessionsWithActive());
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = getStartOfWeek(now);
@@ -2635,7 +3147,7 @@ function renderPersonalStats() {
     ? `Temps saisi aujourd'hui pour ${collaborator}.`
     : "Temps saisi pour la personne en cours.";
 
-  const collaborators = new Set(getAllSessionsWithActive().map((session) => session.collaborator).filter(Boolean));
+  const collaborators = new Set(getScopedSessions(getAllSessionsWithActive()).map((session) => session.collaborator).filter(Boolean));
   teamCount.textContent = String(collaborators.size);
   activeCountCopy.textContent = activeSession
     ? `Session en cours pour ${activeSession.collaborator}.`
@@ -2652,7 +3164,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Renseignez un collaborateur pour voir sa semaine.");
+    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Renseignez un cargonaute pour voir sa semaine.");
     return;
   }
 
@@ -2669,8 +3181,8 @@ function renderPersonalDistribution() {
     displayRows,
     totalMs,
     usesObjectives
-      ? "Aucun objectif 2026 renseigne cette semaine pour ce collaborateur."
-      : "Aucune categorie enregistree cette semaine pour ce collaborateur.",
+      ? "Aucun objectif 2026 renseigne cette semaine pour ce cargonaute."
+      : "Aucune categorie enregistree cette semaine pour ce cargonaute.",
   );
 }
 
@@ -2953,7 +3465,7 @@ function renderManagerViews() {
   const anchor = getReportAnchorDate();
   const range = getPeriodRange(anchor, reportPeriod);
   const filterCollaborator = managerCollaboratorFilter.value;
-  const allRows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
+  const allRows = getScopedSessions(getAllSessionsWithActive().filter((session) => isSessionInRange(session, range)));
   const scopedRows =
     filterCollaborator === "all"
       ? allRows
@@ -3014,7 +3526,7 @@ function renderManagerViews() {
 function renderResourcesViews() {
   const anchor = getReportAnchorDate();
   const range = getPeriodRange(anchor, reportPeriod);
-  const allRows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
+  const allRows = getScopedSessions(getAllSessionsWithActive().filter((session) => isSessionInRange(session, range)));
   const usesObjectives = statsMode === "objectives";
   const totalMs = allRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
   const projectTotals = buildReportRows(allRows, "project");
@@ -3060,7 +3572,7 @@ function renderResourcesViews() {
     resourceTeamList,
     collaboratorTotals,
     totalMs,
-    "Aucune donnee collaborateur sur cette plage.",
+    "Aucune donnee cargonaute sur cette plage.",
   );
   renderReportTable(
     resourceProjectList,
@@ -3084,6 +3596,86 @@ function renderResourcesViews() {
   } else {
     resourceKrList.innerHTML = "";
   }
+}
+
+function getAnalysisExportRows() {
+  const anchor = getReportAnchorDate();
+  const range = getPeriodRange(anchor, reportPeriod);
+
+  if (currentView === "manager") {
+    const allRows = getScopedSessions(getAllSessionsWithActive().filter((session) => isSessionInRange(session, range)));
+    const filterCargonaute = managerCollaboratorFilter.value;
+    return filterCargonaute === "all"
+      ? allRows
+      : allRows.filter((session) => normalizeText(session.collaborator) === normalizeText(filterCargonaute));
+  }
+
+  return getScopedSessions(getAllSessionsWithActive().filter((session) => isSessionInRange(session, range)));
+}
+
+function exportCurrentAnalysisCsv() {
+  const rows = getAnalysisExportRows().slice().sort((a, b) => new Date(a.start) - new Date(b.start));
+  if (!rows.length) {
+    return;
+  }
+
+  const csvRows = [
+    [
+      "date",
+      "cargonaute",
+      "equipe",
+      "client",
+      "projet",
+      "categorie",
+      "kpi_categorie",
+      "okr",
+      "kr",
+      "debut",
+      "fin",
+      "duree_heures",
+      "duree_minutes",
+      "lien_interet",
+      "note",
+    ],
+    ...rows.map((session) => [
+      new Date(session.start).toISOString().slice(0, 10),
+      session.collaborator || "",
+      getSessionTeamName(session),
+      getSessionClientLabel(session),
+      session.project || "",
+      session.categories?.[0] || "",
+      session.dbKpiCategoryLabel || "",
+      formatObjectiveOkrDisplay(session.objectiveOkr),
+      formatObjectiveKrDisplay(session.objectiveKr),
+      session.start || "",
+      session.end || "",
+      Number(((Number(session.durationMs) || 0) / 3600000).toFixed(2)).toString(),
+      Math.max(1, Math.round((Number(session.durationMs) || 0) / 60000)).toString(),
+      session.notionRef || "",
+      session.notes || "",
+    ]),
+  ];
+
+  const csvContent = csvRows.map((row) => row.map(escapeCsvValue).join(",")).join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const anchor = getReportAnchorDate();
+  const scope = currentView === "manager" ? "manager" : "ressources";
+  link.href = url;
+  link.download = `grand-livre-${scope}-${reportPeriod}-${formatDateInput(anchor)}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function escapeCsvValue(value) {
+  const stringValue = String(value ?? "");
+  if (stringValue.includes(",") || stringValue.includes("\"") || stringValue.includes("\n")) {
+    return `"${stringValue.replace(/"/g, "\"\"")}"`;
+  }
+  return stringValue;
 }
 
 function renderManagerObjectives(rows) {
@@ -3546,8 +4138,9 @@ function fillFormFromMemory(memory) {
   renderCategoryTokens();
   renderTagTokens();
   renderObjectiveSelections();
+  updateFieldManageButtons();
   projectInput.dataset.lastHydratedKey = memory.key;
-  projectMemoryHint.textContent = `${memory.project} reconnu pour ${memory.collaborator}. Les champs reutilisables ont ete recharges.`;
+  projectMemoryHint.textContent = `${memory.project} reconnu. Les champs reutilisables ont ete recharges.`;
   renderCadreViews();
 }
 
@@ -3566,7 +4159,7 @@ function applyProjectMemoryFromInput() {
     return;
   }
 
-  projectMemoryHint.textContent = `${memory.project} reconnu pour ${memory.collaborator}. Categories, tags et lien d'interet rechargeables.`;
+  projectMemoryHint.textContent = `${memory.project} reconnu. Categories, tags et lien d'interet rechargeables.`;
 
   if (projectInput.dataset.lastHydratedKey === memory.key) {
     return;
@@ -3599,6 +4192,7 @@ function applyProjectMemoryFromInput() {
     objectiveKrInput.value = memory.objectiveKr ?? "";
   }
   renderObjectiveSelections();
+  updateFieldManageButtons();
 
   projectInput.dataset.lastHydratedKey = memory.key;
 }
@@ -3633,11 +4227,15 @@ function resolveProjectMemory(projectName, collaboratorName) {
 }
 
 function getCurrentCollaborator() {
-  return activeSession?.collaborator || collaboratorInput.value.trim() || sessions[0]?.collaborator || "";
+  if (accessProfile.appUser?.user_name) {
+    return accessProfile.appUser.user_name;
+  }
+
+  return activeSession?.collaborator || collaboratorInput.value.trim() || getScopedSessions(sessions)[0]?.collaborator || "";
 }
 
 function getSessionsForCollaborator(collaborator) {
-  return getAllSessionsWithActive().filter(
+  return getScopedSessions(getAllSessionsWithActive()).filter(
     (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
   );
 }
@@ -3721,7 +4319,7 @@ function buildReportRows(rows, key) {
 
 function getFallbackLabel(key) {
   if (key === "collaborator") {
-    return "Sans collaborateur";
+    return "Sans cargonaute";
   }
   if (key === "project") {
     return "Sans projet";
@@ -3788,6 +4386,7 @@ function renderCategoryTokens() {
     currentCategories = currentCategories.filter((_, itemIndex) => itemIndex !== index);
     renderCategoryTokens();
   });
+  updateFieldManageButtons();
 }
 
 function renderTagTokens() {
@@ -3795,6 +4394,7 @@ function renderTagTokens() {
     currentTags = currentTags.filter((_, itemIndex) => itemIndex !== index);
     renderTagTokens();
   });
+  updateFieldManageButtons();
 }
 
 function renderTokenList(container, values, onRemove) {
@@ -4056,4 +4656,63 @@ function registerServiceWorker() {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
+}
+
+
+const googleLoginButton = document.querySelector("#google-login-button");
+const logoutButton = document.querySelector("#logout-button");
+const authStatus = document.querySelector("#auth-status");
+
+googleLoginButton?.addEventListener("click", async () => {
+  await loginWithGoogle();
+});
+
+logoutButton?.addEventListener("click", async () => {
+  await logoutCurrentUser();
+});
+
+async function loginWithGoogle() {
+  if (!window.supabase?.auth) {
+    return;
+  }
+
+  if (window.location.protocol === "file:") {
+    if (authStatus) {
+      authStatus.textContent =
+        "La connexion Google demande une URL http://localhost ou un domaine en ligne, pas file://.";
+    }
+    return;
+  }
+
+  const redirectTo = `${window.location.origin}${window.location.pathname}${window.location.hash || ""}`;
+  const { error } = await window.supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error) {
+    console.error("Google login error:", error);
+    if (authStatus) authStatus.textContent = `Erreur Google: ${error.message}`;
+    return;
+  }
+
+  if (authStatus) authStatus.textContent = "Redirection vers Google...";
+}
+
+async function logoutCurrentUser() {
+  if (!window.supabase?.auth) {
+    return;
+  }
+
+  const { error } = await window.supabase.auth.signOut();
+
+  if (error) {
+    console.error("Logout error:", error);
+    if (authStatus) authStatus.textContent = `Erreur: ${error.message}`;
+    return;
+  }
+
+  if (authStatus) authStatus.textContent = "Déconnecté.";
 }

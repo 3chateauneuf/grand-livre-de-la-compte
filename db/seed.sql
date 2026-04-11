@@ -9,21 +9,25 @@ truncate table time_entries, projects, categories, users cascade;
 insert into users (
   user_id,
   user_name,
+  email,
+  auth_user_id,
   role,
   team_name,
+  managed_team_name,
   manager_user_id,
   weekly_capacity_hours,
   status,
   created_at,
   updated_at
 ) values
-  ('USR-001', 'Claire Martin', 'manager', 'Conseil Operations France', null, 39.00, 'active', '2025-09-01T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-002', 'Mehdi Laaroussi', 'cadre', 'Conseil Operations France', 'USR-001', 39.00, 'active', '2025-09-08T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-003', 'Julie Renard', 'cadre', 'Conseil Operations France', 'USR-001', 39.00, 'active', '2025-10-06T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-004', 'Thomas Vignal', 'cadre', 'Conseil Operations France', 'USR-001', 35.00, 'active', '2025-11-03T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-005', 'Sofia Bernard', 'manager', 'Conseil Operations France', null, 39.00, 'active', '2025-08-25T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-006', 'Eduardo Morales', 'cadre', 'Conseil Operations France', 'USR-005', 39.00, 'active', '2025-12-01T08:00:00Z', '2026-04-10T08:00:00Z'),
-  ('USR-007', 'Luc Garnier', 'cadre', 'Conseil Operations France', 'USR-005', 39.00, 'active', '2025-10-20T08:00:00Z', '2026-04-10T08:00:00Z');
+  ('USR-001', 'Claire Martin', 'claire.martin@grandlivre.fr', null, 'manager', 'Conseil Operations France', 'Conseil Operations France', null, 39.00, 'active', '2025-09-01T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-002', 'Mehdi Laaroussi', 'mehdi.laaroussi@grandlivre.fr', null, 'cadre', 'Conseil Operations France', null, 'USR-001', 39.00, 'active', '2025-09-08T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-003', 'Julie Renard', 'julie.renard@grandlivre.fr', null, 'cadre', 'Conseil Operations France', null, 'USR-001', 39.00, 'active', '2025-10-06T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-004', 'Thomas Vignal', 'thomas.vignal@grandlivre.fr', null, 'cadre', 'Conseil Operations France', null, 'USR-001', 35.00, 'active', '2025-11-03T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-005', 'Sofia Bernard', 'sofia.bernard@grandlivre.fr', null, 'manager', 'Conseil Operations France', 'Conseil Operations France', null, 39.00, 'active', '2025-08-25T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-006', 'Eduardo Morales', 'eduardo.morales@grandlivre.fr', null, 'cadre', 'Conseil Operations France', null, 'USR-005', 39.00, 'active', '2025-12-01T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-007', 'Luc Garnier', 'luc.garnier@grandlivre.fr', null, 'cadre', 'Conseil Operations France', null, 'USR-005', 39.00, 'active', '2025-10-20T08:00:00Z', '2026-04-10T08:00:00Z'),
+  ('USR-008', 'Admin Operations', 'admin@grandlivre.fr', null, 'admin', 'Conseil Operations France', null, null, 39.00, 'active', '2025-08-18T08:00:00Z', '2026-04-10T08:00:00Z');
 
 insert into categories (
   activity_category_id,
