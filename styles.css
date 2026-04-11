@@ -287,6 +287,11 @@ button {
   gap: 6px;
 }
 
+.login-directory-status {
+  grid-column: 1 / -1;
+  font-size: 0.76rem;
+}
+
 .login-quick-pick {
   border: 1px solid rgba(24, 56, 74, 0.08);
   background: rgba(24, 56, 74, 0.04);
@@ -301,6 +306,34 @@ button {
 .login-quick-pick:hover {
   border-color: rgba(15, 118, 110, 0.22);
   background: rgba(15, 118, 110, 0.08);
+}
+
+.admin-tools {
+  grid-column: 1 / -1;
+  display: grid;
+}
+
+.admin-favicon-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-favicon-inline input {
+  width: 72px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 56, 74, 0.12);
+  background: rgba(255, 255, 255, 0.82);
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+.admin-favicon-inline input:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.46);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
 }
 
 .topbar-nav a,
@@ -1029,7 +1062,8 @@ button {
   border: 1px solid rgba(15, 118, 110, 0.14);
   color: var(--text);
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   overflow: hidden;
 }
@@ -1050,6 +1084,12 @@ button {
   border-color: rgba(15, 118, 110, 0.3);
   box-shadow: 0 10px 24px rgba(24, 56, 74, 0.12);
   background: rgba(15, 118, 110, 0.14);
+}
+
+.agenda-event--dragging {
+  cursor: grabbing;
+  transform: none;
+  box-shadow: 0 10px 24px rgba(24, 56, 74, 0.18);
 }
 
 .agenda-event p,
@@ -1322,6 +1362,7 @@ button {
   padding: 0;
   background: var(--panel);
   box-shadow: 0 26px 90px rgba(24, 56, 74, 0.22);
+  overflow: visible;
 }
 
 .dialog-shell::backdrop {
@@ -1381,6 +1422,7 @@ button {
   display: grid;
   gap: 20px;
   padding: 22px;
+  overflow: visible;
 }
 
 .dialog-head {

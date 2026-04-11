@@ -7,7 +7,15 @@ Prototype web local pour suivre le temps d'une equipe avec deux lectures:
 
 ## Ouverture
 
-Ouvrez [index.html](/Users/ed/Documents/New project/index.html) dans un navigateur.
+Lancez un petit serveur local depuis le dossier du projet:
+
+```bash
+python3 -m http.server 8000
+```
+
+Puis ouvrez [http://localhost:8000](http://localhost:8000).
+
+Evitez `file://` pour cette version, sinon le manifest, le service worker et certains comportements navigateur seront partiellement bloques.
 
 ## Ce que contient cette version
 
@@ -30,13 +38,20 @@ Ouvrez [index.html](/Users/ed/Documents/New project/index.html) dans un navigate
 
 Toutes les donnees sont conservees localement dans `localStorage` sur le navigateur utilise.
 
+## Acces actuel
+
+La version front actuelle utilise une identification legere par nom:
+
+- on entre un nom existant dans `users`
+- l'app charge alors le bon profil `cadre / manager / admin`
+- ce mode suppose que `public.users`, `public.projects` et `public.categories` soient lisibles par le role `anon`
+
 ## Acces multi-utilisateur
 
-La base est maintenant preparee pour un mode `cadre / manager / admin` :
+La base reste preparee pour un mode plus strict `cadre / manager / admin` avec auth Supabase :
 
 - `cadre` : ses propres temps
 - `manager` : son equipe
 - `admin` : tout
 
-Le front sait deja adapter l'affichage si un profil Supabase Auth est relie a `users.auth_user_id` ou `users.email`.
-Tant que cette liaison n'est pas configuree, l'app reste utilisable en `mode local`.
+Les scripts [db/auth_rls.sql](/Users/ed/Documents/New project/db/auth_rls.sql) et [db/auth_profile_sync.sql](/Users/ed/Documents/New project/db/auth_profile_sync.sql) servent a cette future version plus verrouillee.

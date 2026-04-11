@@ -1,7 +1,59 @@
 const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
 const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v1";
+const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
+const LOCAL_PROFILE_DIRECTORY = [
+  {
+    user_id: "USR-001",
+    user_name: "Claire",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
+    status: "active",
+  },
+  {
+    user_id: "USR-002",
+    user_name: "Paulo",
+    role: "manager",
+    team_name: "Conseil Operations France",
+    managed_team_name: "Conseil Operations France",
+    manager_user_id: null,
+    status: "active",
+  },
+  {
+    user_id: "USR-003",
+    user_name: "Tristan",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
+    status: "active",
+  },
+  {
+    user_id: "USR-004",
+    user_name: "Martin Salles",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
+    status: "active",
+  },
+  {
+    user_id: "USR-005",
+    user_name: "Alexis",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
+    status: "active",
+  },
+  {
+    user_id: "USR-006",
+    user_name: "Eduardo",
+    role: "admin",
+    team_name: "Conseil Operations France",
+    manager_user_id: null,
+    status: "active",
+  },
+];
 
 const form = document.querySelector("#time-form");
 const viewTabs = Array.from(document.querySelectorAll("[data-view-target]"));
@@ -17,6 +69,10 @@ const loginButton = document.querySelector("#login-button");
 const logoutButton = document.querySelector("#logout-button");
 const authStatus = document.querySelector("#auth-status");
 const loginQuickPicks = document.querySelector("#login-quick-picks");
+const loginDirectoryStatus = document.querySelector("#login-directory-status");
+const adminTools = document.querySelector("#admin-tools");
+const faviconEmojiInput = document.querySelector("#favicon-emoji-input");
+const applyFaviconButton = document.querySelector("#apply-favicon-button");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
 const projectInput = document.querySelector("#project-input");
@@ -354,6 +410,8 @@ let autocompleteState = {
 let autocompleteHideTimeoutId = null;
 let fieldManageState = null;
 let fieldManageConfirmMode = false;
+let agendaDragState = null;
+let suppressNextAgendaClick = false;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -373,6 +431,7 @@ setupTokenInput(tagsInput, {
 });
 
 initializeAutocomplete();
+initializeFaviconControls();
 initializeObjectiveSelections();
 initializeViewNavigation();
 
@@ -564,7 +623,16 @@ sessionList.addEventListener("click", (event) => {
   openManualDialog(session);
 });
 
+agendaBoard.addEventListener("pointerdown", (event) => {
+  beginAgendaDrag(event);
+});
+
 agendaBoard.addEventListener("click", (event) => {
+  if (suppressNextAgendaClick) {
+    suppressNextAgendaClick = false;
+    return;
+  }
+
   const target = event.target.closest("[data-session-id]");
   if (target) {
     const session =
@@ -680,13 +748,24 @@ function createAutocompletePopover() {
   return popover;
 }
 
+function getAutocompleteHost(config) {
+  return config?.input?.closest("dialog[open]") ?? document.body;
+}
+
+function ensureAutocompleteHost(config) {
+  const host = getAutocompleteHost(config);
+  if (autocompletePopover.parentElement !== host) {
+    host.append(autocompletePopover);
+  }
+}
+
 function initializeAutocomplete() {
   const configs = [
     {
       input: loginNameInput,
       getOptions: () =>
-        referenceCatalog.loaded
-          ? referenceCatalog.users.map((item) => item.user_name)
+        getKnownUsers().length
+          ? getKnownUsers().map((item) => item.user_name)
           : uniqueValues("collaborator"),
       applyValue: (value) => {
         loginNameInput.value = value;
@@ -695,7 +774,7 @@ function initializeAutocomplete() {
     {
       input: collaboratorInput,
       getOptions: () =>
-        referenceCatalog.loaded
+        getVisibleReferenceUsers().length
           ? getVisibleReferenceUsers().map((item) => item.user_name)
           : uniqueValues("collaborator"),
       applyValue: (value) => {
@@ -794,7 +873,7 @@ function initializeAutocomplete() {
     {
       input: manualCollaboratorInput,
       getOptions: () =>
-        referenceCatalog.loaded
+        getVisibleReferenceUsers().length
           ? getVisibleReferenceUsers().map((item) => item.user_name)
           : uniqueValues("collaborator"),
       applyValue: (value) => {
@@ -984,8 +1063,90 @@ function setupAutocompleteInput(config) {
   });
 }
 
+function initializeFaviconControls() {
+  applyStoredFaviconEmoji();
+
+  if (!applyFaviconButton || !faviconEmojiInput) {
+    return;
+  }
+
+  applyFaviconButton.addEventListener("click", () => {
+    const emoji = extractFirstEmoji(faviconEmojiInput.value.trim());
+    if (!emoji) {
+      clearStoredFaviconEmoji();
+      applyFaviconEmoji("");
+      renderAuthPanel();
+      return;
+    }
+
+    storeFaviconEmoji(emoji);
+    applyFaviconEmoji(emoji);
+    faviconEmojiInput.value = emoji;
+    renderAuthPanel();
+  });
+}
+
+function extractFirstEmoji(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (!value) {
+    return "";
+  }
+
+  return Array.from(value)[0] ?? "";
+}
+
+function loadStoredFaviconEmoji() {
+  try {
+    return window.localStorage.getItem(FAVICON_EMOJI_KEY) ?? "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function storeFaviconEmoji(emoji) {
+  try {
+    window.localStorage.setItem(FAVICON_EMOJI_KEY, emoji);
+  } catch (error) {
+    // ignore storage errors in local mode
+  }
+}
+
+function clearStoredFaviconEmoji() {
+  try {
+    window.localStorage.removeItem(FAVICON_EMOJI_KEY);
+  } catch (error) {
+    // ignore storage errors in local mode
+  }
+}
+
+function applyStoredFaviconEmoji() {
+  const emoji = loadStoredFaviconEmoji();
+  if (faviconEmojiInput) {
+    faviconEmojiInput.value = emoji;
+  }
+  applyFaviconEmoji(emoji);
+}
+
+function applyFaviconEmoji(emoji) {
+  const faviconLink = document.querySelector('link[rel="icon"]');
+  if (!faviconLink) {
+    return;
+  }
+
+  if (!emoji) {
+    faviconLink.href = "icon.svg";
+    faviconLink.type = "image/svg+xml";
+    return;
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="52">${emoji}</text></svg>`;
+  faviconLink.href = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  faviconLink.type = "image/svg+xml";
+}
+
 function openAutocomplete(config) {
   clearAutocompleteHideTimeout();
+  ensureAutocompleteHost(config);
   const query = config.input.value.trim();
   const items = buildAutocompleteItems(config, query);
   if (!items.length) {
@@ -1229,9 +1390,18 @@ function positionAutocomplete() {
 
   const anchor = config.anchor ?? input.closest(".token-field") ?? input;
   const rect = anchor.getBoundingClientRect();
-  autocompletePopover.style.position = "fixed";
-  autocompletePopover.style.left = `${rect.left}px`;
-  autocompletePopover.style.top = `${rect.bottom + 8}px`;
+  const host = getAutocompleteHost(config);
+
+  if (host === document.body) {
+    autocompletePopover.style.position = "fixed";
+    autocompletePopover.style.left = `${rect.left}px`;
+    autocompletePopover.style.top = `${rect.bottom + 8}px`;
+  } else {
+    const hostRect = host.getBoundingClientRect();
+    autocompletePopover.style.position = "absolute";
+    autocompletePopover.style.left = `${rect.left - hostRect.left}px`;
+    autocompletePopover.style.top = `${rect.bottom - hostRect.top + 8}px`;
+  }
   autocompletePopover.style.width = `${Math.max(rect.width, 320)}px`;
 }
 
@@ -1268,6 +1438,153 @@ function hideAutocomplete() {
     items: [],
     activeIndex: 0,
   };
+}
+
+function beginAgendaDrag(event) {
+  if (event.button !== 0) {
+    return;
+  }
+
+  const eventElement = event.target.closest(".agenda-event");
+  if (!eventElement) {
+    return;
+  }
+
+  const sessionId = eventElement.dataset.sessionId;
+  const session = sessions.find((item) => item.id === sessionId);
+  const track = eventElement.closest(".agenda-day-track");
+  if (!session || !track) {
+    return;
+  }
+
+  const hourHeight = Number(track.dataset.hourHeight);
+  const startHour = Number(track.dataset.startHour);
+  const endHour = Number(track.dataset.endHour);
+  if (!Number.isFinite(hourHeight) || !Number.isFinite(startHour) || !Number.isFinite(endHour)) {
+    return;
+  }
+
+  agendaDragState = {
+    pointerId: event.pointerId,
+    sessionId: session.id,
+    originalSession: { ...session },
+    previewSession: { ...session },
+    eventElement,
+    track,
+    startPointerY: event.clientY,
+    startHour,
+    endHour,
+    hourHeight,
+    durationMs: Number(session.durationMs) || new Date(session.end).getTime() - new Date(session.start).getTime(),
+    moved: false,
+  };
+
+  eventElement.classList.add("agenda-event--dragging");
+  eventElement.setPointerCapture?.(event.pointerId);
+
+  window.addEventListener("pointermove", handleAgendaDragMove);
+  window.addEventListener("pointerup", handleAgendaDragEnd, { once: true });
+  window.addEventListener("pointercancel", handleAgendaDragCancel, { once: true });
+}
+
+function handleAgendaDragMove(event) {
+  if (!agendaDragState || event.pointerId !== agendaDragState.pointerId) {
+    return;
+  }
+
+  const deltaY = event.clientY - agendaDragState.startPointerY;
+  const minuteDelta = roundToQuarterHour((deltaY / agendaDragState.hourHeight) * 60);
+
+  const originalStart = new Date(agendaDragState.originalSession.start);
+  const originalEnd = new Date(agendaDragState.originalSession.end);
+  const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
+  const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
+
+  const dayStart = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
+  dayStart.setHours(agendaDragState.startHour, 0, 0, 0);
+  const dayEnd = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
+  dayEnd.setHours(agendaDragState.endHour, 0, 0, 0);
+
+  let boundedStart = nextStart;
+  let boundedEnd = nextEnd;
+
+  if (boundedStart < dayStart) {
+    boundedStart = new Date(dayStart);
+    boundedEnd = new Date(dayStart.getTime() + agendaDragState.durationMs);
+  }
+  if (boundedEnd > dayEnd) {
+    boundedEnd = new Date(dayEnd);
+    boundedStart = new Date(dayEnd.getTime() - agendaDragState.durationMs);
+  }
+
+  agendaDragState.previewSession = {
+    ...agendaDragState.originalSession,
+    start: boundedStart.toISOString(),
+    end: boundedEnd.toISOString(),
+    durationMs: agendaDragState.durationMs,
+  };
+
+  agendaDragState.moved =
+    boundedStart.getTime() !== originalStart.getTime() || boundedEnd.getTime() !== originalEnd.getTime();
+
+  updateAgendaEventPreview(agendaDragState);
+}
+
+function handleAgendaDragEnd(event) {
+  if (!agendaDragState || event.pointerId !== agendaDragState.pointerId) {
+    cleanupAgendaDrag();
+    return;
+  }
+
+  const state = agendaDragState;
+  cleanupAgendaDrag();
+
+  if (!state.moved) {
+    return;
+  }
+
+  suppressNextAgendaClick = true;
+  attemptSaveSession(state.previewSession, {
+    excludeId: state.originalSession.id,
+    onSuccess: (sessionToSave) => {
+      upsertSession(sessionToSave);
+      persistSessions();
+      render();
+    },
+  });
+}
+
+function handleAgendaDragCancel() {
+  cleanupAgendaDrag();
+  render();
+}
+
+function cleanupAgendaDrag() {
+  if (!agendaDragState) {
+    return;
+  }
+
+  agendaDragState.eventElement.classList.remove("agenda-event--dragging");
+  agendaDragState.eventElement.releasePointerCapture?.(agendaDragState.pointerId);
+  agendaDragState = null;
+  window.removeEventListener("pointermove", handleAgendaDragMove);
+}
+
+function updateAgendaEventPreview(state) {
+  const start = new Date(state.previewSession.start);
+  const end = new Date(state.previewSession.end);
+  const topMinutes = (start.getHours() - state.startHour) * 60 + start.getMinutes();
+  const durationMinutes = Math.max((end.getTime() - start.getTime()) / 60000, 15);
+  const topPx = (topMinutes / 60) * state.hourHeight;
+  const heightPx = Math.max((durationMinutes / 60) * state.hourHeight, 4);
+
+  state.eventElement.style.top = `${topPx}px`;
+  state.eventElement.style.height = `${heightPx}px`;
+
+  const visualSize = getAgendaEventVisualSize(heightPx);
+  state.eventElement.classList.toggle("agenda-event--tiny", visualSize === "tiny");
+  state.eventElement.classList.toggle("agenda-event--compact", visualSize === "compact");
+  renderAgendaEventContents(state.eventElement, state.previewSession, visualSize);
 }
 
 function clearAutocompleteHideTimeout() {
@@ -1990,7 +2307,7 @@ function findAppUserByName(rawName) {
     return null;
   }
 
-  return referenceCatalog.users.find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
+  return getKnownUsers().find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
 }
 
 function loadStoredAccessName() {
@@ -2021,6 +2338,20 @@ function getAccessRole() {
   return accessProfile.role || "open";
 }
 
+function getKnownUsers() {
+  const merged = new Map();
+
+  for (const user of LOCAL_PROFILE_DIRECTORY) {
+    merged.set(normalizeText(user.user_name ?? ""), user);
+  }
+
+  for (const user of referenceCatalog.users) {
+    merged.set(normalizeText(user.user_name ?? ""), user);
+  }
+
+  return Array.from(merged.values()).filter(Boolean);
+}
+
 function getAllowedViewsForRole(role = getAccessRole()) {
   if (role === "cadre") {
     return ["cadre", "journal"];
@@ -2046,7 +2377,8 @@ function getManagedTeamNames() {
 }
 
 function getVisibleReferenceUsers() {
-  if (!referenceCatalog.loaded) {
+  const knownUsers = getKnownUsers();
+  if (!knownUsers.length) {
     return [];
   }
 
@@ -2054,19 +2386,19 @@ function getVisibleReferenceUsers() {
   const appUser = accessProfile.appUser;
 
   if (role === "admin" || role === "open" || !appUser) {
-    return [...referenceCatalog.users];
+    return [...knownUsers];
   }
 
   if (role === "cadre") {
-    return referenceCatalog.users.filter((item) => item.user_id === appUser.user_id);
+    return knownUsers.filter((item) => item.user_id === appUser.user_id);
   }
 
   const teams = getManagedTeamNames();
   if (!teams.length) {
-    return referenceCatalog.users.filter((item) => item.user_id === appUser.user_id);
+    return knownUsers.filter((item) => item.user_id === appUser.user_id);
   }
 
-  return referenceCatalog.users.filter(
+  return knownUsers.filter(
     (item) => item.user_id === appUser.user_id || teams.includes(item.team_name),
   );
 }
@@ -2093,8 +2425,8 @@ function getSessionTeamName(session) {
   }
 
   const matchedUser =
-    referenceCatalog.users.find((item) => item.user_id === session.dbUserId) ??
-    referenceCatalog.users.find((item) => normalizeText(item.user_name) === normalizeText(session.collaborator ?? ""));
+    getKnownUsers().find((item) => item.user_id === session.dbUserId) ??
+    getKnownUsers().find((item) => normalizeText(item.user_name) === normalizeText(session.collaborator ?? ""));
 
   return matchedUser?.team_name ?? "";
 }
@@ -2184,7 +2516,7 @@ async function createUserReference(rawName) {
 
   await ensureReferenceCatalogLoaded();
 
-  const existing = findReferenceMatch(referenceCatalog.users, "user_name", userName);
+  const existing = findReferenceMatch(getKnownUsers(), "user_name", userName);
   if (existing) {
     return existing.user_name;
   }
@@ -2194,8 +2526,8 @@ async function createUserReference(rawName) {
     return null;
   }
 
-  const teamName = referenceCatalog.users[0]?.team_name ?? "Conseil Operations France";
-  const managerId = referenceCatalog.users.find((item) => item.role === "manager" && item.status === "active")?.user_id ?? null;
+  const teamName = getKnownUsers()[0]?.team_name ?? "Conseil Operations France";
+  const managerId = getKnownUsers().find((item) => item.role === "manager" && item.status === "active")?.user_id ?? null;
 
   const payload = {
     user_id: nextId,
@@ -2857,10 +3189,9 @@ function renderCurrentUserContext() {
     return;
   }
 
-  const collaborator = getCurrentCollaborator();
-  currentUserName.textContent = collaborator || "Nom requis";
+  currentUserName.textContent = "Nom requis";
   if (currentUserRole) {
-    currentUserRole.textContent = collaborator ? "Mode local" : "Entrez votre nom pour commencer";
+    currentUserRole.textContent = "Entrez votre nom pour commencer";
   }
 }
 
@@ -2898,12 +3229,35 @@ function renderAuthPanel() {
   }
 
   const authenticated = Boolean(accessProfile.appUser?.user_name);
+  const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
+  const hasDatabaseUsers = referenceCatalog.users.length > 0;
+
+  if (loginDirectoryStatus) {
+    if (!referenceCatalog.loaded) {
+      loginDirectoryStatus.hidden = false;
+      loginDirectoryStatus.textContent = "Chargement des noms depuis la base…";
+    } else if (!visibleUsers.length) {
+      loginDirectoryStatus.hidden = false;
+      loginDirectoryStatus.textContent = "Aucun nom disponible pour le moment.";
+    } else {
+      loginDirectoryStatus.hidden = false;
+      loginDirectoryStatus.textContent = hasDatabaseUsers
+        ? `${visibleUsers.length} noms disponibles dans la liste ci-dessous.`
+        : `${visibleUsers.length} noms disponibles localement. La base n'en expose aucun pour l'instant.`;
+    }
+  }
 
   if (authenticated) {
     loginNameInput.value = accessProfile.appUser.user_name;
     loginNameInput.readOnly = true;
     loginButton.hidden = true;
     logoutButton.hidden = false;
+    if (adminTools) {
+      adminTools.hidden = accessProfile.role !== "admin";
+    }
+    if (faviconEmojiInput) {
+      faviconEmojiInput.value = loadStoredFaviconEmoji();
+    }
     authStatus.textContent =
       accessProfile.role === "admin" || accessProfile.role === "manager" || accessProfile.role === "cadre"
         ? `Profil charge: ${accessProfile.appUser.user_name} · ${formatRoleLabel(accessProfile.role)}.`
@@ -2914,6 +3268,9 @@ function renderAuthPanel() {
   loginNameInput.readOnly = false;
   loginButton.hidden = false;
   logoutButton.hidden = true;
+  if (adminTools) {
+    adminTools.hidden = true;
+  }
   if (!authStatus.textContent || authStatus.textContent.startsWith("Profil charge")) {
     authStatus.textContent = "Entrez un nom existant pour charger le bon profil.";
   }
@@ -2990,14 +3347,14 @@ function renderSuggestions() {
   );
   fillDatalist(
     collaboratorSuggestions,
-    referenceCatalog.loaded
+    getVisibleReferenceUsers().length
       ? getVisibleReferenceUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
       : uniqueValues("collaborator"),
   );
   fillDatalist(
     loginNameSuggestions,
-    referenceCatalog.loaded
-      ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+    getKnownUsers().length
+      ? getKnownUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
       : uniqueValues("collaborator"),
   );
   fillDatalist(
@@ -3011,7 +3368,7 @@ function renderSuggestions() {
   fillDatalist(tagSuggestions, uniqueTokenValues("tags"));
 
   const currentValue = managerCollaboratorFilter.value || "all";
-  const collaborators = referenceCatalog.loaded
+  const collaborators = getVisibleReferenceUsers().length
     ? getVisibleReferenceUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
     : uniqueValues("collaborator");
   managerCollaboratorFilter.innerHTML = "";
@@ -3043,9 +3400,7 @@ function renderLoginQuickPicks() {
     return;
   }
 
-  const visibleUsers = referenceCatalog.loaded
-    ? [...referenceCatalog.users].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"))
-    : [];
+  const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
 
   if (!visibleUsers.length) {
     loginQuickPicks.hidden = true;
@@ -3201,7 +3556,16 @@ function renderCadreViews() {
 
 function renderPersonalStats() {
   const collaborator = getCurrentCollaborator();
-  const rows = collaborator ? getSessionsForCollaborator(collaborator) : getScopedSessions(getAllSessionsWithActive());
+  if (!collaborator) {
+    todayTotal.textContent = "0 h 00";
+    weekTotal.textContent = "0 h 00";
+    todayPanelCopy.textContent = "Connectez-vous pour charger votre semaine.";
+    teamCount.textContent = "0";
+    activeCountCopy.textContent = "Aucune session en cours.";
+    return;
+  }
+
+  const rows = getSessionsForCollaborator(collaborator);
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = getStartOfWeek(now);
@@ -3221,9 +3585,7 @@ function renderPersonalStats() {
 
   todayTotal.textContent = formatDuration(todayMs);
   weekTotal.textContent = formatDuration(weekMs);
-  todayPanelCopy.textContent = collaborator
-    ? `Temps saisi aujourd'hui pour ${collaborator}.`
-    : "Temps saisi pour la personne en cours.";
+  todayPanelCopy.textContent = `Temps saisi aujourd'hui pour ${collaborator}.`;
 
   const collaborators = new Set(getScopedSessions(getAllSessionsWithActive()).map((session) => session.collaborator).filter(Boolean));
   teamCount.textContent = String(collaborators.size);
@@ -3267,11 +3629,13 @@ function renderPersonalDistribution() {
 function renderAgenda() {
   agendaBoard.innerHTML = "";
   const collaborator = getCurrentCollaborator();
+  if (!collaborator) {
+    agendaBoard.append(createEmptyState("Connectez-vous pour afficher et deplacer vos creneaux."));
+    return;
+  }
   const range = getPeriodRange(getReportAnchorDate(), "week");
   const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
-  const scopedRows = collaborator
-    ? rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator))
-    : rows;
+  const scopedRows = rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator));
 
   const startHour = 7;
   const endHour = 21;
@@ -3372,26 +3736,7 @@ function renderAgenda() {
       event.style.width = `${row.widthPercent}%`;
       event.title = buildAgendaTooltip(session);
       applyAgendaEventColor(event, session);
-
-      if (visualSize !== "tiny") {
-        const time = document.createElement("p");
-        time.className = "agenda-event-time";
-        time.textContent = `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`;
-        event.append(time);
-      }
-
-      if (visualSize === "full") {
-        const client = document.createElement("p");
-        client.className = "agenda-event-client";
-        client.textContent = getSessionClientLabel(session);
-        event.append(client);
-
-        const icon = document.createElement("span");
-        icon.className = "agenda-event-icon";
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = "i";
-        event.append(icon);
-      }
+      renderAgendaEventContents(event, session, visualSize);
 
       dayTrack.append(event);
     }
@@ -3479,6 +3824,30 @@ function getAgendaEventVisualSize(heightPx) {
     return "compact";
   }
   return "full";
+}
+
+function renderAgendaEventContents(element, session, visualSize) {
+  element.innerHTML = "";
+
+  if (visualSize !== "tiny") {
+    const time = document.createElement("p");
+    time.className = "agenda-event-time";
+    time.textContent = `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`;
+    element.append(time);
+  }
+
+  if (visualSize === "full") {
+    const client = document.createElement("p");
+    client.className = "agenda-event-client";
+    client.textContent = getSessionClientLabel(session);
+    element.append(client);
+
+    const icon = document.createElement("span");
+    icon.className = "agenda-event-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "i";
+    element.append(icon);
+  }
 }
 
 function applyAgendaEventColor(element, session) {
@@ -4174,9 +4543,9 @@ function getProjectMemories(collaboratorName = "") {
       continue;
     }
 
-    if (referenceCatalog.loaded) {
+    if (referenceCatalog.loaded && referenceCatalog.projects.length && getKnownUsers().length) {
       const projectResolved = findReferenceMatch(referenceCatalog.projects, "project_name", session.project);
-      const collaboratorResolved = findReferenceMatch(referenceCatalog.users, "user_name", session.collaborator);
+      const collaboratorResolved = findReferenceMatch(getKnownUsers(), "user_name", session.collaborator);
       if (!projectResolved || !collaboratorResolved) {
         continue;
       }
@@ -4309,7 +4678,7 @@ function getCurrentCollaborator() {
     return accessProfile.appUser.user_name;
   }
 
-  return activeSession?.collaborator || collaboratorInput.value.trim() || getScopedSessions(sessions)[0]?.collaborator || "";
+  return "";
 }
 
 function getSessionsForCollaborator(collaborator) {
@@ -4767,7 +5136,7 @@ async function loginWithName() {
 
   const success = applyLocalAccessProfile(name);
   if (!success) {
-    if (authStatus) authStatus.textContent = "Nom inconnu. Choisissez un nom existant dans la liste.";
+    if (authStatus) authStatus.textContent = "Nom inconnu. Choisissez un nom existant dans la liste visible sous le champ.";
     loginNameInput?.focus();
     loginNameInput?.select?.();
     return;
