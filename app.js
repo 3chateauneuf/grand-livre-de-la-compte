@@ -1,64 +1,58 @@
 const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
-const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v1";
+const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
 const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
     user_id: "USR-001",
     user_name: "Claire",
-    role: "manager",
-    team_name: "Operations cycle-logistique",
-    managed_team_name: "Operations cycle-logistique",
-    manager_user_id: null,
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
     weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-002",
-    user_name: "Eduardo",
-    role: "admin",
-    team_name: "Operations cycle-logistique",
-    managed_team_name: "Operations cycle-logistique",
+    user_name: "Paulo",
+    role: "manager",
+    team_name: "Conseil Operations France",
+    managed_team_name: "Conseil Operations France",
     manager_user_id: null,
     weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-003",
-    user_name: "Alexis",
-    role: "manager",
-    team_name: "Finance",
-    managed_team_name: "Finance",
-    manager_user_id: null,
-    weekly_capacity_hours: 35,
+    user_name: "Tristan",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
     status: "active",
   },
   {
     user_id: "USR-004",
-    user_name: "Martin Salle",
-    role: "manager",
-    team_name: "Developpement informatique",
-    managed_team_name: "Developpement informatique",
-    manager_user_id: null,
+    user_name: "Martin Salles",
+    role: "cadre",
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
     weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-005",
-    user_name: "Paulo",
+    user_name: "Alexis",
     role: "cadre",
-    team_name: "R&D",
-    manager_user_id: "USR-004",
-    weekly_capacity_hours: 37,
+    team_name: "Conseil Operations France",
+    manager_user_id: "USR-002",
     status: "active",
   },
   {
     user_id: "USR-006",
-    user_name: "Tristan",
-    role: "manager",
-    team_name: "Direction commerciale",
-    managed_team_name: "Direction commerciale",
+    user_name: "Eduardo",
+    role: "admin",
+    team_name: "Conseil Operations France",
     manager_user_id: null,
     weekly_capacity_hours: 39,
     status: "active",
@@ -71,13 +65,8 @@ const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
 const analysisToolbarPanel = document.querySelector("#analysis-toolbar-panel");
 const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
-const currentUserName = document.querySelector("#current-user-name");
-const currentUserRole = document.querySelector("#current-user-role");
 const loginNameInput = document.querySelector("#login-name-input");
-const loginButton = document.querySelector("#login-button");
-const logoutButton = document.querySelector("#logout-button");
 const authStatus = document.querySelector("#auth-status");
-const loginQuickPicks = document.querySelector("#login-quick-picks");
 const adminTools = document.querySelector("#admin-tools");
 const faviconEmojiInput = document.querySelector("#favicon-emoji-input");
 const applyFaviconButton = document.querySelector("#apply-favicon-button");
@@ -130,6 +119,10 @@ const personalStatsCopy = document.querySelector("#personal-stats-copy");
 const personalDistributionBar = document.querySelector("#personal-distribution-bar");
 const personalDistributionLegend = document.querySelector("#personal-distribution-legend");
 const agendaBoard = document.querySelector("#agenda-board");
+const agendaPrevWeekButton = document.querySelector("#agenda-prev-week");
+const agendaCurrentWeekButton = document.querySelector("#agenda-current-week");
+const agendaNextWeekButton = document.querySelector("#agenda-next-week");
+const agendaWeekLabel = document.querySelector("#agenda-week-label");
 const periodSwitch = document.querySelector("#period-switch");
 const analysisStatsSwitch = document.querySelector("#analysis-stats-switch");
 const reportAnchorInput = document.querySelector("#report-anchor");
@@ -223,85 +216,169 @@ const fieldManageConfirmButton = document.querySelector("#field-manage-confirm")
 
 const OBJECTIVE_2026_CATALOG = [
   {
-    pole: "Operations cycle-logistique",
+    pole: "Cyclologistique",
     okrCode: "O1",
     okrLabel:
-      "On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
+      "On a developpe le CA et ameliore le taux horaire, en maitrisant le ratio matin/apres-midi",
     krs: [
-      "RC 1.1 : 95% des commandes quittent le hub dans le bon cut-off",
-      "RC 1.2 : Le taux d'erreurs de preparation reste sous 1,5%",
-      "RC 1.3 : Les ecarts de stock bloquants sont divises par deux",
+      "RC 1.1 : On a augmente le CA global du pole cyclologistique de 10% en 2026",
+      "RC 1.2 : Le taux horaire global livraison a augmente de 4,82%",
+      "RC 1.3 : Le taux horaire de l'apres-midi a augmente de 10%",
+      "RC 1.4 : Le ratio de CA matin/apres-midi est passe de 2,95 a 2,5",
     ],
   },
   {
-    pole: "Operations cycle-logistique",
+    pole: "Cyclologistique",
     okrCode: "O2",
-    okrLabel: "On reduit durablement le SAV et les irritants client",
+    okrLabel:
+      "On a developpe et diversifie le portefeuille commercial des activites livraison et stockage",
     krs: [
-      "RC 2.1 : Les tickets SAV en retard de reponse passent sous 24h",
-      "RC 2.2 : Les incidents recurrents sont documentes et traites a la racine",
-      "RC 2.3 : La part du temps operationnel absorbee par le SAV baisse de 30%",
+      "RC 2.1 : On a embarque 7 nouveaux clients avec un CA mensuel moyen superieur a 1 000EUR",
+      "RC 2.2 : On est passe de 5,6% a 8% de CA sur des clients 100% collecte",
+      "RC 2.3 : On a signe 2 contrats supplementaires en co-traitance",
+      "RC 2.4 : Le CA du top client ne represente pas plus de 50% du CA entrepot",
+      "RC 2.5 : On a augmente de 45% le nombre de clients actifs en stockage et livraison",
+      "RC 2.6 : On est passe de 300 a 350 demandes entrantes issues du site web",
+      "RC 2.7 : On sait suivre precisement le CA des operations speciales",
     ],
   },
   {
-    pole: "QHSE et amelioration continue",
-    okrCode: "O1",
-    okrLabel: "On standardise les flux critiques et on fiabilise les routines terrain",
+    pole: "Cyclologistique",
+    okrCode: "O3",
+    okrLabel: "On a renforce l'excellence operationnelle",
     krs: [
-      "RC 1.1 : Les controles stock et expedition suivent un standard partage",
-      "RC 1.2 : Chaque incident majeur donne lieu a une action corrective tracee",
-      "RC 1.3 : Les checklists terrain sont utilisees sur les flux sensibles",
+      "RC 3.1 : On est passe de 12% a 15% des livraisons en horaires de bureau",
+      "RC 3.2 : On a atteint 95% de respect des cut-off",
+      "RC 3.3 : Le taux de livraisons en retard de plus de 30 minutes est passe de 1,24% a 1,00%",
+      "RC 3.4 : Le taux de livraisons Rive droite hors 12 et 16 reste superieur a 70%",
+      "RC 3.5 : On a optimise le chargement au depart et le dechargement au retour de tournee",
     ],
   },
   {
-    pole: "Developpement informatique",
-    okrCode: "O1",
-    okrLabel: "On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
+    pole: "Cyclologistique",
+    okrCode: "O4",
+    okrLabel: "On a developpe de nouvelles prestations a forte valeur ajoutee",
     krs: [
-      "RC 1.1 : Le Grand Livre couvre la saisie rapide et la lecture manager sans friction",
-      "RC 1.2 : Les irritants de scan, stock et expedition sont visibles dans un meme socle",
-      "RC 1.3 : Les temps saisis servent a prioriser les vrais chantiers outils",
+      "RC 4.1 : On est capables d'expedier de la marchandise via des transporteurs partenaires",
+      "RC 4.2 : On a defini la strategie et le calendrier d'un 20m3 electrique avec hayon",
+      "RC 4.3 : On sait repondre aux demandes spot avec un tarif structure",
+      "RC 4.4 : On a lance et commercialise l'offre livraison lourde en zone proche",
     ],
   },
   {
-    pole: "Finance",
-    okrCode: "O1",
-    okrLabel: "On rend visibles les couts reels et la marge des activites",
+    pole: "Cyclologistique",
+    okrCode: "O5",
+    okrLabel: "On a progresse en conformite et ameliore l'offre de services",
     krs: [
-      "RC 1.1 : Les postes de temps majeurs sont relies aux categories de pilotage",
-      "RC 1.2 : Le poids du SAV et des incidents est visible dans les revues mensuelles",
-      "RC 1.3 : Les arbitrages capacite vs charge sont faits avec des donnees partagees",
+      "RC 5.1 : On a obtenu le label Entrepositaire agree sous douane",
+      "RC 5.2 : On a deploye et commercialise une option de suivi de temperature",
+      "RC 5.3 : On garantit 0 colis introuvable et 0 colis rackoone a tort",
+      "RC 5.4 : On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
     ],
   },
   {
-    pole: "Direction commerciale",
-    okrCode: "O1",
-    okrLabel: "On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
+    pole: "Cyclologistique",
+    okrCode: "O6",
+    okrLabel: "On a ameliore les conditions de travail, l'ergonomie, la securite et les outils",
     krs: [
-      "RC 1.1 : Les nouvelles opportunites sont qualifiees avec les contraintes terrain",
-      "RC 1.2 : Les promesses de service sensibles sont formalisees avant signature",
-      "RC 1.3 : Les retours client nourrissent la priorisation commerciale",
+      "RC 6.1 : Aucun colis ne depasse 15 kg",
+      "RC 6.2 : Plus de 80% des livraisons entrantes arrivent sur palettes",
+      "RC 6.3 : On a mis en service un gerbeur et un transpalette electriques",
+      "RC 6.4 : Le ratio batteries sur velos est superieur a 2 pour les bullit et les bosch",
+      "RC 6.5 : On a un calendrier de revisions preventives par types de velo",
     ],
   },
   {
-    pole: "R&D",
+    pole: "Cercle de management",
     okrCode: "O1",
-    okrLabel: "On teste des solutions qui soulagent durablement l'exploitation",
+    okrLabel:
+      "On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions",
     krs: [
-      "RC 1.1 : Les tests terrain reduisent du temps operationnel non productif",
-      "RC 1.2 : Une experimentation sur le SAV ou le stock est conduite chaque trimestre",
-      "RC 1.3 : Les apprentissages utiles sont repris dans les routines equipe",
+      "RC 1.1 : Les shifts de depannage restent inferieurs a 5% des shifts course par semaine",
+      "RC 1.2 : Moins de 5% des shifts depassent de plus de 45 minutes le planning",
+      "RC 1.3 : Aucune semaine consecutive ne depasse durablement les seuils de depannage",
+      "RC 1.4 : Le deficit horaire reste inferieur a 0,8% sur l'annee",
+      "RC 1.5 : Le planning est publie le mercredi au plus tard",
+      "RC 1.6 : On a un cadre pour les indisponibilites des salarie.es",
+      "RC 1.7 : On utilise un dashboard pour mieux anticiper le volume de livraison",
+    ],
+  },
+  {
+    pole: "Cercle de management",
+    okrCode: "O2",
+    okrLabel: "Nous avons ancre une formation initiale et continue dans nos pratiques",
+    krs: [
+      "RC 2.1 : Toutes les personnes recrutees en 2026 ont suivi au moins 3 jours de formation",
+      "RC 2.2 : Chaque recrue a beneficie de 3 entretiens de feedback durant ses 2 premiers mois",
+      "RC 2.3 : 100% des salarie.es ont suivi une demi-journee de sensibilisation au commercial",
+      "RC 2.4 : 5 salarie.es ont suivi une formation externe",
+    ],
+  },
+  {
+    pole: "Cercle de management",
+    okrCode: "O3",
+    okrLabel:
+      "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    krs: [
+      "RC 3.1 : 100% des salarie.es en periode d'essai recoivent un kit de base complet",
+      "RC 3.2 : 100% du materiel a duree de vie definie est renouvele dans les delais",
+      "RC 3.3 : 100% des cadenas sont recuperes lors des departs",
+      "RC 3.4 : 100% des salarie.es eligibles recoivent la participation telephone",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O1",
+    okrLabel: "Nous realisons 5000EUR de revenu mensuel recurrent en Europe",
+    krs: [
+      "R1 : Allemagne : 3 clients pour 1500EUR par mois",
+      "R2 : Suisse : 2 clients pour 2000EUR par mois",
+      "R3 : Italie : 2 nouveaux clients pour 300EUR par mois",
+      "R4 : Espagne : 2 nouveaux clients pour 300EUR par mois",
+      "R5 : Urbike a teste sur le terrain et defini son plan de migration",
+      "R6 : Les clients etrangers ont 2 propositions d'entretiens utilisateurs dans l'annee",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O2",
+    okrLabel: "Cyke couvre mieux les differents cas d'usage de la cyclologistique",
+    krs: [
+      "R1 : Entretien utilisateurs pour les ambassadeurs",
+      "R2 : 10 visites sur site chez des cyclologisticiens",
+      "R3 : On sait comment chaque client utilise Cyke et on en tire des pistes d'amelioration",
+      "R4 : On a signe au moins un nouveau client petit colis en sous-traitance",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O3",
+    okrLabel: "Cyke gagne en fiabilite",
+    krs: [
+      "R1 : Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
+      "R2 : La mediane mensuelle d'erreur Sentry Ruby par jour est inferieure a 5",
+      "R3 : La mediane mensuelle d'erreur Sentry JS et mobile par jour est inferieure a 50",
+    ],
+  },
+  {
+    pole: "Cyke",
+    okrCode: "O4",
+    okrLabel:
+      "On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
+    krs: [
+      "R1 : L'equipe ne ressent pas de surcharge ni de ralentissement lies aux projets annexes",
+      "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap ou la vision Cyke",
+      "R3 : 100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
     ],
   },
 ];
 
 const OBJECTIVE_2026_PILLARS = [
-  "Operations cycle-logistique",
-  "QHSE et amelioration continue",
-  "Developpement informatique",
-  "Finance",
-  "Direction commerciale",
-  "R&D",
+  "Cyclologistique",
+  "Cercle de management",
+  "Cyke",
+  "Bigbikes Consulting",
+  "Vente de materiel",
 ];
 
 const LOCAL_DEMO_SESSIONS = [
@@ -313,14 +390,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Preparation de commandes"],
     tags: ["hub", "matin"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
-    objectiveKr: "95% des commandes quittent le hub dans le bon cut-off",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
     notes: "Pic de commandes alimentaire.",
     start: "2026-04-07T06:40:00+02:00",
     end: "2026-04-07T08:20:00+02:00",
     durationMs: 6000000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Operations",
   },
@@ -332,14 +409,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["SAV client"],
     tags: ["sav", "clients"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O2 · On reduit durablement le SAV et les irritants client",
-    objectiveKr: "Les tickets SAV en retard de reponse passent sous 24h",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "Le taux de livraisons en retard de plus de 30 minutes est passe de 1,24% a 1,00%",
     notes: "Beaucoup de retours sur creneaux non tenus.",
     start: "2026-04-07T14:10:00+02:00",
     end: "2026-04-07T15:20:00+02:00",
     durationMs: 4200000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Support",
   },
@@ -351,33 +428,33 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Etat des stocks"],
     tags: ["stock", "hub"],
     notionRef: "",
-    objectivePole: "QHSE et amelioration continue",
-    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
-    objectiveKr: "Les controles stock et expedition suivent un standard partage",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
     notes: "Trois references a verifier apres retour client.",
     start: "2026-04-07T15:40:00+02:00",
     end: "2026-04-07T17:10:00+02:00",
     durationMs: 5400000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Operations",
   },
   {
     id: "LOC-004",
-    collaborator: "Martin Salle",
-    project: "Grand Livre de la Compte",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
     task: "Ajustements saisie rapide",
     categories: ["Developpement outil interne"],
     tags: ["produit", "ux"],
     notionRef: "",
-    objectivePole: "Developpement informatique",
-    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
-    objectiveKr: "Le Grand Livre couvre la saisie rapide et la lecture manager sans friction",
+    objectivePole: "Cyke",
+    objectiveOkr: "O3 · Cyke gagne en fiabilite",
+    objectiveKr: "Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
     notes: "Simplification du parcours principal.",
     start: "2026-04-07T10:00:00+02:00",
     end: "2026-04-07T12:00:00+02:00",
     durationMs: 7200000,
-    dbTeamName: "Developpement informatique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Product",
   },
@@ -389,14 +466,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Finance & administration"],
     tags: ["marge", "sav"],
     notionRef: "",
-    objectivePole: "Finance",
-    objectiveOkr: "O1 · On rend visibles les couts reels et la marge des activites",
-    objectiveKr: "Le poids du SAV et des incidents est visible dans les revues mensuelles",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
     notes: "Travail sur les couts caches du SAV.",
     start: "2026-04-08T09:00:00+02:00",
     end: "2026-04-08T10:30:00+02:00",
     durationMs: 5400000,
-    dbTeamName: "Finance",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Internal",
   },
@@ -408,14 +485,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["R&D / innovation"],
     tags: ["test", "reemploi"],
     notionRef: "",
-    objectivePole: "R&D",
-    objectiveOkr: "O1 · On teste des solutions qui soulagent durablement l'exploitation",
-    objectiveKr: "Les tests terrain reduisent du temps operationnel non productif",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
     notes: "Premier test avec deux clients pilotes.",
     start: "2026-04-08T10:45:00+02:00",
     end: "2026-04-08T12:00:00+02:00",
     durationMs: 4500000,
-    dbTeamName: "R&D",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Innovation",
   },
@@ -427,14 +504,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Prospection commerciale"],
     tags: ["prospection", "retail"],
     notionRef: "",
-    objectivePole: "Direction commerciale",
-    objectiveOkr: "O1 · On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
-    objectiveKr: "Les nouvelles opportunites sont qualifiees avec les contraintes terrain",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
     notes: "Filtre charge exploitation dans le brief commercial.",
     start: "2026-04-08T14:00:00+02:00",
     end: "2026-04-08T15:20:00+02:00",
     durationMs: 4800000,
-    dbTeamName: "Direction commerciale",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Business",
   },
@@ -446,14 +523,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Expeditions"],
     tags: ["dispatch", "tournees"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
-    objectiveKr: "95% des commandes quittent le hub dans le bon cut-off",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
     notes: "",
     start: "2026-04-09T06:50:00+02:00",
     end: "2026-04-09T08:00:00+02:00",
     durationMs: 4200000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Monceau Bio",
     dbKpiCategoryLabel: "Operations",
   },
@@ -465,33 +542,33 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["QHSE / amelioration continue"],
     tags: ["qhse", "standard"],
     notionRef: "",
-    objectivePole: "QHSE et amelioration continue",
-    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
-    objectiveKr: "Chaque incident majeur donne lieu a une action corrective tracee",
+    objectivePole: "Cercle de management",
+    objectiveOkr: "O3 · Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    objectiveKr: "100% du materiel a duree de vie definie est renouvele dans les delais",
     notes: "",
     start: "2026-04-09T08:15:00+02:00",
     end: "2026-04-09T09:30:00+02:00",
     durationMs: 4500000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Internal",
   },
   {
     id: "LOC-010",
-    collaborator: "Martin Salle",
-    project: "Grand Livre de la Compte",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
     task: "Lecture manager et capacite",
     categories: ["Developpement outil interne"],
     tags: ["manager", "reporting"],
     notionRef: "",
-    objectivePole: "Developpement informatique",
-    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
-    objectiveKr: "Les irritants de scan, stock et expedition sont visibles dans un meme socle",
+    objectivePole: "Cyke",
+    objectiveOkr: "O2 · Cyke couvre mieux les differents cas d'usage de la cyclologistique",
+    objectiveKr: "On sait comment chaque client utilise Cyke et on en tire des pistes d'amelioration",
     notes: "",
     start: "2026-04-09T09:40:00+02:00",
     end: "2026-04-09T11:20:00+02:00",
     durationMs: 6000000,
-    dbTeamName: "Developpement informatique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Product",
   },
@@ -503,14 +580,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Incident client / qualite"],
     tags: ["sav", "qualite"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O2 · On reduit durablement le SAV et les irritants client",
-    objectiveKr: "Les incidents recurrents sont documentes et traites a la racine",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a optimise le chargement au depart et le dechargement au retour de tournee",
     notes: "Retards dus aux informations de preparation incompletes.",
     start: "2026-04-09T15:10:00+02:00",
     end: "2026-04-09T16:30:00+02:00",
     durationMs: 4800000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Support",
   },
@@ -522,14 +599,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Finance & administration"],
     tags: ["budget", "pilotage"],
     notionRef: "",
-    objectivePole: "Finance",
-    objectiveOkr: "O1 · On rend visibles les couts reels et la marge des activites",
-    objectiveKr: "Les arbitrages capacite vs charge sont faits avec des donnees partagees",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
     notes: "",
     start: "2026-04-09T11:00:00+02:00",
     end: "2026-04-09T12:20:00+02:00",
     durationMs: 4800000,
-    dbTeamName: "Finance",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Internal",
   },
@@ -541,14 +618,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Prospection commerciale"],
     tags: ["rdv", "client"],
     notionRef: "",
-    objectivePole: "Direction commerciale",
-    objectiveOkr: "O1 · On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
-    objectiveKr: "Les promesses de service sensibles sont formalisees avant signature",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
     notes: "",
     start: "2026-04-09T15:30:00+02:00",
     end: "2026-04-09T16:45:00+02:00",
     durationMs: 4500000,
-    dbTeamName: "Direction commerciale",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Business",
   },
@@ -560,14 +637,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Etat des stocks"],
     tags: ["stock", "inventaire"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
-    objectiveKr: "Les ecarts de stock bloquants sont divises par deux",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
     notes: "",
     start: "2026-04-10T07:00:00+02:00",
     end: "2026-04-10T08:10:00+02:00",
     durationMs: 4200000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Operations",
   },
@@ -579,33 +656,33 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["Preparation de commandes"],
     tags: ["reappro", "cross-dock"],
     notionRef: "",
-    objectivePole: "Operations cycle-logistique",
-    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
-    objectiveKr: "Le taux d'erreurs de preparation reste sous 1,5%",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
     notes: "",
     start: "2026-04-10T08:15:00+02:00",
     end: "2026-04-10T10:00:00+02:00",
     durationMs: 6300000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Operations",
   },
   {
     id: "LOC-016",
-    collaborator: "Martin Salle",
-    project: "Grand Livre de la Compte",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
     task: "Corrections suggestions intelligentes",
     categories: ["Developpement outil interne"],
     tags: ["suggestions", "priorisation"],
     notionRef: "",
-    objectivePole: "Developpement informatique",
-    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
-    objectiveKr: "Les temps saisis servent a prioriser les vrais chantiers outils",
+    objectivePole: "Cyke",
+    objectiveOkr: "O4 · On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
+    objectiveKr: "100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
     notes: "",
     start: "2026-04-10T10:15:00+02:00",
     end: "2026-04-10T12:00:00+02:00",
     durationMs: 6300000,
-    dbTeamName: "Developpement informatique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Product",
   },
@@ -617,14 +694,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["R&D / innovation"],
     tags: ["prototype", "hub"],
     notionRef: "",
-    objectivePole: "R&D",
-    objectiveOkr: "O1 · On teste des solutions qui soulagent durablement l'exploitation",
-    objectiveKr: "Une experimentation sur le SAV ou le stock est conduite chaque trimestre",
+    objectivePole: "Cercle de management",
+    objectiveOkr: "O1 · On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions",
+    objectiveKr: "On utilise un dashboard pour mieux anticiper le volume de livraison",
     notes: "",
     start: "2026-04-10T13:40:00+02:00",
     end: "2026-04-10T15:10:00+02:00",
     durationMs: 5400000,
-    dbTeamName: "R&D",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Innovation",
   },
@@ -636,14 +713,14 @@ const LOCAL_DEMO_SESSIONS = [
     categories: ["QHSE / amelioration continue"],
     tags: ["sav", "plan action"],
     notionRef: "",
-    objectivePole: "QHSE et amelioration continue",
-    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
-    objectiveKr: "Chaque incident majeur donne lieu a une action corrective tracee",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On garantit 0 colis introuvable et 0 colis rackoone a tort",
     notes: "Travail avec Claire sur les causes racines.",
     start: "2026-04-10T15:20:00+02:00",
     end: "2026-04-10T16:40:00+02:00",
     durationMs: 4800000,
-    dbTeamName: "Operations cycle-logistique",
+    dbTeamName: "Conseil Operations France",
     dbClientName: "Interne",
     dbKpiCategoryLabel: "Internal",
   },
@@ -683,6 +760,7 @@ let fieldManageState = null;
 let fieldManageConfirmMode = false;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
+let auditTableAvailable = null;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -728,7 +806,7 @@ form.addEventListener("submit", async (event) => {
   }
 
   activeSession = {
-    id: crypto.randomUUID(),
+    id: createSessionId(),
     ...sessionDraft,
     start: new Date().toISOString(),
     pausedAt: null,
@@ -739,6 +817,14 @@ form.addEventListener("submit", async (event) => {
   startTimerLoopIfNeeded();
   render();
 });
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `loc-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
 
 pauseButton.addEventListener("click", () => {
   togglePauseSession();
@@ -869,6 +955,7 @@ analysisStatsSwitch.addEventListener("click", (event) => {
 reportAnchorInput.addEventListener("change", () => {
   renderCadreViews();
   renderManagerViews();
+  renderResourcesViews();
 });
 
 managerCollaboratorFilter.addEventListener("change", () => {
@@ -896,6 +983,21 @@ sessionList.addEventListener("click", (event) => {
 
 agendaBoard.addEventListener("pointerdown", (event) => {
   beginAgendaDrag(event);
+});
+
+agendaPrevWeekButton?.addEventListener("click", () => {
+  shiftAgendaWeek(-1);
+});
+
+agendaCurrentWeekButton?.addEventListener("click", () => {
+  reportAnchorInput.value = formatDateInput(new Date());
+  renderCadreViews();
+  renderManagerViews();
+  renderResourcesViews();
+});
+
+agendaNextWeekButton?.addEventListener("click", () => {
+  shiftAgendaWeek(1);
 });
 
 agendaBoard.addEventListener("click", (event) => {
@@ -1043,7 +1145,7 @@ function initializeAutocomplete() {
         collaboratorInput.dispatchEvent(new Event("change", { bubbles: true }));
       },
       allowCreate: () => canCreateCollaboratorReference(),
-      createLabel: (value) => `Ajouter "${value}" comme nouvelle personne`,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -1141,7 +1243,7 @@ function initializeAutocomplete() {
         manualCollaboratorInput.value = value;
       },
       allowCreate: () => canCreateCollaboratorReference(),
-      createLabel: (value) => `Ajouter "${value}" comme nouvelle personne`,
+      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -1736,6 +1838,7 @@ function beginAgendaDrag(event) {
     startHour,
     endHour,
     hourHeight,
+    mode: resolveAgendaDragMode(event, eventElement),
     durationMs: Number(session.durationMs) || new Date(session.end).getTime() - new Date(session.start).getTime(),
     moved: false,
   };
@@ -1748,6 +1851,27 @@ function beginAgendaDrag(event) {
   window.addEventListener("pointercancel", handleAgendaDragCancel, { once: true });
 }
 
+function resolveAgendaDragMode(event, eventElement) {
+  if (event.target.closest(".agenda-resize-handle--start")) {
+    return "resize-start";
+  }
+  if (event.target.closest(".agenda-resize-handle--end")) {
+    return "resize-end";
+  }
+
+  const rect = eventElement.getBoundingClientRect();
+  const offsetY = event.clientY - rect.top;
+  const edgeThreshold = Math.min(Math.max(rect.height * 0.18, 10), 18);
+
+  if (offsetY <= edgeThreshold) {
+    return "resize-start";
+  }
+  if (offsetY >= rect.height - edgeThreshold) {
+    return "resize-end";
+  }
+  return "move";
+}
+
 function handleAgendaDragMove(event) {
   if (!agendaDragState || event.pointerId !== agendaDragState.pointerId) {
     return;
@@ -1758,31 +1882,53 @@ function handleAgendaDragMove(event) {
 
   const originalStart = new Date(agendaDragState.originalSession.start);
   const originalEnd = new Date(agendaDragState.originalSession.end);
-  const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
-  const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
-
   const dayStart = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
   dayStart.setHours(agendaDragState.startHour, 0, 0, 0);
   const dayEnd = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
   dayEnd.setHours(agendaDragState.endHour, 0, 0, 0);
 
-  let boundedStart = nextStart;
-  let boundedEnd = nextEnd;
+  let boundedStart = new Date(originalStart);
+  let boundedEnd = new Date(originalEnd);
 
-  if (boundedStart < dayStart) {
-    boundedStart = new Date(dayStart);
-    boundedEnd = new Date(dayStart.getTime() + agendaDragState.durationMs);
+  if (agendaDragState.mode === "resize-start") {
+    boundedStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
+    if (boundedStart < dayStart) {
+      boundedStart = new Date(dayStart);
+    }
+    if (boundedStart >= boundedEnd) {
+      boundedStart = new Date(boundedEnd.getTime() - 15 * 60 * 1000);
+    }
+  } else if (agendaDragState.mode === "resize-end") {
+    boundedEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
+    if (boundedEnd > dayEnd) {
+      boundedEnd = new Date(dayEnd);
+    }
+    if (boundedEnd <= boundedStart) {
+      boundedEnd = new Date(boundedStart.getTime() + 15 * 60 * 1000);
+    }
+  } else {
+    const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
+    const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
+    boundedStart = nextStart;
+    boundedEnd = nextEnd;
+
+    if (boundedStart < dayStart) {
+      boundedStart = new Date(dayStart);
+      boundedEnd = new Date(dayStart.getTime() + agendaDragState.durationMs);
+    }
+    if (boundedEnd > dayEnd) {
+      boundedEnd = new Date(dayEnd);
+      boundedStart = new Date(dayEnd.getTime() - agendaDragState.durationMs);
+    }
   }
-  if (boundedEnd > dayEnd) {
-    boundedEnd = new Date(dayEnd);
-    boundedStart = new Date(dayEnd.getTime() - agendaDragState.durationMs);
-  }
+
+  const nextDurationMs = Math.max(boundedEnd.getTime() - boundedStart.getTime(), 15 * 60 * 1000);
 
   agendaDragState.previewSession = {
     ...agendaDragState.originalSession,
     start: boundedStart.toISOString(),
     end: boundedEnd.toISOString(),
-    durationMs: agendaDragState.durationMs,
+    durationMs: nextDurationMs,
   };
 
   agendaDragState.moved =
@@ -1810,6 +1956,7 @@ function handleAgendaDragEnd(event) {
     onSuccess: (sessionToSave) => {
       upsertSession(sessionToSave);
       persistSessions();
+      void logSessionChange(state.originalSession, sessionToSave, `agenda-${state.mode}`);
       render();
     },
   });
@@ -2125,7 +2272,19 @@ function loadSessions() {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     const normalized = parsed.map(normalizeSession);
-    return normalized.length ? normalized : LOCAL_DEMO_SESSIONS.map(normalizeSession);
+    const demoSessions = LOCAL_DEMO_SESSIONS.map(normalizeSession);
+    if (!normalized.length) {
+      return demoSessions;
+    }
+
+    const demoCollaborators = new Set(
+      LOCAL_DEMO_SESSIONS.map((session) => normalizeText(session.collaborator)),
+    );
+    const hasVisibleDemoProfiles = normalized.some((session) =>
+      demoCollaborators.has(normalizeText(session.collaborator)),
+    );
+
+    return hasVisibleDemoProfiles ? normalized : [...demoSessions, ...normalized];
   } catch {
     return LOCAL_DEMO_SESSIONS.map(normalizeSession);
   }
@@ -2221,38 +2380,40 @@ async function validateAndNormalizeMainForm() {
     return null;
   }
 
-  const resolved = await resolveDraftReferences(sessionDraft, { allowCreate: true });
+  const resolved = await resolveDraftReferences(sessionDraft, { allowCreate: false });
   if (!resolved.loaded) {
-    return sessionDraft;
-  }
-
-  if (!resolved.user) {
-    showFieldResolutionError(
-      collaboratorInput,
-      "Choisissez une personne existante dans la base pour enregistrer ce temps.",
-    );
-    return null;
-  }
-
-  if (!resolved.project) {
-    showFieldResolutionError(projectInput, "Choisissez un projet existant dans la base.");
-    return null;
-  }
-
-  if (!resolved.category) {
-    showFieldResolutionError(
-      categoriesInput,
-      "Impossible de rattacher cette categorie pour le moment. Reessayez ou choisissez une categorie existante.",
-    );
-    return null;
+    return hydrateSessionDraftDefaults(sessionDraft);
   }
 
   const normalizedDraft = buildCanonicalSessionDraft(sessionDraft, resolved);
-  applyCanonicalDraftToMainForm(normalizedDraft);
-  return normalizedDraft;
+  const hydratedDraft = hydrateSessionDraftDefaults(normalizedDraft);
+  applyCanonicalDraftToMainForm(hydratedDraft);
+  return hydratedDraft;
+}
+
+function hydrateSessionDraftDefaults(sessionDraft) {
+  const hydratedDraft = {
+    ...sessionDraft,
+    categories: Array.isArray(sessionDraft.categories) ? [...sessionDraft.categories].slice(0, 1) : [],
+  };
+
+  if (hydratedDraft.categories.length) {
+    return hydratedDraft;
+  }
+
+  const memory = resolveProjectMemory(hydratedDraft.project, hydratedDraft.collaborator);
+  if (memory?.categories?.length) {
+    hydratedDraft.categories = [...memory.categories].slice(0, 1);
+  }
+
+  return hydratedDraft;
 }
 
 function showFieldResolutionError(input, message) {
+  if (authStatus) {
+    authStatus.hidden = false;
+    authStatus.textContent = message;
+  }
   input.setCustomValidity(message);
   input.reportValidity();
   input.setCustomValidity("");
@@ -2730,11 +2891,11 @@ async function resolveDraftReferences(sessionDraft, options = {}) {
     };
   }
 
-  let user = findReferenceMatch(referenceCatalog.users, "user_name", sessionDraft.collaborator);
+  let user = findReferenceMatch(getKnownUsers(), "user_name", sessionDraft.collaborator);
   if (!user && options.allowCreate && sessionDraft.collaborator?.trim()) {
     const createdUserName = await createUserReference(sessionDraft.collaborator.trim());
     user = createdUserName
-      ? findReferenceMatch(referenceCatalog.users, "user_name", createdUserName)
+      ? findReferenceMatch(getKnownUsers(), "user_name", createdUserName)
       : null;
   }
 
@@ -2887,9 +3048,7 @@ async function createCategoryReference(rawLabel, options = {}) {
     return null;
   }
 
-  const linkedUser = options.userName
-    ? findReferenceMatch(referenceCatalog.users, "user_name", options.userName)
-    : null;
+  const linkedUser = options.userName ? findReferenceMatch(getKnownUsers(), "user_name", options.userName) : null;
   const linkedProject = options.projectName
     ? findReferenceMatch(referenceCatalog.projects, "project_name", options.projectName)
     : null;
@@ -2913,7 +3072,7 @@ async function createCategoryReference(rawLabel, options = {}) {
     activity_category_id: nextId,
     activity_category_label: categoryLabel,
     kpi_category_label: inheritedCategory?.kpi_category_label ?? "Internal / Admin",
-    team_name: linkedUser?.team_name ?? referenceCatalog.users[0]?.team_name ?? null,
+    team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
     active: true,
   };
 
@@ -2949,7 +3108,9 @@ function findReferenceMatch(rows, labelField, rawValue) {
 function buildCanonicalSessionDraft(sessionDraft, resolved) {
   const normalizedCategories = resolved.category
     ? [resolved.category.activity_category_label]
-    : sessionDraft.categories.slice(0, 1);
+    : resolved.selectedCategoryLabel
+      ? [resolved.selectedCategoryLabel]
+      : sessionDraft.categories.slice(0, 1);
 
   return {
     ...sessionDraft,
@@ -3150,6 +3311,80 @@ async function createTimeEntry(data) {
   }
 }
 
+async function logSessionChange(previousSession, nextSession, source = "manual") {
+  if (!window.supabase) {
+    return false;
+  }
+  if (auditTableAvailable === false) {
+    return false;
+  }
+
+  const rows = [];
+  const actorName = getCurrentCollaborator() || nextSession?.collaborator || "";
+  const fields = [
+    ["project", "Projet"],
+    ["task", "Client"],
+    ["start", "Debut"],
+    ["end", "Fin"],
+    ["durationMs", "Duree"],
+    ["categories", "Categorie"],
+  ];
+
+  for (const [field, label] of fields) {
+    const before = previousSession?.[field];
+    const after = nextSession?.[field];
+    const beforeValue = Array.isArray(before) ? before.join(", ") : before;
+    const afterValue = Array.isArray(after) ? after.join(", ") : after;
+    if (String(beforeValue ?? "") === String(afterValue ?? "")) {
+      continue;
+    }
+    rows.push({
+      session_id: nextSession.id,
+      change_source: source,
+      actor_name: actorName,
+      field_label: label,
+      old_value:
+        field === "durationMs"
+          ? beforeValue
+            ? formatDurationHours(Number(beforeValue))
+            : ""
+          : field === "start" || field === "end"
+            ? beforeValue
+              ? new Date(beforeValue).toLocaleString("fr-FR")
+              : ""
+            : String(beforeValue ?? ""),
+      new_value:
+        field === "durationMs"
+          ? afterValue
+            ? formatDurationHours(Number(afterValue))
+            : ""
+          : field === "start" || field === "end"
+            ? afterValue
+              ? new Date(afterValue).toLocaleString("fr-FR")
+              : ""
+            : String(afterValue ?? ""),
+    });
+  }
+
+  if (!rows.length) {
+    return true;
+  }
+
+  const { error } = await window.supabase.from("session_audit_log").insert(rows);
+  if (error) {
+    if (error.code === "42P01") {
+      auditTableAvailable = false;
+      console.warn("session_audit_log table missing; audit logging skipped.");
+      return false;
+    }
+    console.warn("session_audit_log insert failed:", error);
+    return false;
+  }
+
+  auditTableAvailable = true;
+  return true;
+}
+
 
 function resetFormAfterStop() {
   const lastCollaborator = collaboratorInput.value.trim();
@@ -3217,7 +3452,7 @@ function updateActiveSessionStart() {
 
   const overlap = findOverlappingSession(candidate);
   if (overlap) {
-    activeStartInput.setCustomValidity("Cette personne a deja une autre session sur ce creneau.");
+    activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
     activeStartInput.reportValidity();
     activeStartInput.setCustomValidity("");
     renderActiveSession();
@@ -3299,8 +3534,11 @@ function saveManualEntry() {
   attemptSaveSession(manualSession, {
     excludeId: manualEditingSessionId,
     onSuccess: (sessionToSave) => {
+      const previousSession =
+        manualEditingSessionId ? sessions.find((item) => item.id === manualEditingSessionId) ?? null : null;
       upsertSession(sessionToSave);
       persistSessions();
+      void logSessionChange(previousSession, sessionToSave, previousSession ? "manual-edit" : "manual-create");
       manualEditingSessionId = null;
       manualDialog.close();
       saveManualButton.textContent = "Enregistrer";
@@ -3361,7 +3599,7 @@ function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "La meme personne a deja une session qui chevauche ce creneau.";
+    "Le meme cargonaute a deja une session qui chevauche ce creneau.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
@@ -3443,22 +3681,7 @@ function render() {
 }
 
 function renderCurrentUserContext() {
-  if (!currentUserName || !currentUserRole) {
-    return;
-  }
-
-  if (accessProfile.appUser?.user_name) {
-    currentUserName.textContent = accessProfile.appUser.user_name;
-    if (currentUserRole) {
-      currentUserRole.textContent = formatRoleLabel(getAccessRole());
-    }
-    return;
-  }
-
-  currentUserName.textContent = "Nom requis";
-  if (currentUserRole) {
-    currentUserRole.textContent = "Entrez votre nom pour commencer";
-  }
+  // The active identity is now handled directly by the dropdown in the topbar.
 }
 
 function renderAccessControlledInputs() {
@@ -3484,7 +3707,7 @@ function formatRoleLabel(role) {
     return "Manager";
   }
   if (role === "cadre") {
-    return "Equipe";
+    return "Cargonaute";
   }
   return "Mode local";
 }
@@ -3658,7 +3881,7 @@ function renderQuickProjects() {
   if (!memories.length) {
     const message = collaborator
       ? "Les reprises probables apparaitront ici."
-      : "Connectez-vous pour retrouver vos reprises probables.";
+      : "Choisissez un nom pour retrouver vos reprises probables.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -3681,7 +3904,7 @@ function renderProjectMemoryList() {
   if (!memories.length) {
     const message = collaborator
       ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Choisissez une personne pour afficher ses contextes memorises.";
+      : "Choisissez un cargonaute pour afficher ses contextes memorises.";
     projectMemoryList.append(createEmptyState(message));
     return;
   }
@@ -3698,7 +3921,7 @@ function renderProjectMemoryList() {
 
     const meta = document.createElement("p");
     meta.className = "muted-copy";
-    meta.textContent = `${memory.collaborator} · ${memory.task || "Travail recurrent"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
+    meta.textContent = `${memory.task || "Client non precise"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
 
     const tags = document.createElement("div");
     tags.className = "memory-meta";
@@ -3787,7 +4010,7 @@ function renderPersonalStats() {
   if (!collaborator) {
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-    todayPanelCopy.textContent = "Choisissez un nom pour charger votre semaine.";
+  todayPanelCopy.textContent = "Choisissez un nom pour charger votre semaine.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
@@ -3832,7 +4055,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Choisissez une personne pour voir sa semaine.");
+    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Choisissez un cargonaute pour voir sa semaine.");
     return;
   }
 
@@ -3849,8 +4072,8 @@ function renderPersonalDistribution() {
     displayRows,
     totalMs,
     usesObjectives
-      ? "Aucun objectif 2026 renseigne cette semaine pour cette personne."
-      : "Aucune categorie enregistree cette semaine pour cette personne.",
+      ? "Aucun objectif 2026 renseigne cette semaine pour ce cargonaute."
+      : "Aucune categorie enregistree cette semaine pour ce cargonaute.",
   );
 }
 
@@ -3858,10 +4081,16 @@ function renderAgenda() {
   agendaBoard.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    agendaBoard.append(createEmptyState("Connectez-vous pour afficher et deplacer vos creneaux."));
+    agendaBoard.append(createEmptyState("Choisissez un nom pour afficher et deplacer vos creneaux."));
+    if (agendaWeekLabel) {
+      agendaWeekLabel.textContent = "";
+    }
     return;
   }
   const range = getPeriodRange(getReportAnchorDate(), "week");
+  if (agendaWeekLabel) {
+    agendaWeekLabel.textContent = formatPeriodLabel(range.start, range.end, "week");
+  }
   const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
   const scopedRows = rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator));
 
@@ -3937,9 +4166,13 @@ function renderAgenda() {
     dayTrack.dataset.hourHeight = String(hourHeight);
 
     if (!dayRows.length) {
-      const empty = createEmptyState("Aucun creneau.");
+      const empty = createEmptyState("Ajouter un shift");
       empty.classList.add("agenda-empty-state");
       dayTrack.append(empty);
+      const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
+      if (nowMarker) {
+        dayTrack.append(nowMarker);
+      }
       dayCard.append(dayTrack);
       agendaBoard.append(dayCard);
       continue;
@@ -3967,6 +4200,11 @@ function renderAgenda() {
       renderAgendaEventContents(event, session, visualSize);
 
       dayTrack.append(event);
+    }
+
+    const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
+    if (nowMarker) {
+      dayTrack.append(nowMarker);
     }
 
     dayCard.append(dayTrack);
@@ -4057,6 +4295,11 @@ function getAgendaEventVisualSize(heightPx) {
 function renderAgendaEventContents(element, session, visualSize) {
   element.innerHTML = "";
 
+  const topHandle = document.createElement("span");
+  topHandle.className = "agenda-resize-handle agenda-resize-handle--start";
+  topHandle.setAttribute("aria-hidden", "true");
+  element.append(topHandle);
+
   if (visualSize !== "tiny") {
     const time = document.createElement("p");
     time.className = "agenda-event-time";
@@ -4076,13 +4319,58 @@ function renderAgendaEventContents(element, session, visualSize) {
     icon.textContent = "i";
     element.append(icon);
   }
+
+  const bottomHandle = document.createElement("span");
+  bottomHandle.className = "agenda-resize-handle agenda-resize-handle--end";
+  bottomHandle.setAttribute("aria-hidden", "true");
+  element.append(bottomHandle);
 }
 
 function applyAgendaEventColor(element, session) {
-  const label = session.objectivePole || session.categories?.[0] || session.project || session.collaborator || "agenda";
-  const baseColor = colorForLabel(label);
-  element.style.background = `${baseColor}1A`;
-  element.style.borderColor = `${baseColor}33`;
+  const label = session.categories?.[0] || session.objectivePole || session.project || session.collaborator || "agenda";
+  const baseColor = getAgendaCategoryColor(label);
+  element.style.setProperty("--agenda-accent", baseColor);
+  element.style.background = `${baseColor}1F`;
+  element.style.borderColor = `${baseColor}42`;
+}
+
+function getAgendaCategoryColor(label) {
+  const normalized = normalizeText(label);
+  const palette = [
+    ["delivery", "#9dc4f2"],
+    ["livraison", "#9dc4f2"],
+    ["support", "#efc1da"],
+    ["management", "#c8d2f2"],
+    ["pilotage", "#c8d2f2"],
+    ["interne", "#dce6b1"],
+    ["internal", "#dce6b1"],
+    ["learning", "#f6dfab"],
+    ["formation", "#f6dfab"],
+    ["business", "#bfe1c7"],
+    ["bizdev", "#bfe1c7"],
+  ];
+  const matched = palette.find(([token]) => normalized.includes(token));
+  return matched ? matched[1] : colorForLabel(label);
+}
+
+function createAgendaNowMarker(day, startHour, endHour, hourHeight) {
+  const now = new Date();
+  if (!isSameDay(day, now)) {
+    return null;
+  }
+  const minutesFromStart = (now.getHours() - startHour) * 60 + now.getMinutes();
+  if (minutesFromStart < 0 || minutesFromStart > (endHour - startHour) * 60) {
+    return null;
+  }
+
+  const marker = document.createElement("div");
+  marker.className = "agenda-now-marker";
+  marker.style.top = `${(minutesFromStart / 60) * hourHeight}px`;
+  const label = document.createElement("span");
+  label.className = "agenda-now-label";
+  label.textContent = formatTimeLabel(now);
+  marker.append(label);
+  return marker;
 }
 
 function resolveAgendaSlotFromClick(track, event) {
@@ -4290,7 +4578,7 @@ function exportCurrentAnalysisCsv() {
   const csvRows = [
     [
       "date",
-      "personne",
+      "cargonaute",
       "equipe",
       "client",
       "projet",
@@ -4995,6 +5283,15 @@ function getReportAnchorDate() {
   return reportAnchorInput.value ? new Date(`${reportAnchorInput.value}T12:00:00`) : new Date();
 }
 
+function shiftAgendaWeek(delta) {
+  const anchor = getReportAnchorDate();
+  anchor.setDate(anchor.getDate() + delta * 7);
+  reportAnchorInput.value = formatDateInput(anchor);
+  renderCadreViews();
+  renderManagerViews();
+  renderResourcesViews();
+}
+
 function getPeriodRange(anchor, period) {
   if (period === "month") {
     return {
@@ -5048,7 +5345,7 @@ function buildReportRows(rows, key) {
 
 function getFallbackLabel(key) {
   if (key === "collaborator") {
-    return "Sans personne";
+    return "Sans cargonaute";
   }
   if (key === "project") {
     return "Sans projet";
@@ -5382,7 +5679,23 @@ function registerServiceWorker() {
     return;
   }
 
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+    if (isLocalhost) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        if ("caches" in window) {
+          const cacheKeys = await window.caches.keys();
+          await Promise.all(cacheKeys.map((key) => window.caches.delete(key)));
+        }
+      } catch (error) {
+        // Ignore local cleanup failures and continue without a service worker.
+      }
+      return;
+    }
+
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }

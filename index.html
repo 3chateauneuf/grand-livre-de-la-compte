@@ -51,7 +51,7 @@
           </section>
         </div>
         <nav class="topbar-nav">
-          <button type="button" data-view-target="cadre" class="active">Equipe</button>
+          <button type="button" data-view-target="cadre" class="active">Cadre</button>
           <button type="button" data-view-target="manager">Manager</button>
           <button type="button" data-view-target="resources">Ressources</button>
           <button type="button" data-view-target="journal">Journal</button>
@@ -68,7 +68,7 @@
                 <section class="memory-strip memory-strip-inline">
                   <div class="section-minihead">
                     <h3>Reprises probables</h3>
-                    <p>Les contextes les plus plausibles pour la personne active.</p>
+                    <p>Les contextes les plus plausibles pour le cargonaute actif.</p>
                   </div>
                   <div id="quick-projects" class="chip-row"></div>
                 </section>
@@ -267,7 +267,7 @@
             <article class="summary-card">
               <p>Aujourd'hui</p>
               <strong id="today-total">0 h 00</strong>
-              <span id="today-panel-copy">Temps saisi pour la personne en cours.</span>
+              <span id="today-panel-copy">Temps saisi pour le cargonaute en cours.</span>
             </article>
             <article class="summary-card">
               <p>Cette semaine</p>
@@ -275,7 +275,7 @@
               <span>Vue du lundi au dimanche.</span>
             </article>
             <article class="summary-card">
-              <p>Equipe visible</p>
+              <p>Cargonautes visibles</p>
               <strong id="team-count">0</strong>
               <span id="active-count-copy">Aucune session en cours.</span>
             </article>
@@ -285,7 +285,7 @@
             <article class="inner-card">
               <div class="section-minihead">
                 <h3 id="personal-stats-title">Categories en cours</h3>
-                <p id="personal-stats-copy">Lecture compacte par type de travail sur la semaine.</p>
+                <p id="personal-stats-copy">Lecture compacte de la semaine, par objectifs ou categories.</p>
               </div>
               <div id="personal-distribution-bar" class="distribution-bar"></div>
               <div id="personal-distribution-legend" class="distribution-legend"></div>
@@ -301,6 +301,14 @@
               <h2>Vue semaine</h2>
             </div>
             <p class="panel-copy">Le calendrier prend toute la largeur utile pour mieux lire la semaine.</p>
+          </div>
+          <div class="agenda-toolbar">
+            <div class="agenda-week-nav">
+              <button id="agenda-prev-week" type="button" class="period-btn">Semaine precedente</button>
+              <button id="agenda-current-week" type="button" class="period-btn">Cette semaine</button>
+              <button id="agenda-next-week" type="button" class="period-btn">Semaine suivante</button>
+            </div>
+            <p id="agenda-week-label" class="agenda-week-label"></p>
           </div>
           <div id="agenda-board" class="agenda-board agenda-board-wide"></div>
         </section>
@@ -390,7 +398,7 @@
           <article class="inner-card">
             <div class="section-minihead">
               <h3>Evolution</h3>
-              <p>Tendance de la periode ou d'une personne.</p>
+                <p>Tendance de la periode ou d'un cargonaute.</p>
             </div>
             <div id="evolution-grid" class="evolution-grid"></div>
           </article>
@@ -407,8 +415,8 @@
         <div class="manager-analysis-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Equipe</h3>
-              <p>Charge lue par personne, avec un repere de capacite.</p>
+              <h3>Cargonautes</h3>
+              <p>Charge lue par cargonaute, avec un repere de capacite.</p>
             </div>
             <div class="table-shell">
               <table class="report-table">
@@ -543,7 +551,7 @@
           <article class="inner-card">
             <div class="section-minihead">
               <h3>Personnes</h3>
-                <p>Charge et capacite par personne sur la plage active.</p>
+                <p>Charge et capacite par cargonaute sur la plage active.</p>
               </div>
               <div class="table-shell">
                 <table class="report-table compact-table">

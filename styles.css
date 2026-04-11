@@ -58,9 +58,9 @@ button {
 .app-shell {
   width: min(var(--content-width), calc(100% - 32px));
   margin: 0 auto;
-  padding: 22px 0 36px;
+  padding: 12px 0 28px;
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .topbar,
@@ -73,11 +73,11 @@ button {
 
 .topbar {
   border-radius: var(--radius-panel);
-  padding: 10px 14px;
+  padding: 7px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -185,8 +185,8 @@ button {
 }
 
 .topbar-context {
-  flex: 1 1 560px;
-  min-width: min(520px, 100%);
+  flex: 1 1 360px;
+  min-width: min(320px, 100%);
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
@@ -202,37 +202,41 @@ button {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 10px;
+  gap: 8px;
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .auth-field {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .auth-field span {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   font-weight: 800;
 }
 
+.auth-name-field > span {
+  display: none;
+}
+
 .auth-name-field select,
 .auth-name-field input {
   width: 100%;
-  min-height: 40px;
-  padding: 9px 11px;
+  min-height: 34px;
+  padding: 7px 10px;
   border-radius: 12px;
   border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(255, 255, 255, 0.82);
 }
 
 .auth-name-field {
-  width: min(240px, 100%);
+  width: min(210px, 100%);
 }
 
 .auth-name-field select {
@@ -247,7 +251,7 @@ button {
 }
 
 #auth-status {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   margin-left: 2px;
 }
 
@@ -296,11 +300,12 @@ button {
 
 .topbar-nav a,
 .topbar-nav button {
-  padding: 9px 12px;
+  padding: 7px 10px;
   color: var(--text);
   background: rgba(24, 56, 74, 0.03);
   border: 1px solid rgba(24, 56, 74, 0.06);
   appearance: none;
+  font-size: 0.92rem;
 }
 
 .topbar-nav button {
@@ -893,6 +898,27 @@ button {
   margin-bottom: 2px;
 }
 
+.agenda-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.agenda-week-nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agenda-week-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .agenda-time-rail {
   display: grid;
   gap: 0;
@@ -1008,6 +1034,7 @@ button {
   touch-action: none;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   overflow: hidden;
+  --agenda-accent: #0f766e;
 }
 
 .agenda-event--compact {
@@ -1023,9 +1050,9 @@ button {
 
 .agenda-event:hover {
   transform: translateY(-1px);
-  border-color: rgba(15, 118, 110, 0.3);
+  border-color: color-mix(in srgb, var(--agenda-accent) 58%, white);
   box-shadow: 0 10px 24px rgba(24, 56, 74, 0.12);
-  background: rgba(15, 118, 110, 0.14);
+  background: color-mix(in srgb, var(--agenda-accent) 18%, white);
 }
 
 .agenda-event--dragging {
@@ -1073,6 +1100,77 @@ button {
   background: rgba(24, 56, 74, 0.08);
   color: var(--muted);
   font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.agenda-resize-handle {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.agenda-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--agenda-accent) 70%, white);
+  transform: translateY(-50%);
+}
+
+.agenda-resize-handle--start {
+  top: 0;
+  cursor: ns-resize;
+}
+
+.agenda-resize-handle--end {
+  bottom: 0;
+  cursor: ns-resize;
+}
+
+.agenda-event:hover .agenda-resize-handle,
+.agenda-event--dragging .agenda-resize-handle {
+  opacity: 1;
+}
+
+.agenda-now-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #be4fc8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.agenda-now-marker::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #be4fc8;
+}
+
+.agenda-now-label {
+  position: absolute;
+  right: 6px;
+  top: -12px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(190, 79, 200, 0.12);
+  color: #a03cab;
+  font-size: 0.64rem;
   font-weight: 800;
 }
 
