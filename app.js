@@ -1,5 +1,6 @@
 const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
+const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v1";
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 
 const form = document.querySelector("#time-form");
@@ -10,6 +11,12 @@ const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
 const currentUserName = document.querySelector("#current-user-name");
 const currentUserRole = document.querySelector("#current-user-role");
+const loginNameInput = document.querySelector("#login-name-input");
+const loginNameSuggestions = document.querySelector("#login-name-suggestions");
+const loginButton = document.querySelector("#login-button");
+const logoutButton = document.querySelector("#logout-button");
+const authStatus = document.querySelector("#auth-status");
+const loginQuickPicks = document.querySelector("#login-quick-picks");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
 const projectInput = document.querySelector("#project-input");
@@ -675,6 +682,16 @@ function createAutocompletePopover() {
 
 function initializeAutocomplete() {
   const configs = [
+    {
+      input: loginNameInput,
+      getOptions: () =>
+        referenceCatalog.loaded
+          ? referenceCatalog.users.map((item) => item.user_name)
+          : uniqueValues("collaborator"),
+      applyValue: (value) => {
+        loginNameInput.value = value;
+      },
+    },
     {
       input: collaboratorInput,
       getOptions: () =>
@@ -1665,9 +1682,9 @@ function showFieldResolutionError(input, message) {
 
 function showAuthRequiredMessage() {
   if (authStatus) {
-    authStatus.textContent = "Connectez-vous avec Google pour lancer une session avec votre profil.";
+    authStatus.textContent = "Entrez votre nom pour lancer une session avec votre profil.";
   }
-  googleLoginButton?.focus();
+  loginNameInput?.focus();
 }
 
 function updateFieldManageButtons() {
@@ -1877,7 +1894,7 @@ function stopActiveSession() {
 async function initializeReferenceCatalog() {
   const loaded = await ensureReferenceCatalogLoaded();
   if (loaded) {
-    renderSuggestions();
+    render();
   }
 }
 
@@ -1929,59 +1946,75 @@ async function ensureReferenceCatalogLoaded(force = false) {
 }
 
 async function initializeAccessProfile() {
-  if (!window.supabase?.auth) {
-    return;
-  }
-
-  await applyAccessProfileFromSession();
-  window.supabase.auth.onAuthStateChange((_event, session) => {
-    void applyAccessProfileFromSession(session);
-  });
+  await ensureReferenceCatalogLoaded();
+  const savedName = loadStoredAccessName();
+  applyLocalAccessProfile(savedName, { persist: false });
 }
 
-async function applyAccessProfileFromSession(providedSession = undefined) {
-  let session = providedSession;
-  if (typeof session === "undefined" && window.supabase?.auth) {
-    const { data, error } = await window.supabase.auth.getSession();
-    if (error) {
-      console.error("Supabase auth session error:", error);
-      return;
-    }
-    session = data?.session ?? null;
-  }
+function applyLocalAccessProfile(rawName, options = {}) {
+  const name = String(rawName ?? "").trim();
+  const appUser = name ? findAppUserByName(name) : null;
 
-  if (!session?.user) {
+  if (!name || !appUser) {
     accessProfile = {
       mode: "open",
       role: "open",
       session: null,
       appUser: null,
     };
+    if (options.persist !== false) {
+      clearStoredAccessName();
+    }
     render();
-    return;
+    return Boolean(appUser);
   }
 
-  await ensureReferenceCatalogLoaded();
-  const appUser = findAppUserForSession(session);
-
   accessProfile = {
-    mode: appUser ? "authenticated" : "authenticated-unmapped",
-    role: appUser?.role ?? "cadre",
-    session,
+    mode: "named",
+    role: appUser.role ?? "cadre",
+    session: null,
     appUser,
   };
 
+  if (options.persist !== false) {
+    storeAccessName(appUser.user_name);
+  }
+
   render();
+  return true;
 }
 
-function findAppUserForSession(session) {
-  const authUserId = session?.user?.id ?? "";
-  const email = session?.user?.email ?? "";
+function findAppUserByName(rawName) {
+  const normalizedName = normalizeText(rawName);
+  if (!normalizedName) {
+    return null;
+  }
 
-  return (
-    referenceCatalog.users.find((item) => item.auth_user_id === authUserId) ??
-    referenceCatalog.users.find((item) => normalizeText(item.email ?? "") === normalizeText(email))
-  );
+  return referenceCatalog.users.find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
+}
+
+function loadStoredAccessName() {
+  try {
+    return window.localStorage.getItem(ACCESS_PROFILE_KEY) ?? "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function storeAccessName(name) {
+  try {
+    window.localStorage.setItem(ACCESS_PROFILE_KEY, name);
+  } catch (error) {
+    // ignore storage errors in local mode
+  }
+}
+
+function clearStoredAccessName() {
+  try {
+    window.localStorage.removeItem(ACCESS_PROFILE_KEY);
+  } catch (error) {
+    // ignore storage errors in local mode
+  }
 }
 
 function getAccessRole() {
@@ -1992,10 +2025,10 @@ function getAllowedViewsForRole(role = getAccessRole()) {
   if (role === "cadre") {
     return ["cadre", "journal"];
   }
-  if (role === "manager" || role === "admin" || role === "open") {
+  if (role === "manager" || role === "admin") {
     return ["cadre", "manager", "resources", "journal"];
   }
-  return ["cadre"];
+  return ["cadre", "journal"];
 }
 
 function getManagedTeamNames() {
@@ -2040,7 +2073,7 @@ function getVisibleReferenceUsers() {
 
 function canCreateCollaboratorReference() {
   const role = getAccessRole();
-  return role === "admin" || role === "open";
+  return role === "admin";
 }
 
 function getEffectiveCollaboratorValue(rawValue = "") {
@@ -2802,6 +2835,7 @@ function render() {
   renderAccessControlledInputs();
   renderCurrentUserContext();
   renderAuthPanel();
+  renderLoginQuickPicks();
   updateFieldManageButtons();
   renderActiveSession();
   renderSuggestions();
@@ -2824,9 +2858,9 @@ function renderCurrentUserContext() {
   }
 
   const collaborator = getCurrentCollaborator();
-  currentUserName.textContent = collaborator || "Connexion requise";
+  currentUserName.textContent = collaborator || "Nom requis";
   if (currentUserRole) {
-    currentUserRole.textContent = collaborator ? "Mode local" : "Connectez-vous pour saisir";
+    currentUserRole.textContent = collaborator ? "Mode local" : "Entrez votre nom pour commencer";
   }
 }
 
@@ -2859,27 +2893,29 @@ function formatRoleLabel(role) {
 }
 
 function renderAuthPanel() {
-  if (!logoutButton || !authStatus || !googleLoginButton) {
+  if (!logoutButton || !authStatus || !loginButton || !loginNameInput) {
     return;
   }
 
-  const authenticated = Boolean(accessProfile.session?.user);
-  const email = accessProfile.session?.user?.email ?? "";
+  const authenticated = Boolean(accessProfile.appUser?.user_name);
 
   if (authenticated) {
-    googleLoginButton.hidden = true;
+    loginNameInput.value = accessProfile.appUser.user_name;
+    loginNameInput.readOnly = true;
+    loginButton.hidden = true;
     logoutButton.hidden = false;
     authStatus.textContent =
-      accessProfile.mode === "authenticated"
-        ? `Connecte en tant que ${email}.`
-        : `Connecte en tant que ${email}, mais aucun profil metier n'est encore relie.`;
+      accessProfile.role === "admin" || accessProfile.role === "manager" || accessProfile.role === "cadre"
+        ? `Profil charge: ${accessProfile.appUser.user_name} · ${formatRoleLabel(accessProfile.role)}.`
+        : `Profil charge: ${accessProfile.appUser.user_name}.`;
     return;
   }
 
-  googleLoginButton.hidden = false;
+  loginNameInput.readOnly = false;
+  loginButton.hidden = false;
   logoutButton.hidden = true;
-  if (!authStatus.textContent || authStatus.textContent.startsWith("Connecte")) {
-    authStatus.textContent = "Connectez-vous avec Google.";
+  if (!authStatus.textContent || authStatus.textContent.startsWith("Profil charge")) {
+    authStatus.textContent = "Entrez un nom existant pour charger le bon profil.";
   }
 }
 
@@ -2959,6 +2995,12 @@ function renderSuggestions() {
       : uniqueValues("collaborator"),
   );
   fillDatalist(
+    loginNameSuggestions,
+    referenceCatalog.loaded
+      ? referenceCatalog.users.map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
+      : uniqueValues("collaborator"),
+  );
+  fillDatalist(
     categorySuggestions,
     referenceCatalog.loaded
       ? referenceCatalog.categories
@@ -2987,6 +3029,42 @@ function renderSuggestions() {
   }
 
   managerCollaboratorFilter.value = collaborators.includes(currentValue) ? currentValue : "all";
+}
+
+function renderLoginQuickPicks() {
+  if (!loginQuickPicks) {
+    return;
+  }
+
+  loginQuickPicks.innerHTML = "";
+
+  if (accessProfile.appUser?.user_name) {
+    loginQuickPicks.hidden = true;
+    return;
+  }
+
+  const visibleUsers = referenceCatalog.loaded
+    ? [...referenceCatalog.users].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"))
+    : [];
+
+  if (!visibleUsers.length) {
+    loginQuickPicks.hidden = true;
+    return;
+  }
+
+  loginQuickPicks.hidden = false;
+
+  for (const user of visibleUsers) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "login-quick-pick";
+    button.textContent = user.user_name;
+    button.addEventListener("click", async () => {
+      loginNameInput.value = user.user_name;
+      await loginWithName();
+    });
+    loginQuickPicks.append(button);
+  }
 }
 
 function renderQuickProjects() {
@@ -4657,62 +4735,58 @@ function registerServiceWorker() {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }
+loginButton?.addEventListener("click", async () => {
+  await loginWithName();
+});
 
+loginNameInput?.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
 
-const googleLoginButton = document.querySelector("#google-login-button");
-const logoutButton = document.querySelector("#logout-button");
-const authStatus = document.querySelector("#auth-status");
-
-googleLoginButton?.addEventListener("click", async () => {
-  await loginWithGoogle();
+  event.preventDefault();
+  await loginWithName();
 });
 
 logoutButton?.addEventListener("click", async () => {
   await logoutCurrentUser();
 });
 
-async function loginWithGoogle() {
-  if (!window.supabase?.auth) {
+async function loginWithName() {
+  const name = loginNameInput?.value.trim() ?? "";
+
+  if (!name) {
+    if (authStatus) authStatus.textContent = "Entrez votre nom pour continuer.";
+    loginNameInput?.focus();
     return;
   }
 
-  if (window.location.protocol === "file:") {
-    if (authStatus) {
-      authStatus.textContent =
-        "La connexion Google demande une URL http://localhost ou un domaine en ligne, pas file://.";
-    }
+  if (!referenceCatalog.loaded) {
+    await ensureReferenceCatalogLoaded();
+  }
+
+  const success = applyLocalAccessProfile(name);
+  if (!success) {
+    if (authStatus) authStatus.textContent = "Nom inconnu. Choisissez un nom existant dans la liste.";
+    loginNameInput?.focus();
+    loginNameInput?.select?.();
     return;
   }
 
-  const redirectTo = `${window.location.origin}${window.location.pathname}${window.location.hash || ""}`;
-  const { error } = await window.supabase.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo,
-    },
-  });
-
-  if (error) {
-    console.error("Google login error:", error);
-    if (authStatus) authStatus.textContent = `Erreur Google: ${error.message}`;
-    return;
-  }
-
-  if (authStatus) authStatus.textContent = "Redirection vers Google...";
+  if (authStatus) authStatus.textContent = `Profil charge: ${name}.`;
 }
 
 async function logoutCurrentUser() {
-  if (!window.supabase?.auth) {
-    return;
+  clearStoredAccessName();
+  accessProfile = {
+    mode: "open",
+    role: "open",
+    session: null,
+    appUser: null,
+  };
+  if (loginNameInput) {
+    loginNameInput.value = "";
   }
-
-  const { error } = await window.supabase.auth.signOut();
-
-  if (error) {
-    console.error("Logout error:", error);
-    if (authStatus) authStatus.textContent = `Erreur: ${error.message}`;
-    return;
-  }
-
   if (authStatus) authStatus.textContent = "Déconnecté.";
+  render();
 }

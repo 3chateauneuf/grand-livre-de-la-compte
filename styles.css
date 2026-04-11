@@ -225,7 +225,7 @@ button {
 
 .auth-panel {
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(180px, 220px) auto;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
@@ -233,10 +233,33 @@ button {
   min-width: 0;
 }
 
-.auth-oauth-button {
-  justify-content: center;
+.auth-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.auth-field span {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.auth-name-field input {
+  width: 100%;
   min-height: 40px;
+  padding: 9px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(255, 255, 255, 0.82);
+}
+
+.auth-name-field input:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.46);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
 }
 
 .auth-actions {
@@ -255,6 +278,29 @@ button {
   grid-column: 1 / -1;
   min-height: 1em;
   font-size: 0.78rem;
+}
+
+.login-quick-picks {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.login-quick-pick {
+  border: 1px solid rgba(24, 56, 74, 0.08);
+  background: rgba(24, 56, 74, 0.04);
+  color: var(--text);
+  border-radius: 999px;
+  min-height: 30px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.login-quick-pick:hover {
+  border-color: rgba(15, 118, 110, 0.22);
+  background: rgba(15, 118, 110, 0.08);
 }
 
 .topbar-nav a,
@@ -1413,7 +1459,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .auth-oauth-button,
+  .auth-name-field,
   .auth-actions,
   #auth-status {
     grid-column: 1 / -1;

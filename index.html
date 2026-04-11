@@ -32,19 +32,23 @@
         <div class="topbar-context">
           <div class="topbar-identity">
             <span class="topbar-context-label">Profil actif</span>
-            <strong id="current-user-name">Connexion requise</strong>
-            <span id="current-user-role" class="topbar-context-meta">Connectez-vous pour saisir</span>
+            <strong id="current-user-name">Nom requis</strong>
+            <span id="current-user-role" class="topbar-context-meta">Entrez votre nom pour commencer</span>
           </div>
           <section id="auth-panel" class="auth-panel">
-            <button id="google-login-button" type="button" class="btn btn-secondary auth-oauth-button">
-              Continuer avec Google
-            </button>
+            <label class="auth-field auth-name-field">
+              <span>Nom</span>
+              <input id="login-name-input" type="text" placeholder="Ex. Paulo" list="login-name-suggestions" />
+            </label>
+            <datalist id="login-name-suggestions"></datalist>
 
             <div class="button-row auth-actions">
+              <button id="login-button" type="button" class="btn btn-primary">Entrer</button>
               <button id="logout-button" type="button" class="btn btn-secondary" hidden>Se déconnecter</button>
             </div>
 
             <p id="auth-status" class="muted-copy"></p>
+            <div id="login-quick-picks" class="login-quick-picks"></div>
           </section>
         </div>
         <nav class="topbar-nav">
