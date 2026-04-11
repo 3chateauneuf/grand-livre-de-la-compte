@@ -7,50 +7,60 @@ const LOCAL_PROFILE_DIRECTORY = [
   {
     user_id: "USR-001",
     user_name: "Claire",
-    role: "cadre",
-    team_name: "Conseil Operations France",
-    manager_user_id: "USR-002",
+    role: "manager",
+    team_name: "Operations cycle-logistique",
+    managed_team_name: "Operations cycle-logistique",
+    manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-002",
-    user_name: "Paulo",
-    role: "manager",
-    team_name: "Conseil Operations France",
-    managed_team_name: "Conseil Operations France",
+    user_name: "Eduardo",
+    role: "admin",
+    team_name: "Operations cycle-logistique",
+    managed_team_name: "Operations cycle-logistique",
     manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-003",
-    user_name: "Tristan",
-    role: "cadre",
-    team_name: "Conseil Operations France",
-    manager_user_id: "USR-002",
+    user_name: "Alexis",
+    role: "manager",
+    team_name: "Finance",
+    managed_team_name: "Finance",
+    manager_user_id: null,
+    weekly_capacity_hours: 35,
     status: "active",
   },
   {
     user_id: "USR-004",
-    user_name: "Martin Salles",
-    role: "cadre",
-    team_name: "Conseil Operations France",
-    manager_user_id: "USR-002",
+    user_name: "Martin Salle",
+    role: "manager",
+    team_name: "Developpement informatique",
+    managed_team_name: "Developpement informatique",
+    manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
     user_id: "USR-005",
-    user_name: "Alexis",
+    user_name: "Paulo",
     role: "cadre",
-    team_name: "Conseil Operations France",
-    manager_user_id: "USR-002",
+    team_name: "R&D",
+    manager_user_id: "USR-004",
+    weekly_capacity_hours: 37,
     status: "active",
   },
   {
     user_id: "USR-006",
-    user_name: "Eduardo",
-    role: "admin",
-    team_name: "Conseil Operations France",
+    user_name: "Tristan",
+    role: "manager",
+    team_name: "Direction commerciale",
+    managed_team_name: "Direction commerciale",
     manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
 ];
@@ -64,12 +74,10 @@ const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collabo
 const currentUserName = document.querySelector("#current-user-name");
 const currentUserRole = document.querySelector("#current-user-role");
 const loginNameInput = document.querySelector("#login-name-input");
-const loginNameSuggestions = document.querySelector("#login-name-suggestions");
 const loginButton = document.querySelector("#login-button");
 const logoutButton = document.querySelector("#logout-button");
 const authStatus = document.querySelector("#auth-status");
 const loginQuickPicks = document.querySelector("#login-quick-picks");
-const loginDirectoryStatus = document.querySelector("#login-directory-status");
 const adminTools = document.querySelector("#admin-tools");
 const faviconEmojiInput = document.querySelector("#favicon-emoji-input");
 const applyFaviconButton = document.querySelector("#apply-favicon-button");
@@ -215,167 +223,430 @@ const fieldManageConfirmButton = document.querySelector("#field-manage-confirm")
 
 const OBJECTIVE_2026_CATALOG = [
   {
-    pole: "Cyclologistique",
+    pole: "Operations cycle-logistique",
     okrCode: "O1",
     okrLabel:
-      "On a developpe le CA et ameliore le taux horaire, en maitrisant le ratio matin/apres-midi",
+      "On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
     krs: [
-      "RC 1.1 : On a augmente le CA global du pole cyclologistique (livraison + stockage) de 10 % en 2026",
-      "RC 1.2 : Le taux horaire global livraison a augmente de 4,82 %",
-      "RC 1.3 : Le taux horaire de l'apres-midi a augmente de 10%",
-      "RC 1.4 : Le ratio de CA matin/apres-midi est passe de 2,95 a 2,5",
+      "RC 1.1 : 95% des commandes quittent le hub dans le bon cut-off",
+      "RC 1.2 : Le taux d'erreurs de preparation reste sous 1,5%",
+      "RC 1.3 : Les ecarts de stock bloquants sont divises par deux",
     ],
   },
   {
-    pole: "Cyclologistique",
+    pole: "Operations cycle-logistique",
     okrCode: "O2",
-    okrLabel: "On a developpe et diversifie le portefeuille commercial des activites livraison et stockage",
+    okrLabel: "On reduit durablement le SAV et les irritants client",
     krs: [
-      "RC 2.1 : On a embarque 7 nouveaux clients avec un CA mensuel moyen > 1 000 EUR",
-      "RC 2.2 : On est passe de 5,6% a 8% de CA sur des clients 100% collecte",
-      "RC 2.3 : On a signe 2 contrats supplementaires en co-traitance avec d'autres acteurs franciliens",
-      "RC 2.4 : Le CA du TOP client (Yumi) ne represente pas plus de 50% du CA entrepot",
-      "RC 2.5 : On a augmente de 45% le nombre de clients actifs en stockage ET livraison",
-      "RC 2.6 : On est passe de 300 a 350 demandes entrantes issues du site web",
-      "RC 2.7 : On sait suivre precisement le CA des operations speciales",
+      "RC 2.1 : Les tickets SAV en retard de reponse passent sous 24h",
+      "RC 2.2 : Les incidents recurrents sont documentes et traites a la racine",
+      "RC 2.3 : La part du temps operationnel absorbee par le SAV baisse de 30%",
     ],
   },
   {
-    pole: "Cyclologistique",
-    okrCode: "O3",
-    okrLabel: "On a renforce l'excellence operationnelle",
-    krs: [
-      "RC 3.1 : On est passe de 12% a 15% des livraisons en horaires de bureau",
-      "RC 3.2 : On a atteint 95% de respect des cut-off",
-      "RC 3.3 : Le taux de livraisons en retard >30 minutes est passe de 1,24% a 1,00%",
-      "RC 3.4 : Le taux de livraisons Rive droite hors 12 & 16 reste superieur a 70%",
-      "RC 3.5 : On a optimise les etapes de chargement et dechargement de tournee",
-    ],
-  },
-  {
-    pole: "Cyclologistique",
-    okrCode: "O4",
-    okrLabel: "On a developpe de nouvelles prestations a forte valeur ajoutee",
-    krs: [
-      "RC 4.1 : On est capables d'expedier de la marchandise via des transporteurs externes partenaires",
-      "RC 4.2 : On a defini notre positionnement et notre calendrier sur un 20m3 electrique avec hayon",
-      "RC 4.3 : On sait repondre aux demandes spot avec un tarif structure",
-      "RC 4.4 : On a lance et commercialise l'offre livraison lourde en zone proche",
-    ],
-  },
-  {
-    pole: "Cyclologistique",
-    okrCode: "O5",
-    okrLabel: "On a progresse en conformite et ameliore notre offre de services",
-    krs: [
-      "RC 5.1 : On a obtenu le label Entrepositaire agree sous douane",
-      "RC 5.2 : On a deploye et commercialise une option de suivi et releve de temperature",
-      "RC 5.3 : On garantit 0 colis introuvable et 0 colis rackoone a tort",
-      "RC 5.4 : On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
-    ],
-  },
-  {
-    pole: "Cyclologistique",
-    okrCode: "O6",
-    okrLabel: "On a ameliore les conditions de travail : organisation, ergonomie, securite et outils",
-    krs: [
-      "RC 6.1 : On a impose une limite stricte de poids par colis : aucun colis >15kg",
-      "RC 6.2 : On a >80% des livraisons entrantes sur palettes",
-      "RC 6.3 : On a mis en service et on utilise un gerbeur et un transpalette electriques",
-      "RC 6.4 : Le ratio nb de batteries / nb de velos est > 2 pour les bullit et les bosch",
-      "RC 6.5 : On a un calendrier de revisions preventives par types de velo",
-    ],
-  },
-  {
-    pole: "Cercle de management",
+    pole: "QHSE et amelioration continue",
     okrCode: "O1",
-    okrLabel:
-      "On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions operationnelles",
+    okrLabel: "On standardise les flux critiques et on fiabilise les routines terrain",
     krs: [
-      "RC 1.1 : Le nombre de shifts de depannage reste <= a 5% des shifts course par semaine",
-      "RC 1.2 : Moins de 5% des shifts depassent de plus de 45 minutes par rapport au planning",
-      "RC 1.3 : Aucune semaine consecutive ne depasse les seuils d'alerte de depannage ou retard",
-      "RC 1.4 : Le deficit horaire reste inferieur a 0,8% sur l'annee",
-      "RC 1.5 : Le planning est publie le mercredi au plus tard",
-      "RC 1.6 : On a un cadre pour les indisponibilites des salarie.e.s",
-      "RC 1.7 : On utilise un dashboard pour mieux anticiper le volume de livraison",
+      "RC 1.1 : Les controles stock et expedition suivent un standard partage",
+      "RC 1.2 : Chaque incident majeur donne lieu a une action corrective tracee",
+      "RC 1.3 : Les checklists terrain sont utilisees sur les flux sensibles",
     ],
   },
   {
-    pole: "Cercle de management",
-    okrCode: "O2",
-    okrLabel: "Nous avons ancre une formation initiale et continue dans nos pratiques",
-    krs: [
-      "RC 2.1 : Toutes les personnes recrutees en 2026 ont suivi au moins 3 jours de formation",
-      "RC 2.2 : Chaque recrue a beneficie de 3 entretiens de feedback durant ses 2 premiers mois",
-      "RC 2.3 : 100% des salarie.e.s ont suivi une demi-journee de sensibilisation au commercial",
-      "RC 2.4 : 5 salarie.e.s ont suivi une formation externe",
-    ],
-  },
-  {
-    pole: "Cercle de management",
-    okrCode: "O3",
-    okrLabel: "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
-    krs: [
-      "RC 3.1 : 100% des salarie.e.s en periode d'essai recoivent un kit de base complet",
-      "RC 3.2 : 100% du materiel soumis a une duree de vie definie est renouvelle dans les delais",
-      "RC 3.3 : 100% des cadenas sont recuperes lors des departs",
-      "RC 3.4 : 100% des salarie.e.s eligibles beneficient d'une participation telephone",
-    ],
-  },
-  {
-    pole: "Cyke",
+    pole: "Developpement informatique",
     okrCode: "O1",
-    okrLabel: "Nous realisons 5000 EUR de revenu mensuel recurrent en Europe",
+    okrLabel: "On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
     krs: [
-      "R1 : Allemagne : 3 clients pour 1500 EUR / mois",
-      "R2 : Suisse : 2 clients pour 2000 EUR / mois",
-      "R3 : Italie : 2 nouveaux clients pour 300 EUR / mois",
-      "R4 : Espagne : 2 nouveaux clients pour 300 EUR / mois",
-      "R5 : Belgique : Urbike a teste sur le terrain et defini son plan de migration",
-      "R6 : Les clients etrangers ont 2 propositions d'entretiens utilisateurs dans l'annee",
+      "RC 1.1 : Le Grand Livre couvre la saisie rapide et la lecture manager sans friction",
+      "RC 1.2 : Les irritants de scan, stock et expedition sont visibles dans un meme socle",
+      "RC 1.3 : Les temps saisis servent a prioriser les vrais chantiers outils",
     ],
   },
   {
-    pole: "Cyke",
-    okrCode: "O2",
-    okrLabel: "Cyke couvre mieux les differents cas d'usage de la cyclologistique",
+    pole: "Finance",
+    okrCode: "O1",
+    okrLabel: "On rend visibles les couts reels et la marge des activites",
     krs: [
-      "R1 : Entretien utilisateurs pour les ambassadeurs",
-      "R2 : 10 visites sur site chez des cyclologisticiens",
-      "R3 : On sait comment chaque client utilise Cyke et on en tire des pistes d'amelioration",
-      "R4 : On a signe au moins un nouveau client petit colis en sous-traitance",
+      "RC 1.1 : Les postes de temps majeurs sont relies aux categories de pilotage",
+      "RC 1.2 : Le poids du SAV et des incidents est visible dans les revues mensuelles",
+      "RC 1.3 : Les arbitrages capacite vs charge sont faits avec des donnees partagees",
     ],
   },
   {
-    pole: "Cyke",
-    okrCode: "O3",
-    okrLabel: "Cyke gagne en fiabilite",
+    pole: "Direction commerciale",
+    okrCode: "O1",
+    okrLabel: "On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
     krs: [
-      "R1 : Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
-      "R2 : La mediane mensuelle d'erreur Sentry ruby par jour est <5",
-      "R3 : La mediane mensuelle d'erreur Sentry js et mobile par jour est <50",
+      "RC 1.1 : Les nouvelles opportunites sont qualifiees avec les contraintes terrain",
+      "RC 1.2 : Les promesses de service sensibles sont formalisees avant signature",
+      "RC 1.3 : Les retours client nourrissent la priorisation commerciale",
     ],
   },
   {
-    pole: "Cyke",
-    okrCode: "O4",
-    okrLabel:
-      "On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
+    pole: "R&D",
+    okrCode: "O1",
+    okrLabel: "On teste des solutions qui soulagent durablement l'exploitation",
     krs: [
-      "R1 : L'equipe ne ressent pas de surcharge de travail ou de ralentissement de la roadmap",
-      "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap et a la vision de Cyke",
-      "R3 : 100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
+      "RC 1.1 : Les tests terrain reduisent du temps operationnel non productif",
+      "RC 1.2 : Une experimentation sur le SAV ou le stock est conduite chaque trimestre",
+      "RC 1.3 : Les apprentissages utiles sont repris dans les routines equipe",
     ],
   },
 ];
 
 const OBJECTIVE_2026_PILLARS = [
-  "Cyclologistique",
-  "Cercle de management",
-  "Cyke",
-  "Bigbikes Consulting",
-  "Vente de materiel",
+  "Operations cycle-logistique",
+  "QHSE et amelioration continue",
+  "Developpement informatique",
+  "Finance",
+  "Direction commerciale",
+  "R&D",
+];
+
+const LOCAL_DEMO_SESSIONS = [
+  {
+    id: "LOC-001",
+    collaborator: "Claire",
+    project: "Hub Paris - Exploitation",
+    task: "Vague du matin B2B",
+    categories: ["Preparation de commandes"],
+    tags: ["hub", "matin"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
+    objectiveKr: "95% des commandes quittent le hub dans le bon cut-off",
+    notes: "Pic de commandes alimentaire.",
+    start: "2026-04-07T06:40:00+02:00",
+    end: "2026-04-07T08:20:00+02:00",
+    durationMs: 6000000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-002",
+    collaborator: "Claire",
+    project: "SAV Retards & Litiges",
+    task: "Reprise tickets clients",
+    categories: ["SAV client"],
+    tags: ["sav", "clients"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O2 · On reduit durablement le SAV et les irritants client",
+    objectiveKr: "Les tickets SAV en retard de reponse passent sous 24h",
+    notes: "Beaucoup de retours sur creneaux non tenus.",
+    start: "2026-04-07T14:10:00+02:00",
+    end: "2026-04-07T15:20:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Support",
+  },
+  {
+    id: "LOC-003",
+    collaborator: "Eduardo",
+    project: "Etat de stock Hub Bercy",
+    task: "Controle ecarts de stock",
+    categories: ["Etat des stocks"],
+    tags: ["stock", "hub"],
+    notionRef: "",
+    objectivePole: "QHSE et amelioration continue",
+    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
+    objectiveKr: "Les controles stock et expedition suivent un standard partage",
+    notes: "Trois references a verifier apres retour client.",
+    start: "2026-04-07T15:40:00+02:00",
+    end: "2026-04-07T17:10:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-004",
+    collaborator: "Martin Salle",
+    project: "Grand Livre de la Compte",
+    task: "Ajustements saisie rapide",
+    categories: ["Developpement outil interne"],
+    tags: ["produit", "ux"],
+    notionRef: "",
+    objectivePole: "Developpement informatique",
+    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
+    objectiveKr: "Le Grand Livre couvre la saisie rapide et la lecture manager sans friction",
+    notes: "Simplification du parcours principal.",
+    start: "2026-04-07T10:00:00+02:00",
+    end: "2026-04-07T12:00:00+02:00",
+    durationMs: 7200000,
+    dbTeamName: "Developpement informatique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-005",
+    collaborator: "Alexis",
+    project: "Pilotage marge cooperatif",
+    task: "Revue couts SAV",
+    categories: ["Finance & administration"],
+    tags: ["marge", "sav"],
+    notionRef: "",
+    objectivePole: "Finance",
+    objectiveOkr: "O1 · On rend visibles les couts reels et la marge des activites",
+    objectiveKr: "Le poids du SAV et des incidents est visible dans les revues mensuelles",
+    notes: "Travail sur les couts caches du SAV.",
+    start: "2026-04-08T09:00:00+02:00",
+    end: "2026-04-08T10:30:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "Finance",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-006",
+    collaborator: "Paulo",
+    project: "Bacs reemploi & emballages",
+    task: "Test process retour contenants",
+    categories: ["R&D / innovation"],
+    tags: ["test", "reemploi"],
+    notionRef: "",
+    objectivePole: "R&D",
+    objectiveOkr: "O1 · On teste des solutions qui soulagent durablement l'exploitation",
+    objectiveKr: "Les tests terrain reduisent du temps operationnel non productif",
+    notes: "Premier test avec deux clients pilotes.",
+    start: "2026-04-08T10:45:00+02:00",
+    end: "2026-04-08T12:00:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "R&D",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Innovation",
+  },
+  {
+    id: "LOC-007",
+    collaborator: "Tristan",
+    project: "Prospection enseignes Paris",
+    task: "Qualification nouveaux comptes",
+    categories: ["Prospection commerciale"],
+    tags: ["prospection", "retail"],
+    notionRef: "",
+    objectivePole: "Direction commerciale",
+    objectiveOkr: "O1 · On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
+    objectiveKr: "Les nouvelles opportunites sont qualifiees avec les contraintes terrain",
+    notes: "Filtre charge exploitation dans le brief commercial.",
+    start: "2026-04-08T14:00:00+02:00",
+    end: "2026-04-08T15:20:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Direction commerciale",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Business",
+  },
+  {
+    id: "LOC-008",
+    collaborator: "Claire",
+    project: "Tournees Bio Monceau",
+    task: "Dispatch tournees et mise a quai",
+    categories: ["Expeditions"],
+    tags: ["dispatch", "tournees"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
+    objectiveKr: "95% des commandes quittent le hub dans le bon cut-off",
+    notes: "",
+    start: "2026-04-09T06:50:00+02:00",
+    end: "2026-04-09T08:00:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Monceau Bio",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-009",
+    collaborator: "Eduardo",
+    project: "Hub Paris - Exploitation",
+    task: "Point securite et mise a jour standard",
+    categories: ["QHSE / amelioration continue"],
+    tags: ["qhse", "standard"],
+    notionRef: "",
+    objectivePole: "QHSE et amelioration continue",
+    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
+    objectiveKr: "Chaque incident majeur donne lieu a une action corrective tracee",
+    notes: "",
+    start: "2026-04-09T08:15:00+02:00",
+    end: "2026-04-09T09:30:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-010",
+    collaborator: "Martin Salle",
+    project: "Grand Livre de la Compte",
+    task: "Lecture manager et capacite",
+    categories: ["Developpement outil interne"],
+    tags: ["manager", "reporting"],
+    notionRef: "",
+    objectivePole: "Developpement informatique",
+    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
+    objectiveKr: "Les irritants de scan, stock et expedition sont visibles dans un meme socle",
+    notes: "",
+    start: "2026-04-09T09:40:00+02:00",
+    end: "2026-04-09T11:20:00+02:00",
+    durationMs: 6000000,
+    dbTeamName: "Developpement informatique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-011",
+    collaborator: "Claire",
+    project: "SAV Retards & Litiges",
+    task: "Analyse causes racines",
+    categories: ["Incident client / qualite"],
+    tags: ["sav", "qualite"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O2 · On reduit durablement le SAV et les irritants client",
+    objectiveKr: "Les incidents recurrents sont documentes et traites a la racine",
+    notes: "Retards dus aux informations de preparation incompletes.",
+    start: "2026-04-09T15:10:00+02:00",
+    end: "2026-04-09T16:30:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Support",
+  },
+  {
+    id: "LOC-012",
+    collaborator: "Alexis",
+    project: "Pilotage marge cooperatif",
+    task: "Synthese budget avril",
+    categories: ["Finance & administration"],
+    tags: ["budget", "pilotage"],
+    notionRef: "",
+    objectivePole: "Finance",
+    objectiveOkr: "O1 · On rend visibles les couts reels et la marge des activites",
+    objectiveKr: "Les arbitrages capacite vs charge sont faits avec des donnees partagees",
+    notes: "",
+    start: "2026-04-09T11:00:00+02:00",
+    end: "2026-04-09T12:20:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Finance",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-013",
+    collaborator: "Tristan",
+    project: "Prospection enseignes Paris",
+    task: "RDV client retail alimentaire",
+    categories: ["Prospection commerciale"],
+    tags: ["rdv", "client"],
+    notionRef: "",
+    objectivePole: "Direction commerciale",
+    objectiveOkr: "O1 · On concentre l'effort commercial sur des clients compatibles avec l'exploitation",
+    objectiveKr: "Les promesses de service sensibles sont formalisees avant signature",
+    notes: "",
+    start: "2026-04-09T15:30:00+02:00",
+    end: "2026-04-09T16:45:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "Direction commerciale",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Business",
+  },
+  {
+    id: "LOC-014",
+    collaborator: "Eduardo",
+    project: "Etat de stock Hub Bercy",
+    task: "Inventaire tournant",
+    categories: ["Etat des stocks"],
+    tags: ["stock", "inventaire"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
+    objectiveKr: "Les ecarts de stock bloquants sont divises par deux",
+    notes: "",
+    start: "2026-04-10T07:00:00+02:00",
+    end: "2026-04-10T08:10:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-015",
+    collaborator: "Claire",
+    project: "Hub Paris - Exploitation",
+    task: "Vague de reappro et cross-dock",
+    categories: ["Preparation de commandes"],
+    tags: ["reappro", "cross-dock"],
+    notionRef: "",
+    objectivePole: "Operations cycle-logistique",
+    objectiveOkr: "O1 · On fiabilise la preparation, les expeditions et les livraisons du dernier kilometre",
+    objectiveKr: "Le taux d'erreurs de preparation reste sous 1,5%",
+    notes: "",
+    start: "2026-04-10T08:15:00+02:00",
+    end: "2026-04-10T10:00:00+02:00",
+    durationMs: 6300000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-016",
+    collaborator: "Martin Salle",
+    project: "Grand Livre de la Compte",
+    task: "Corrections suggestions intelligentes",
+    categories: ["Developpement outil interne"],
+    tags: ["suggestions", "priorisation"],
+    notionRef: "",
+    objectivePole: "Developpement informatique",
+    objectiveOkr: "O1 · On donne a l'exploitation des outils fiables pour suivre temps, stock et incidents",
+    objectiveKr: "Les temps saisis servent a prioriser les vrais chantiers outils",
+    notes: "",
+    start: "2026-04-10T10:15:00+02:00",
+    end: "2026-04-10T12:00:00+02:00",
+    durationMs: 6300000,
+    dbTeamName: "Developpement informatique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-017",
+    collaborator: "Paulo",
+    project: "Bacs reemploi & emballages",
+    task: "Prototype retour bacs hub-client",
+    categories: ["R&D / innovation"],
+    tags: ["prototype", "hub"],
+    notionRef: "",
+    objectivePole: "R&D",
+    objectiveOkr: "O1 · On teste des solutions qui soulagent durablement l'exploitation",
+    objectiveKr: "Une experimentation sur le SAV ou le stock est conduite chaque trimestre",
+    notes: "",
+    start: "2026-04-10T13:40:00+02:00",
+    end: "2026-04-10T15:10:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "R&D",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Innovation",
+  },
+  {
+    id: "LOC-018",
+    collaborator: "Eduardo",
+    project: "SAV Retards & Litiges",
+    task: "Plan action incidents recurrents",
+    categories: ["QHSE / amelioration continue"],
+    tags: ["sav", "plan action"],
+    notionRef: "",
+    objectivePole: "QHSE et amelioration continue",
+    objectiveOkr: "O1 · On standardise les flux critiques et on fiabilise les routines terrain",
+    objectiveKr: "Chaque incident majeur donne lieu a une action corrective tracee",
+    notes: "Travail avec Claire sur les causes racines.",
+    start: "2026-04-10T15:20:00+02:00",
+    end: "2026-04-10T16:40:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Operations cycle-logistique",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
 ];
 
 let sessions = loadSessions();
@@ -384,7 +655,7 @@ let currentCategories = [];
 let currentTags = [];
 let timerIntervalId = null;
 let reportPeriod = "week";
-let statsMode = "objectives";
+let statsMode = "categories";
 let manualEditingSessionId = null;
 let pendingConflict = null;
 let currentView = getInitialView();
@@ -762,16 +1033,6 @@ function ensureAutocompleteHost(config) {
 function initializeAutocomplete() {
   const configs = [
     {
-      input: loginNameInput,
-      getOptions: () =>
-        getKnownUsers().length
-          ? getKnownUsers().map((item) => item.user_name)
-          : uniqueValues("collaborator"),
-      applyValue: (value) => {
-        loginNameInput.value = value;
-      },
-    },
-    {
       input: collaboratorInput,
       getOptions: () =>
         getVisibleReferenceUsers().length
@@ -782,7 +1043,7 @@ function initializeAutocomplete() {
         collaboratorInput.dispatchEvent(new Event("change", { bubbles: true }));
       },
       allowCreate: () => canCreateCollaboratorReference(),
-      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle personne`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -880,7 +1141,7 @@ function initializeAutocomplete() {
         manualCollaboratorInput.value = value;
       },
       allowCreate: () => canCreateCollaboratorReference(),
-      createLabel: (value) => `Ajouter "${value}" comme nouveau cargonaute`,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle personne`,
       createValue: (value) => createUserReference(value),
     },
     {
@@ -1863,9 +2124,10 @@ function loadSessions() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return parsed.map(normalizeSession);
+    const normalized = parsed.map(normalizeSession);
+    return normalized.length ? normalized : LOCAL_DEMO_SESSIONS.map(normalizeSession);
   } catch {
-    return [];
+    return LOCAL_DEMO_SESSIONS.map(normalizeSession);
   }
 }
 
@@ -1955,7 +2217,7 @@ async function validateAndNormalizeMainForm() {
     return null;
   }
   if (!sessionDraft.project) {
-    projectInput.focus();
+    showFieldResolutionError(projectInput, "Choisissez ou saisissez un projet avant de demarrer.");
     return null;
   }
 
@@ -1967,7 +2229,7 @@ async function validateAndNormalizeMainForm() {
   if (!resolved.user) {
     showFieldResolutionError(
       collaboratorInput,
-      "Choisissez un cargonaute existant dans la base pour enregistrer ce temps.",
+      "Choisissez une personne existante dans la base pour enregistrer ce temps.",
     );
     return null;
   }
@@ -1999,7 +2261,8 @@ function showFieldResolutionError(input, message) {
 
 function showAuthRequiredMessage() {
   if (authStatus) {
-    authStatus.textContent = "Entrez votre nom pour lancer une session avec votre profil.";
+    authStatus.hidden = false;
+    authStatus.textContent = "Choisissez un nom pour lancer une session.";
   }
   loginNameInput?.focus();
 }
@@ -2954,7 +3217,7 @@ function updateActiveSessionStart() {
 
   const overlap = findOverlappingSession(candidate);
   if (overlap) {
-    activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
+    activeStartInput.setCustomValidity("Cette personne a deja une autre session sur ce creneau.");
     activeStartInput.reportValidity();
     activeStartInput.setCustomValidity("");
     renderActiveSession();
@@ -3098,7 +3361,7 @@ function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "Le meme cargonaute a deja une session qui chevauche ce creneau.";
+    "La meme personne a deja une session qui chevauche ce creneau.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
@@ -3167,7 +3430,6 @@ function render() {
   renderAccessControlledInputs();
   renderCurrentUserContext();
   renderAuthPanel();
-  renderLoginQuickPicks();
   updateFieldManageButtons();
   renderActiveSession();
   renderSuggestions();
@@ -3181,6 +3443,10 @@ function render() {
 }
 
 function renderCurrentUserContext() {
+  if (!currentUserName || !currentUserRole) {
+    return;
+  }
+
   if (accessProfile.appUser?.user_name) {
     currentUserName.textContent = accessProfile.appUser.user_name;
     if (currentUserRole) {
@@ -3218,62 +3484,41 @@ function formatRoleLabel(role) {
     return "Manager";
   }
   if (role === "cadre") {
-    return "Cadre";
+    return "Equipe";
   }
   return "Mode local";
 }
 
 function renderAuthPanel() {
-  if (!logoutButton || !authStatus || !loginButton || !loginNameInput) {
+  if (!loginNameInput) {
     return;
   }
 
   const authenticated = Boolean(accessProfile.appUser?.user_name);
   const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
-  const hasDatabaseUsers = referenceCatalog.users.length > 0;
+  renderLoginNameOptions(visibleUsers);
 
-  if (loginDirectoryStatus) {
-    if (!referenceCatalog.loaded) {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = "Chargement des noms depuis la base…";
-    } else if (!visibleUsers.length) {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = "Aucun nom disponible pour le moment.";
-    } else {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = hasDatabaseUsers
-        ? `${visibleUsers.length} noms disponibles dans la liste ci-dessous.`
-        : `${visibleUsers.length} noms disponibles localement. La base n'en expose aucun pour l'instant.`;
-    }
+  loginNameInput.value = authenticated ? accessProfile.appUser.user_name : "";
+
+  if (adminTools) {
+    adminTools.hidden = accessProfile.role !== "admin";
+  }
+  if (faviconEmojiInput) {
+    faviconEmojiInput.value = loadStoredFaviconEmoji();
   }
 
-  if (authenticated) {
-    loginNameInput.value = accessProfile.appUser.user_name;
-    loginNameInput.readOnly = true;
-    loginButton.hidden = true;
-    logoutButton.hidden = false;
-    if (adminTools) {
-      adminTools.hidden = accessProfile.role !== "admin";
-    }
-    if (faviconEmojiInput) {
-      faviconEmojiInput.value = loadStoredFaviconEmoji();
-    }
-    authStatus.textContent =
-      accessProfile.role === "admin" || accessProfile.role === "manager" || accessProfile.role === "cadre"
-        ? `Profil charge: ${accessProfile.appUser.user_name} · ${formatRoleLabel(accessProfile.role)}.`
-        : `Profil charge: ${accessProfile.appUser.user_name}.`;
+  if (!authStatus) {
     return;
   }
 
-  loginNameInput.readOnly = false;
-  loginButton.hidden = false;
-  logoutButton.hidden = true;
-  if (adminTools) {
-    adminTools.hidden = true;
+  if (!visibleUsers.length) {
+    authStatus.hidden = false;
+    authStatus.textContent = "Aucun nom disponible pour le moment.";
+    return;
   }
-  if (!authStatus.textContent || authStatus.textContent.startsWith("Profil charge")) {
-    authStatus.textContent = "Entrez un nom existant pour charger le bon profil.";
-  }
+
+  authStatus.hidden = true;
+  authStatus.textContent = "";
 }
 
 function renderActiveSession() {
@@ -3352,12 +3597,6 @@ function renderSuggestions() {
       : uniqueValues("collaborator"),
   );
   fillDatalist(
-    loginNameSuggestions,
-    getKnownUsers().length
-      ? getKnownUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
-      : uniqueValues("collaborator"),
-  );
-  fillDatalist(
     categorySuggestions,
     referenceCatalog.loaded
       ? referenceCatalog.categories
@@ -3388,38 +3627,27 @@ function renderSuggestions() {
   managerCollaboratorFilter.value = collaborators.includes(currentValue) ? currentValue : "all";
 }
 
-function renderLoginQuickPicks() {
-  if (!loginQuickPicks) {
+function renderLoginNameOptions(users = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"))) {
+  if (!loginNameInput) {
     return;
   }
 
-  loginQuickPicks.innerHTML = "";
+  const currentValue = accessProfile.appUser?.user_name || loginNameInput.value || "";
+  loginNameInput.innerHTML = "";
 
-  if (accessProfile.appUser?.user_name) {
-    loginQuickPicks.hidden = true;
-    return;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choisir un nom";
+  loginNameInput.append(placeholder);
+
+  for (const user of users) {
+    const option = document.createElement("option");
+    option.value = user.user_name;
+    option.textContent = user.user_name;
+    loginNameInput.append(option);
   }
 
-  const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
-
-  if (!visibleUsers.length) {
-    loginQuickPicks.hidden = true;
-    return;
-  }
-
-  loginQuickPicks.hidden = false;
-
-  for (const user of visibleUsers) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "login-quick-pick";
-    button.textContent = user.user_name;
-    button.addEventListener("click", async () => {
-      loginNameInput.value = user.user_name;
-      await loginWithName();
-    });
-    loginQuickPicks.append(button);
-  }
+  loginNameInput.value = users.some((user) => user.user_name === currentValue) ? currentValue : "";
 }
 
 function renderQuickProjects() {
@@ -3429,8 +3657,8 @@ function renderQuickProjects() {
 
   if (!memories.length) {
     const message = collaborator
-      ? "Les dernieres reprises apparaitront ici."
-      : "Connectez-vous pour retrouver vos reprises recentes.";
+      ? "Les reprises probables apparaitront ici."
+      : "Connectez-vous pour retrouver vos reprises probables.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -3453,7 +3681,7 @@ function renderProjectMemoryList() {
   if (!memories.length) {
     const message = collaborator
       ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Choisissez un cargonaute pour afficher ses contextes memorises.";
+      : "Choisissez une personne pour afficher ses contextes memorises.";
     projectMemoryList.append(createEmptyState(message));
     return;
   }
@@ -3470,7 +3698,7 @@ function renderProjectMemoryList() {
 
     const meta = document.createElement("p");
     meta.className = "muted-copy";
-    meta.textContent = `${memory.collaborator} · ${memory.task || "Travail recurrent"} · ${formatDate(memory.start)}`;
+    meta.textContent = `${memory.collaborator} · ${memory.task || "Travail recurrent"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
 
     const tags = document.createElement("div");
     tags.className = "memory-meta";
@@ -3559,7 +3787,7 @@ function renderPersonalStats() {
   if (!collaborator) {
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-    todayPanelCopy.textContent = "Connectez-vous pour charger votre semaine.";
+    todayPanelCopy.textContent = "Choisissez un nom pour charger votre semaine.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
@@ -3604,7 +3832,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Renseignez un cargonaute pour voir sa semaine.");
+    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Choisissez une personne pour voir sa semaine.");
     return;
   }
 
@@ -3621,8 +3849,8 @@ function renderPersonalDistribution() {
     displayRows,
     totalMs,
     usesObjectives
-      ? "Aucun objectif 2026 renseigne cette semaine pour ce cargonaute."
-      : "Aucune categorie enregistree cette semaine pour ce cargonaute.",
+      ? "Aucun objectif 2026 renseigne cette semaine pour cette personne."
+      : "Aucune categorie enregistree cette semaine pour cette personne.",
   );
 }
 
@@ -3945,7 +4173,7 @@ function renderManagerViews() {
   } else {
     managerObjectivesGrid.innerHTML = "";
   }
-  renderTeamTable(allRows);
+  renderTeamTable(teamReportList, allRows, range, "Aucune donnee equipe sur cette plage.");
   renderReportTable(
     reportProjectList,
     buildReportRows(scopedRows, "project"),
@@ -3980,8 +4208,6 @@ function renderResourcesViews() {
   const objectiveTotals = buildObjectiveOkrRows(allRows);
   const categoryTotals = buildReportRows(allRows, "categories");
   const krTotals = buildObjectiveKrRowsFromSessions(allRows);
-  const collaboratorTotals = buildReportRows(allRows, "collaborator");
-
   resourceTotal.textContent = formatDuration(totalMs);
   resourceRange.textContent = formatPeriodLabel(range.start, range.end, reportPeriod);
   resourceTopProject.textContent = projectTotals[0]?.label ?? "-";
@@ -4015,12 +4241,7 @@ function renderResourcesViews() {
   } else {
     resourceObjectivesGrid.innerHTML = "";
   }
-  renderReportTable(
-    resourceTeamList,
-    collaboratorTotals,
-    totalMs,
-    "Aucune donnee cargonaute sur cette plage.",
-  );
+  renderTeamTable(resourceTeamList, allRows, range, "Aucune donnee equipe sur cette plage.");
   renderReportTable(
     resourceProjectList,
     projectTotals,
@@ -4069,7 +4290,7 @@ function exportCurrentAnalysisCsv() {
   const csvRows = [
     [
       "date",
-      "cargonaute",
+      "personne",
       "equipe",
       "client",
       "projet",
@@ -4432,34 +4653,61 @@ function renderEvolutionGrid(container, anchor, filterCollaborator) {
   }
 }
 
-function renderTeamTable(rows) {
+function getCollaboratorProfile(collaborator) {
+  return getKnownUsers().find((item) => normalizeText(item.user_name) === normalizeText(collaborator));
+}
+
+function getCapacityHoursForRange(collaborator, range) {
+  const weeklyCapacityHours = Number(getCollaboratorProfile(collaborator)?.weekly_capacity_hours) || 0;
+  if (!weeklyCapacityHours || !range?.start || !range?.end) {
+    return 0;
+  }
+
+  const rangeDurationMs = Math.max(new Date(range.end) - new Date(range.start), 0);
+  const rangeDurationDays = rangeDurationMs / (24 * 60 * 60 * 1000);
+  return Number(((weeklyCapacityHours * rangeDurationDays) / 7).toFixed(1));
+}
+
+function formatCapacityRate(durationMs, capacityHours) {
+  if (!capacityHours) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format((Number(durationMs) || 0) / 3600000 / capacityHours);
+}
+
+function renderTeamTable(container, rows, range, emptyMessage) {
   const teamRows = buildReportRows(rows, "collaborator").map((row) => ({
     ...row,
     mainProject: getMainProjectForCollaborator(rows, row.label),
+    capacityHours: getCapacityHoursForRange(row.label, range),
   }));
 
-  teamReportList.innerHTML = "";
+  container.innerHTML = "";
   if (!teamRows.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = 5;
-    td.append(createEmptyState("Aucune donnee equipe sur cette plage."));
+    td.append(createEmptyState(emptyMessage));
     tr.append(td);
-    teamReportList.append(tr);
+    container.append(tr);
     return;
   }
 
-  const totalMs = rows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
   for (const row of teamRows) {
     const tr = document.createElement("tr");
     tr.append(
       createCell(row.label),
       createCell(formatDuration(row.durationMs)),
-      createCell(formatShare(row.durationMs, totalMs)),
+      createCell(formatCapacityRate(row.durationMs, row.capacityHours)),
       createCell(row.mainProject || "-"),
       createCell(String(row.count)),
     );
-    teamReportList.append(tr);
+    container.append(tr);
   }
 }
 
@@ -4525,8 +4773,8 @@ function getProjectMemories(collaboratorName = "") {
   const allRows = getAllSessionsWithActive()
     .slice()
     .sort((a, b) => new Date(b.start) - new Date(a.start));
-  const memories = [];
-  const seen = new Set();
+  const now = new Date();
+  const memories = new Map();
   const normalizedCollaborator = normalizeText(collaboratorName);
 
   for (const session of allRows) {
@@ -4539,37 +4787,71 @@ function getProjectMemories(collaboratorName = "") {
     }
 
     const key = `${normalizeText(session.collaborator)}::${normalizeText(session.project)}`;
-    if (seen.has(key)) {
-      continue;
+    const sessionDate = new Date(session.start);
+    const memory =
+      memories.get(key) ??
+      {
+        key,
+        collaborator: session.collaborator,
+        project: session.project,
+        task: session.task,
+        categories: [...(session.categories ?? []).slice(0, 1)],
+        tags: [...(session.tags ?? [])],
+        notionRef: session.notionRef ?? "",
+        objectivePole: session.objectivePole ?? "",
+        objectiveOkr: session.objectiveOkr ?? "",
+        objectiveKr: session.objectiveKr ?? "",
+        notes: session.notes ?? "",
+        start: session.start,
+        usesCount: 0,
+        weekdayHits: 0,
+        hourBucketHits: 0,
+      };
+
+    memory.usesCount += 1;
+    if (sessionDate.getDay() === now.getDay()) {
+      memory.weekdayHits += 1;
+    }
+    if (getHourBucket(sessionDate) === getHourBucket(now)) {
+      memory.hourBucketHits += 1;
     }
 
-    if (referenceCatalog.loaded && referenceCatalog.projects.length && getKnownUsers().length) {
-      const projectResolved = findReferenceMatch(referenceCatalog.projects, "project_name", session.project);
-      const collaboratorResolved = findReferenceMatch(getKnownUsers(), "user_name", session.collaborator);
-      if (!projectResolved || !collaboratorResolved) {
-        continue;
-      }
+    if (new Date(memory.start) < sessionDate) {
+      memory.task = session.task;
+      memory.categories = [...(session.categories ?? []).slice(0, 1)];
+      memory.tags = [...(session.tags ?? [])];
+      memory.notionRef = session.notionRef ?? "";
+      memory.objectivePole = session.objectivePole ?? "";
+      memory.objectiveOkr = session.objectiveOkr ?? "";
+      memory.objectiveKr = session.objectiveKr ?? "";
+      memory.notes = session.notes ?? "";
+      memory.start = session.start;
     }
 
-    seen.add(key);
-
-    memories.push({
-      key,
-      collaborator: session.collaborator,
-      project: session.project,
-      task: session.task,
-      categories: [...(session.categories ?? []).slice(0, 1)],
-      tags: [...(session.tags ?? [])],
-      notionRef: session.notionRef ?? "",
-      objectivePole: session.objectivePole ?? "",
-      objectiveOkr: session.objectiveOkr ?? "",
-      objectiveKr: session.objectiveKr ?? "",
-      notes: session.notes ?? "",
-      start: session.start,
-    });
+    memories.set(key, memory);
   }
 
-  return memories;
+  return Array.from(memories.values())
+    .map((memory) => ({
+      ...memory,
+      score: rankProjectMemory(memory, now),
+    }))
+    .sort((left, right) => right.score - left.score || new Date(right.start) - new Date(left.start));
+}
+
+function getHourBucket(dateValue) {
+  return Math.floor(new Date(dateValue).getHours() / 4);
+}
+
+function rankProjectMemory(memory, referenceDate = new Date()) {
+  const lastStart = new Date(memory.start);
+  const daysSinceLastUse = Math.max((referenceDate - lastStart) / (24 * 60 * 60 * 1000), 0);
+  const recencyScore = Math.max(0, 1 - Math.min(daysSinceLastUse, 21) / 21);
+  const frequencyScore = Math.min(memory.usesCount / 5, 1);
+  const weekdayScore = memory.usesCount ? memory.weekdayHits / memory.usesCount : 0;
+  const hourScore = memory.usesCount ? memory.hourBucketHits / memory.usesCount : 0;
+
+  return frequencyScore * 40 + recencyScore * 35 + weekdayScore * 15 + hourScore * 10;
 }
 
 function fillFormFromMemory(memory) {
@@ -4766,7 +5048,7 @@ function buildReportRows(rows, key) {
 
 function getFallbackLabel(key) {
   if (key === "collaborator") {
-    return "Sans cargonaute";
+    return "Sans personne";
   }
   if (key === "project") {
     return "Sans projet";
@@ -5104,29 +5386,23 @@ function registerServiceWorker() {
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }
-loginButton?.addEventListener("click", async () => {
-  await loginWithName();
-});
-
-loginNameInput?.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") {
+loginNameInput?.addEventListener("change", async () => {
+  if (!loginNameInput.value) {
+    await logoutCurrentUser();
     return;
   }
 
-  event.preventDefault();
   await loginWithName();
-});
-
-logoutButton?.addEventListener("click", async () => {
-  await logoutCurrentUser();
 });
 
 async function loginWithName() {
   const name = loginNameInput?.value.trim() ?? "";
 
   if (!name) {
-    if (authStatus) authStatus.textContent = "Entrez votre nom pour continuer.";
-    loginNameInput?.focus();
+    if (authStatus) {
+      authStatus.hidden = false;
+      authStatus.textContent = "Choisissez un nom pour continuer.";
+    }
     return;
   }
 
@@ -5136,13 +5412,17 @@ async function loginWithName() {
 
   const success = applyLocalAccessProfile(name);
   if (!success) {
-    if (authStatus) authStatus.textContent = "Nom inconnu. Choisissez un nom existant dans la liste visible sous le champ.";
-    loginNameInput?.focus();
-    loginNameInput?.select?.();
+    if (authStatus) {
+      authStatus.hidden = false;
+      authStatus.textContent = "Nom inconnu.";
+    }
     return;
   }
 
-  if (authStatus) authStatus.textContent = `Profil charge: ${name}.`;
+  if (authStatus) {
+    authStatus.hidden = true;
+    authStatus.textContent = "";
+  }
 }
 
 async function logoutCurrentUser() {
@@ -5156,6 +5436,9 @@ async function logoutCurrentUser() {
   if (loginNameInput) {
     loginNameInput.value = "";
   }
-  if (authStatus) authStatus.textContent = "Déconnecté.";
+  if (authStatus) {
+    authStatus.hidden = true;
+    authStatus.textContent = "";
+  }
   render();
 }
