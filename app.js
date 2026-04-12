@@ -1941,7 +1941,10 @@ function beginAgendaDrag(event) {
     previewSession: { ...session },
     eventElement,
     track,
+    activeTrack: track,
     startPointerY: event.clientY,
+    startPointerX: event.clientX,
+    pointerOffsetY: event.clientY - eventElement.getBoundingClientRect().top,
     startHour,
     endHour,
     hourHeight,
@@ -1984,20 +1987,28 @@ function handleAgendaDragMove(event) {
     return;
   }
 
-  const deltaY = event.clientY - agendaDragState.startPointerY;
-  const minuteDelta = roundToQuarterHour((deltaY / agendaDragState.hourHeight) * 60);
-
   const originalStart = new Date(agendaDragState.originalSession.start);
   const originalEnd = new Date(agendaDragState.originalSession.end);
-  const dayStart = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
-  dayStart.setHours(agendaDragState.startHour, 0, 0, 0);
-  const dayEnd = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
-  dayEnd.setHours(agendaDragState.endHour, 0, 0, 0);
+  const activeTrack =
+    agendaDragState.mode === "move" ? resolveAgendaTrackFromPoint(event.clientX, event.clientY) ?? agendaDragState.activeTrack : agendaDragState.activeTrack;
+  if (!activeTrack) {
+    return;
+  }
+  agendaDragState.activeTrack = activeTrack;
+  const activeStartHour = Number(activeTrack.dataset.startHour);
+  const activeEndHour = Number(activeTrack.dataset.endHour);
+  const activeHourHeight = Number(activeTrack.dataset.hourHeight);
+  const dayStart = new Date(activeTrack.dataset.dayDate + "T00:00:00");
+  dayStart.setHours(activeStartHour, 0, 0, 0);
+  const dayEnd = new Date(activeTrack.dataset.dayDate + "T00:00:00");
+  dayEnd.setHours(activeEndHour, 0, 0, 0);
 
   let boundedStart = new Date(originalStart);
   let boundedEnd = new Date(originalEnd);
 
   if (agendaDragState.mode === "resize-start") {
+    const deltaY = event.clientY - agendaDragState.startPointerY;
+    const minuteDelta = roundToQuarterHour((deltaY / agendaDragState.hourHeight) * 60);
     boundedStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
     if (boundedStart < dayStart) {
       boundedStart = new Date(dayStart);
@@ -2006,6 +2017,8 @@ function handleAgendaDragMove(event) {
       boundedStart = new Date(boundedEnd.getTime() - 15 * 60 * 1000);
     }
   } else if (agendaDragState.mode === "resize-end") {
+    const deltaY = event.clientY - agendaDragState.startPointerY;
+    const minuteDelta = roundToQuarterHour((deltaY / agendaDragState.hourHeight) * 60);
     boundedEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
     if (boundedEnd > dayEnd) {
       boundedEnd = new Date(dayEnd);
@@ -2014,10 +2027,16 @@ function handleAgendaDragMove(event) {
       boundedEnd = new Date(boundedStart.getTime() + 15 * 60 * 1000);
     }
   } else {
-    const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
-    const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
-    boundedStart = nextStart;
-    boundedEnd = nextEnd;
+    const trackRect = activeTrack.getBoundingClientRect();
+    const rawTopPx = event.clientY - trackRect.top - agendaDragState.pointerOffsetY;
+    const boundedTopPx = Math.min(
+      Math.max(rawTopPx, 0),
+      (activeEndHour - activeStartHour) * activeHourHeight - (agendaDragState.durationMs / 3600000) * activeHourHeight,
+    );
+    const minutesFromStart = roundToQuarterHour((boundedTopPx / activeHourHeight) * 60);
+
+    boundedStart = new Date(dayStart.getTime() + minutesFromStart * 60 * 1000);
+    boundedEnd = new Date(boundedStart.getTime() + agendaDragState.durationMs);
 
     if (boundedStart < dayStart) {
       boundedStart = new Date(dayStart);
@@ -2102,20 +2121,33 @@ function cleanupAgendaDrag() {
 }
 
 function updateAgendaEventPreview(state) {
+  if (state.activeTrack && state.eventElement.parentElement !== state.activeTrack) {
+    state.activeTrack.append(state.eventElement);
+  }
+
   const start = new Date(state.previewSession.start);
   const end = new Date(state.previewSession.end);
-  const topMinutes = (start.getHours() - state.startHour) * 60 + start.getMinutes();
+  const startHour = Number(state.activeTrack?.dataset.startHour ?? state.startHour);
+  const hourHeight = Number(state.activeTrack?.dataset.hourHeight ?? state.hourHeight);
+  const topMinutes = (start.getHours() - startHour) * 60 + start.getMinutes();
   const durationMinutes = Math.max((end.getTime() - start.getTime()) / 60000, 15);
-  const topPx = (topMinutes / 60) * state.hourHeight;
-  const heightPx = Math.max((durationMinutes / 60) * state.hourHeight, 4);
+  const topPx = (topMinutes / 60) * hourHeight;
+  const heightPx = Math.max((durationMinutes / 60) * hourHeight, 4);
 
   state.eventElement.style.top = `${topPx}px`;
   state.eventElement.style.height = `${heightPx}px`;
+  state.eventElement.style.left = "0%";
+  state.eventElement.style.width = "100%";
 
   const visualSize = getAgendaEventVisualSize(heightPx);
   state.eventElement.classList.toggle("agenda-event--tiny", visualSize === "tiny");
   state.eventElement.classList.toggle("agenda-event--compact", visualSize === "compact");
   renderAgendaEventContents(state.eventElement, state.previewSession, visualSize);
+}
+
+function resolveAgendaTrackFromPoint(clientX, clientY) {
+  const element = document.elementFromPoint(clientX, clientY);
+  return element?.closest(".agenda-day-track") ?? null;
 }
 
 function clearAutocompleteHideTimeout() {
