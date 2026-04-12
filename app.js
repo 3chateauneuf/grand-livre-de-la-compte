@@ -109,7 +109,6 @@ const repriseDoneZone = document.querySelector("#reprise-done-zone");
 const toggleButton = document.querySelector("#toggle-button");
 const pauseButton = document.querySelector("#pause-button");
 const openManualButton = document.querySelector("#open-manual-button");
-const activeStartInput = document.querySelector("#active-start-input");
 const activeStartDisplay = document.querySelector("#active-start-display");
 const timerDisplay = document.querySelector("#timer-display");
 const activeTaskLabel = document.querySelector("#active-task-label");
@@ -212,6 +211,10 @@ const conflictDetail = document.querySelector("#conflict-detail");
 const cancelConflictButton = document.querySelector("#cancel-conflict-button");
 const editConflictButton = document.querySelector("#edit-conflict-button");
 const adjustConflictButton = document.querySelector("#adjust-conflict-button");
+const activeStartDialog = document.querySelector("#active-start-dialog");
+const activeStartDialogInput = document.querySelector("#active-start-dialog-input");
+const activeStartDialogCancelButton = document.querySelector("#active-start-dialog-cancel");
+const activeStartDialogSaveButton = document.querySelector("#active-start-dialog-save");
 const fieldManageDialog = document.querySelector("#field-manage-dialog");
 const fieldManageTitle = document.querySelector("#field-manage-title");
 const fieldManageCopy = document.querySelector("#field-manage-copy");
@@ -772,7 +775,6 @@ let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
 let auditTableAvailable = null;
-let activeStartEditorOpen = false;
 let agendaImportRows = [];
 let agendaImportLoaded = false;
 let remoteActiveSessions = [];
@@ -858,27 +860,16 @@ openManualButton.addEventListener("click", () => {
   openManualDialog();
 });
 
-activeStartInput.addEventListener("input", () => {
-  updateActiveSessionStart({ reportValidity: false, closeEditor: false, audit: false });
-});
-
-activeStartInput.addEventListener("change", () => {
-  window.setTimeout(() => {
-    updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
-  }, 0);
-});
-
-activeStartInput.addEventListener("blur", () => {
-  window.setTimeout(() => {
-    if (!activeStartEditorOpen) {
-      return;
-    }
-    updateActiveSessionStart({ reportValidity: false, closeEditor: true, audit: true });
-  }, 0);
-});
-
 activeStartDisplay.addEventListener("click", () => {
   showActiveStartEditor();
+});
+
+activeStartDialogCancelButton?.addEventListener("click", () => {
+  hideActiveStartEditor();
+});
+
+activeStartDialogSaveButton?.addEventListener("click", () => {
+  updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
 });
 
 projectInput.addEventListener("input", () => {
@@ -4233,23 +4224,23 @@ function togglePauseSession() {
 }
 
 function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
-  if (!activeSession || !activeStartInput.value) {
+  if (!activeSession || !activeStartDialogInput?.value) {
     if (closeEditor) {
       hideActiveStartEditor();
     }
     return false;
   }
 
-  const nextStart = new Date(activeStartInput.value);
+  const nextStart = new Date(activeStartDialogInput.value);
   const effectiveEnd = getActiveSessionEffectiveEnd(activeSession);
   const nextDurationMs =
     effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
 
   if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
     if (reportValidity) {
-      activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
-      activeStartInput.reportValidity();
-      activeStartInput.setCustomValidity("");
+      activeStartDialogInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
+      activeStartDialogInput.reportValidity();
+      activeStartDialogInput.setCustomValidity("");
     }
     if (closeEditor) {
       hideActiveStartEditor();
@@ -4258,7 +4249,7 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
     return false;
   }
 
-  activeStartInput.setCustomValidity("");
+  activeStartDialogInput.setCustomValidity("");
 
   const previousSession = { ...activeSession };
   const candidate = {
@@ -4271,14 +4262,14 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
   const overlap = findOverlappingSession(candidate, activeSession.id);
   if (overlap) {
     if (reportValidity) {
-      activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
-      activeStartInput.reportValidity();
-      activeStartInput.setCustomValidity("");
+      activeStartDialogInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
+      activeStartDialogInput.reportValidity();
+      activeStartDialogInput.setCustomValidity("");
     }
     if (closeEditor) {
       hideActiveStartEditor();
     }
-    activeStartInput.setCustomValidity("");
+    activeStartDialogInput.setCustomValidity("");
     renderActiveSession();
     return false;
   }
@@ -4610,11 +4601,6 @@ function renderActiveSession() {
     pauseButton.classList.remove("paused");
     activeStartDisplay.textContent = "Le depart se regle si besoin";
     activeStartDisplay.disabled = true;
-    activeStartDisplay.hidden = false;
-    activeStartInput.hidden = true;
-    activeStartInput.value = "";
-    activeStartInput.disabled = true;
-    activeStartEditorOpen = false;
     return;
   }
 
@@ -4627,24 +4613,20 @@ function renderActiveSession() {
   pauseButton.classList.toggle("paused", isPaused);
   activeStartDisplay.textContent = `Demarre a ${formatTimeLabel(new Date(activeSession.start))}`;
   activeStartDisplay.disabled = false;
-  activeStartDisplay.hidden = activeStartEditorOpen;
-  activeStartInput.hidden = !activeStartEditorOpen;
-  activeStartInput.disabled = false;
-  activeStartInput.value = formatDateTimeLocal(new Date(activeSession.start));
   updateLiveTimer();
 }
 
 function showActiveStartEditor() {
-  if (!activeSession) {
+  if (!activeSession || !activeStartDialog || !activeStartDialogInput) {
     return;
   }
 
-  activeStartEditorOpen = true;
-  renderActiveSession();
-  activeStartInput.focus();
-  if (typeof activeStartInput.showPicker === "function") {
+  activeStartDialogInput.value = formatDateTimeLocal(new Date(activeSession.start));
+  activeStartDialog.showModal();
+  activeStartDialogInput.focus();
+  if (typeof activeStartDialogInput.showPicker === "function") {
     try {
-      activeStartInput.showPicker();
+      activeStartDialogInput.showPicker();
     } catch (error) {
       // Some browsers refuse showPicker outside strict user gesture timing.
     }
@@ -4652,14 +4634,7 @@ function showActiveStartEditor() {
 }
 
 function hideActiveStartEditor() {
-  if (!activeSession) {
-    activeStartEditorOpen = false;
-    activeStartInput.hidden = true;
-    activeStartDisplay.hidden = false;
-    return;
-  }
-
-  activeStartEditorOpen = false;
+  activeStartDialog?.close();
   renderActiveSession();
 }
 

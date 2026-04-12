@@ -81,7 +81,6 @@
                     <button id="active-start-display" type="button" class="start-display-button" disabled>
                       Le depart se regle si besoin
                     </button>
-                    <input id="active-start-input" type="datetime-local" hidden />
                   </div>
                   <div class="button-row timer-actions">
                     <button id="toggle-button" type="submit" class="btn btn-primary">Demarrer</button>
@@ -780,6 +779,28 @@
           <button id="cancel-conflict-button" type="button" class="btn btn-secondary">Annuler</button>
           <button id="edit-conflict-button" type="button" class="btn btn-secondary">Ouvrir l'existante</button>
           <button id="adjust-conflict-button" type="button" class="btn btn-primary">Garder la partie libre</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="active-start-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Session active</p>
+            <h2>Corriger l'heure de debut</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+
+        <label class="field">
+          <span>Debut</span>
+          <input id="active-start-dialog-input" type="datetime-local" />
+        </label>
+
+        <div class="dialog-actions">
+          <button id="active-start-dialog-cancel" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="active-start-dialog-save" type="button" class="btn btn-primary">Valider</button>
         </div>
       </form>
     </dialog>
