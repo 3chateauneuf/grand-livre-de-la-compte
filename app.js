@@ -2,6 +2,7 @@ const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
 const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
 const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
+const REMOTE_SYNC_INTERVAL_MS = 15000;
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
@@ -766,6 +767,11 @@ let auditTableAvailable = null;
 let activeStartEditorOpen = false;
 let agendaImportRows = [];
 let agendaImportLoaded = false;
+let remoteActiveSessions = [];
+let remoteStateAvailable = false;
+let remoteStateLoadingPromise = null;
+let remoteSyncIntervalId = null;
+let activeDraftSyncTimeoutId = null;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -818,11 +824,13 @@ form.addEventListener("submit", async (event) => {
     start: new Date().toISOString(),
     pausedAt: null,
     pausedDurationMs: 0,
+    isServerActive: true,
   };
 
   persistActiveSession();
   startTimerLoopIfNeeded();
   render();
+  void upsertActiveSessionToSupabase(activeSession);
 });
 
 function createSessionId() {
@@ -997,7 +1005,7 @@ sessionList.addEventListener("click", (event) => {
   }
 
   const sessionId = editButton.closest(".session-item")?.dataset.sessionId;
-  const session = sessions.find((item) => item.id === sessionId);
+  const session = findSessionById(sessionId);
   if (!session) {
     return;
   }
@@ -1032,9 +1040,7 @@ agendaBoard.addEventListener("click", (event) => {
 
   const target = event.target.closest("[data-session-id]");
   if (target) {
-    const session =
-      sessions.find((item) => item.id === target.dataset.sessionId) ??
-      (activeSession?.id === target.dataset.sessionId ? activeSession : null);
+    const session = findSessionById(target.dataset.sessionId);
     if (session) {
       openManualDialog(session);
     }
@@ -1838,7 +1844,7 @@ function beginAgendaDrag(event) {
   }
 
   const sessionId = eventElement.dataset.sessionId;
-  const session = sessions.find((item) => item.id === sessionId);
+  const session = findSessionById(sessionId);
   const track = eventElement.closest(".agenda-day-track");
   if (!session || !track) {
     return;
@@ -1975,12 +1981,28 @@ function handleAgendaDragEnd(event) {
   }
 
   suppressNextAgendaClick = true;
+  if (state.originalSession.isServerActive) {
+    const nextActiveSession = normalizeSession({
+      ...state.originalSession,
+      ...state.previewSession,
+      isServerActive: true,
+    });
+    activeSession =
+      activeSession?.id === nextActiveSession.id ? nextActiveSession : activeSession;
+    persistActiveSession();
+    void logSessionChange(state.originalSession, nextActiveSession, `agenda-${state.mode}`);
+    render();
+    void upsertActiveSessionToSupabase(nextActiveSession);
+    return;
+  }
+
   attemptSaveSession(state.previewSession, {
     excludeId: state.originalSession.id,
     onSuccess: (sessionToSave) => {
       upsertSession(sessionToSave);
       persistSessions();
       void logSessionChange(state.originalSession, sessionToSave, `agenda-${state.mode}`);
+      void syncSessionToSupabase(sessionToSave, "manual");
       render();
     },
   });
@@ -2327,6 +2349,7 @@ function loadActiveSession() {
 function normalizeSession(session) {
   return {
     ...session,
+    id: session.id ?? session.time_entry_id ?? session.active_session_id ?? createSessionId(),
     collaborator: session.collaborator ?? "",
     project: session.project ?? "",
     task: session.task ?? "",
@@ -2340,7 +2363,116 @@ function normalizeSession(session) {
     pausedAt: session.pausedAt ?? null,
     pausedDurationMs: Number(session.pausedDurationMs) || 0,
     durationMs: Number(session.durationMs) || 0,
+    dbTimeEntryId: session.dbTimeEntryId ?? null,
+    dbActiveSessionId: session.dbActiveSessionId ?? null,
+    dbUserId: session.dbUserId ?? null,
+    dbProjectId: session.dbProjectId ?? null,
+    dbActivityCategoryId: session.dbActivityCategoryId ?? null,
+    dbTeamName: session.dbTeamName ?? "",
+    dbClientName: session.dbClientName ?? "",
+    dbKpiCategoryLabel: session.dbKpiCategoryLabel ?? "",
+    isServerBacked: Boolean(session.isServerBacked),
+    isServerActive: Boolean(session.isServerActive),
   };
+}
+
+function parseCsvTokens(rawValue) {
+  return String(rawValue ?? "")
+    .split(",")
+    .map((token) => token.trim())
+    .filter(Boolean);
+}
+
+function findUserByName(rawName) {
+  return findReferenceMatch(getKnownUsers(), "user_name", rawName);
+}
+
+function getSessionSourceUser(session) {
+  return (
+    getKnownUsers().find((item) => item.user_id === session?.dbUserId) ??
+    findUserByName(session?.collaborator ?? "") ??
+    accessProfile.appUser ??
+    null
+  );
+}
+
+function mapTimeEntryRowToSession(row) {
+  const startIso = row.started_at ?? row.created_at ?? `${row.entry_date}T09:00:00.000Z`;
+  const start = new Date(startIso);
+  const durationMs = Math.max(Number(row.duration_minutes ?? 0) * 60000, 0);
+  const endIso = row.ended_at ?? new Date(start.getTime() + durationMs).toISOString();
+
+  return normalizeSession({
+    id: row.source_session_id ?? row.time_entry_id,
+    collaborator: row.user_name ?? "",
+    project: row.project_name ?? "",
+    task: row.task_label ?? "",
+    categories: row.activity_category_label ? [row.activity_category_label] : [],
+    tags: parseCsvTokens(row.tags_text),
+    notionRef: row.notion_ref ?? "",
+    objectivePole: row.objective_pole ?? "",
+    objectiveOkr: row.objective_okr ?? "",
+    objectiveKr: row.objective_kr ?? "",
+    notes: row.notes ?? "",
+    start: start.toISOString(),
+    end: endIso,
+    durationMs,
+    dbTimeEntryId: row.time_entry_id ?? null,
+    dbUserId: row.user_id ?? null,
+    dbProjectId: row.project_id ?? null,
+    dbActivityCategoryId: row.activity_category_id ?? null,
+    dbTeamName: row.team_name ?? "",
+    dbClientName: row.client_name ?? "",
+    dbKpiCategoryLabel: row.kpi_category_label ?? "",
+    isServerBacked: true,
+  });
+}
+
+function mapActiveSessionRowToSession(row) {
+  return normalizeSession({
+    id: row.active_session_id,
+    collaborator: row.user_name ?? "",
+    project: row.project_name ?? "",
+    task: row.task_label ?? "",
+    categories: row.activity_category_label ? [row.activity_category_label] : [],
+    tags: parseCsvTokens(row.tags_text),
+    notionRef: row.notion_ref ?? "",
+    objectivePole: row.objective_pole ?? "",
+    objectiveOkr: row.objective_okr ?? "",
+    objectiveKr: row.objective_kr ?? "",
+    notes: row.notes ?? "",
+    start: row.started_at ?? row.created_at ?? new Date().toISOString(),
+    pausedAt: row.paused_at ?? null,
+    pausedDurationMs: Number(row.paused_duration_ms) || 0,
+    durationMs: 0,
+    dbActiveSessionId: row.active_session_id,
+    dbUserId: row.user_id ?? null,
+    dbProjectId: row.project_id ?? null,
+    dbActivityCategoryId: row.activity_category_id ?? null,
+    dbTeamName: row.team_name ?? "",
+    dbClientName: row.client_name ?? "",
+    dbKpiCategoryLabel: row.kpi_category_label ?? "",
+    isServerBacked: true,
+    isServerActive: true,
+  });
+}
+
+function hydrateRemoteState(historyRows, activeRows) {
+  sessions = historyRows
+    .map(mapTimeEntryRowToSession)
+    .sort((left, right) => new Date(right.start) - new Date(left.start));
+
+  remoteActiveSessions = activeRows
+    .map(mapActiveSessionRowToSession)
+    .sort((left, right) => new Date(right.start) - new Date(left.start));
+
+  const currentUserName = accessProfile.appUser?.user_name ?? "";
+  activeSession = currentUserName
+    ? remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(currentUserName)) ?? null
+    : null;
+
+  persistSessions();
+  persistActiveSession();
 }
 
 function persistSessions() {
@@ -2356,6 +2488,83 @@ function persistActiveSession() {
   window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(activeSession));
 }
 
+async function loadServerBackedState({ silent = false } = {}) {
+  if (!window.supabase) {
+    return false;
+  }
+
+  if (remoteStateLoadingPromise) {
+    return remoteStateLoadingPromise;
+  }
+
+  remoteStateLoadingPromise = (async () => {
+    const [historyResult, activeResult] = await Promise.allSettled([
+      window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
+      window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
+    ]);
+
+    const historyRows =
+      historyResult.status === "fulfilled" && !historyResult.value.error ? historyResult.value.data ?? [] : null;
+    const activeRows =
+      activeResult.status === "fulfilled" && !activeResult.value.error ? activeResult.value.data ?? [] : null;
+
+    if (!historyRows && !activeRows) {
+      if (historyResult.status === "fulfilled" && historyResult.value.error) {
+        console.warn("time_entries load failed:", historyResult.value.error);
+      }
+      if (activeResult.status === "fulfilled" && activeResult.value.error) {
+        console.warn("active_sessions load failed:", activeResult.value.error);
+      }
+      return false;
+    }
+
+    hydrateRemoteState(historyRows ?? [], activeRows ?? []);
+    remoteStateAvailable = true;
+
+    if (!silent) {
+      render();
+    }
+    return true;
+  })();
+
+  const result = await remoteStateLoadingPromise;
+  remoteStateLoadingPromise = null;
+  return result;
+}
+
+function scheduleActiveSessionServerSync({ immediate = false } = {}) {
+  if (!activeSession || !window.supabase) {
+    return;
+  }
+
+  if (activeDraftSyncTimeoutId) {
+    window.clearTimeout(activeDraftSyncTimeoutId);
+    activeDraftSyncTimeoutId = null;
+  }
+
+  const sync = () => {
+    activeDraftSyncTimeoutId = null;
+    void upsertActiveSessionToSupabase(activeSession);
+  };
+
+  if (immediate) {
+    sync();
+    return;
+  }
+
+  activeDraftSyncTimeoutId = window.setTimeout(sync, 600);
+}
+
+function startRemoteSyncLoop() {
+  if (remoteSyncIntervalId || !window.supabase) {
+    return;
+  }
+
+  remoteSyncIntervalId = window.setInterval(() => {
+    void loadServerBackedState({ silent: false });
+  }, REMOTE_SYNC_INTERVAL_MS);
+}
+
 function syncActiveSessionDraftFromForm({ audit = false, source = "active-session-context" } = {}) {
   if (!activeSession) {
     return;
@@ -2368,6 +2577,7 @@ function syncActiveSessionDraftFromForm({ audit = false, source = "active-sessio
   };
   persistActiveSession();
   renderActiveSession();
+  scheduleActiveSessionServerSync({ immediate: audit });
   if (audit) {
     void logSessionChange(previousSession, activeSession, source);
   }
@@ -2667,7 +2877,7 @@ function stopActiveSession() {
       stopTimerLoop();
       resetFormAfterStop();
       render();
-      void syncSessionToSupabase(sessionToSave, "timer");
+      void finalizeStoppedSessionOnSupabase(sessionToSave, "timer");
     },
   });
 }
@@ -2675,6 +2885,10 @@ function stopActiveSession() {
 
 async function initializeReferenceCatalog() {
   const loaded = await ensureReferenceCatalogLoaded();
+  if (loaded) {
+    await loadServerBackedState({ silent: true });
+    startRemoteSyncLoop();
+  }
   if (loaded && getAccessRole() === "admin") {
     await loadAgendaImportRows();
   }
@@ -2747,6 +2961,8 @@ function applyLocalAccessProfile(rawName, options = {}) {
       session: null,
       appUser: null,
     };
+    activeSession = null;
+    persistActiveSession();
     if (options.persist !== false) {
       clearStoredAccessName();
     }
@@ -2760,6 +2976,9 @@ function applyLocalAccessProfile(rawName, options = {}) {
     session: null,
     appUser,
   };
+  activeSession =
+    remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(appUser.user_name)) ?? null;
+  persistActiveSession();
 
   if (options.persist !== false) {
     storeAccessName(appUser.user_name);
@@ -2774,6 +2993,7 @@ function applyLocalAccessProfile(rawName, options = {}) {
     agendaImportLoaded = false;
   }
 
+  void loadServerBackedState({ silent: false });
   render();
   return true;
 }
@@ -2912,7 +3132,11 @@ function getScopedSessions(rows) {
   const role = getAccessRole();
   const appUser = accessProfile.appUser;
 
-  if (role === "open" || role === "admin" || !appUser) {
+  if (role === "open" || !appUser) {
+    return [];
+  }
+
+  if (role === "admin") {
     return rows;
   }
 
@@ -3250,24 +3474,26 @@ async function canonicalizeCategorySelection() {
 
 async function resolveSessionReferences(session) {
   const resolved = await resolveDraftReferences(session);
-  if (!resolved.loaded) {
-    return null;
-  }
-  const { user, project, category, selectedCategoryLabel } = resolved;
+  const fallbackUser = getSessionSourceUser(session);
+  const project =
+    resolved.project ??
+    findReferenceMatch(referenceCatalog.projects, "project_name", session.project) ??
+    null;
+  const category =
+    resolved.category ??
+    findReferenceMatch(referenceCatalog.categories, "activity_category_label", session.categories?.[0] ?? "") ??
+    null;
 
-  if (!user || !project || !category) {
-    console.warn("Supabase sync skipped because references could not be resolved.", {
-      collaborator: session.collaborator,
-      project: session.project,
-      category: selectedCategoryLabel,
-      userResolved: Boolean(user),
-      projectResolved: Boolean(project),
-      categoryResolved: Boolean(category),
-    });
+  if (!resolved.loaded && !fallbackUser) {
     return null;
   }
 
-  return { user, project, category };
+  return {
+    user: resolved.user ?? fallbackUser,
+    project,
+    category,
+    selectedCategoryLabel: resolved.selectedCategoryLabel ?? session.categories?.[0] ?? "",
+  };
 }
 
 async function getNextTimeEntryId() {
@@ -3306,26 +3532,40 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
     return null;
   }
 
-  const nextId = await getNextTimeEntryId();
-  if (!nextId) {
+  const timeEntryId = session.dbTimeEntryId ?? (await getNextTimeEntryId());
+  if (!timeEntryId || !references.user) {
     return null;
   }
 
+  const start = new Date(session.start);
+  const end = session.end ? new Date(session.end) : getActiveSessionEffectiveEnd(session);
+  const durationMs =
+    Number(session.durationMs) || Math.max(end.getTime() - start.getTime(), 0);
+
   return {
-    time_entry_id: nextId,
-    entry_date: new Date(session.start).toISOString().slice(0, 10),
+    time_entry_id: timeEntryId,
+    source_session_id: session.id,
+    entry_date: start.toISOString().slice(0, 10),
+    started_at: start.toISOString(),
+    ended_at: end.toISOString(),
     user_id: references.user.user_id,
     user_name: references.user.user_name,
     team_name: references.user.team_name ?? "",
-    project_id: references.project.project_id,
-    project_name: references.project.project_name,
-    client_name: references.project.client_name ?? "",
-    activity_category_id: references.category.activity_category_id,
-    activity_category_label: references.category.activity_category_label,
-    kpi_category_label: references.category.kpi_category_label ?? "",
-    duration_minutes: Math.max(1, Math.round((Number(session.durationMs) || 0) / 60000)),
-    duration_hours: Number(((Number(session.durationMs) || 0) / 3600000).toFixed(2)),
+    project_id: references.project?.project_id ?? session.dbProjectId ?? null,
+    project_name: references.project?.project_name ?? session.project ?? "",
+    client_name: references.project?.client_name ?? session.dbClientName ?? "",
+    activity_category_id: references.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
+    activity_category_label: references.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    kpi_category_label: references.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
+    duration_minutes: Math.max(1, Math.round(durationMs / 60000)),
+    duration_hours: Number((durationMs / 3600000).toFixed(2)),
     task_label: session.task || "",
+    tags_text: (session.tags ?? []).join(", "),
+    notion_ref: session.notionRef || "",
+    objective_pole: session.objectivePole || "",
+    objective_okr: session.objectiveOkr || "",
+    objective_kr: session.objectiveKr || "",
+    notes: session.notes || "",
     source,
     status: "saved",
   };
@@ -3337,19 +3577,27 @@ async function syncSessionToSupabase(session, source = "manual") {
     return false;
   }
 
-  return createTimeEntry(payload);
+  return createTimeEntry(payload, { updateExisting: Boolean(session.dbTimeEntryId) });
 }
 
-async function createTimeEntry(data) {
+async function createTimeEntry(data, options = {}) {
   if (!window.supabase) {
     return false;
   }
 
   try {
-    const { data: inserted, error } = await window.supabase
-      .from("time_entries")
-      .insert([data])
-      .select();
+    const query = options.updateExisting
+      ? window.supabase
+          .from("time_entries")
+          .update({
+            ...data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("time_entry_id", data.time_entry_id)
+          .select()
+      : window.supabase.from("time_entries").insert([data]).select();
+
+    const { data: inserted, error } = await query;
 
     if (error) {
       console.error("Supabase insert error:", error);
@@ -3357,11 +3605,88 @@ async function createTimeEntry(data) {
     }
 
     console.log("Supabase insert success:", inserted);
+    await loadServerBackedState({ silent: false });
     return true;
   } catch (e) {
     console.error("Unexpected Supabase error:", e);
     return false;
   }
+}
+
+async function buildActiveSessionPayload(session) {
+  const references = await resolveSessionReferences(session);
+  const user = references?.user ?? getSessionSourceUser(session);
+  if (!user) {
+    return null;
+  }
+
+  return {
+    active_session_id: session.dbActiveSessionId ?? session.id,
+    started_at: session.start,
+    paused_at: session.pausedAt ?? null,
+    paused_duration_ms: Number(session.pausedDurationMs) || 0,
+    user_id: user.user_id ?? session.dbUserId ?? null,
+    user_name: user.user_name ?? session.collaborator ?? "",
+    team_name: user.team_name ?? session.dbTeamName ?? "",
+    project_id: references?.project?.project_id ?? session.dbProjectId ?? null,
+    project_name: references?.project?.project_name ?? session.project ?? "",
+    client_name: references?.project?.client_name ?? session.dbClientName ?? "",
+    activity_category_id: references?.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
+    activity_category_label: references?.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    kpi_category_label: references?.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
+    task_label: session.task || "",
+    tags_text: (session.tags ?? []).join(", "),
+    notion_ref: session.notionRef || "",
+    objective_pole: session.objectivePole || "",
+    objective_okr: session.objectiveOkr || "",
+    objective_kr: session.objectiveKr || "",
+    notes: session.notes || "",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsertActiveSessionToSupabase(session) {
+  if (!window.supabase || !session) {
+    return false;
+  }
+
+  const payload = await buildActiveSessionPayload(session);
+  if (!payload) {
+    return false;
+  }
+
+  const { error } = await window.supabase
+    .from("active_sessions")
+    .upsert([payload], { onConflict: "active_session_id" });
+
+  if (error) {
+    console.warn("active_sessions upsert failed:", error);
+    return false;
+  }
+
+  await loadServerBackedState({ silent: false });
+  return true;
+}
+
+async function removeActiveSessionFromSupabase(sessionId) {
+  if (!window.supabase || !sessionId) {
+    return false;
+  }
+
+  const { error } = await window.supabase.from("active_sessions").delete().eq("active_session_id", sessionId);
+  if (error) {
+    console.warn("active_sessions delete failed:", error);
+    return false;
+  }
+
+  await loadServerBackedState({ silent: false });
+  return true;
+}
+
+async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
+  const historySaved = await syncSessionToSupabase(session, source);
+  const activeRemoved = await removeActiveSessionFromSupabase(session.dbActiveSessionId ?? session.id);
+  return historySaved && activeRemoved;
 }
 
 async function logSessionChange(previousSession, nextSession, source = "manual") {
@@ -3381,6 +3706,12 @@ async function logSessionChange(previousSession, nextSession, source = "manual")
     ["end", "Fin"],
     ["durationMs", "Duree"],
     ["categories", "Categorie"],
+    ["tags", "Tags"],
+    ["notionRef", "Lien d'interet"],
+    ["objectivePole", "Pole"],
+    ["objectiveOkr", "OKR"],
+    ["objectiveKr", "KR"],
+    ["notes", "Note"],
   ];
 
   for (const [field, label] of fields) {
@@ -3476,6 +3807,7 @@ function togglePauseSession() {
 
   persistActiveSession();
   render();
+  scheduleActiveSessionServerSync({ immediate: true });
 }
 
 function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
@@ -3543,6 +3875,7 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
   if (audit) {
     void logSessionChange(previousSession, activeSession, "active-session-start");
   }
+  scheduleActiveSessionServerSync({ immediate: true });
   return true;
 }
 
@@ -3612,14 +3945,39 @@ function saveManualEntry() {
     durationMs,
   };
 
+  const activeSessionBeingEdited =
+    (manualEditingSessionId && getPersistedActiveSessions().find((item) => item.id === manualEditingSessionId)) ?? null;
+
+  if (activeSessionBeingEdited) {
+    const nextActiveSession = normalizeSession({
+      ...activeSessionBeingEdited,
+      ...manualSession,
+      pausedAt: activeSessionBeingEdited.pausedAt ?? null,
+      pausedDurationMs: Number(activeSessionBeingEdited.pausedDurationMs) || 0,
+      isServerActive: true,
+    });
+    activeSession = nextActiveSession;
+    persistActiveSession();
+    hydrateFormFromActiveSession();
+    manualEditingSessionId = null;
+    manualDialog.close();
+    saveManualButton.textContent = "Enregistrer";
+    renderObjectiveSelections();
+    render();
+    void logSessionChange(activeSessionBeingEdited, nextActiveSession, "manual-edit-active");
+    void upsertActiveSessionToSupabase(nextActiveSession);
+    return;
+  }
+
   attemptSaveSession(manualSession, {
     excludeId: manualEditingSessionId,
     onSuccess: (sessionToSave) => {
       const previousSession =
-        manualEditingSessionId ? sessions.find((item) => item.id === manualEditingSessionId) ?? null : null;
+        manualEditingSessionId ? findSessionById(manualEditingSessionId) ?? null : null;
       upsertSession(sessionToSave);
       persistSessions();
       void logSessionChange(previousSession, sessionToSave, previousSession ? "manual-edit" : "manual-create");
+      void syncSessionToSupabase(sessionToSave, previousSession ? "manual" : "manual");
       manualEditingSessionId = null;
       manualDialog.close();
       saveManualButton.textContent = "Enregistrer";
@@ -3647,11 +4005,12 @@ function attemptSaveSession(session, options = {}) {
 }
 
 function upsertSession(session) {
+  const normalizedSession = normalizeSession(session);
   const index = sessions.findIndex((item) => item.id === session.id);
   if (index >= 0) {
-    sessions[index] = session;
+    sessions[index] = normalizedSession;
   } else {
-    sessions.unshift(session);
+    sessions.unshift(normalizedSession);
   }
   sessions.sort((a, b) => new Date(b.start) - new Date(a.start));
 }
@@ -3662,7 +4021,7 @@ function findOverlappingSession(session, excludeId = null) {
   const collaboratorKey = normalizeText(session.collaborator);
 
   return (
-    sessions.find((existing) => {
+    getAllSessionsWithActive().find((existing) => {
       if (existing.id === excludeId) {
         return false;
       }
@@ -5419,6 +5778,38 @@ function getCurrentCollaborator() {
   return "";
 }
 
+function findSessionById(sessionId) {
+  if (!sessionId) {
+    return null;
+  }
+
+  return (
+    sessions.find((item) => item.id === sessionId) ??
+    remoteActiveSessions.find((item) => item.id === sessionId) ??
+    (activeSession?.id === sessionId ? activeSession : null)
+  );
+}
+
+function getPersistedActiveSessions() {
+  const currentId = activeSession?.id ?? null;
+  const merged = new Map();
+
+  for (const session of remoteActiveSessions) {
+    merged.set(session.id, session);
+  }
+
+  if (activeSession) {
+    merged.set(activeSession.id, activeSession);
+  }
+
+  return Array.from(merged.values()).map((session) => ({
+    ...session,
+    end: getActiveSessionEffectiveEnd(session).toISOString(),
+    durationMs: getActiveSessionDurationMs(session),
+    isServerActive: true,
+  }));
+}
+
 function getSessionsForCollaborator(collaborator) {
   return getScopedSessions(getAllSessionsWithActive()).filter(
     (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
@@ -5426,15 +5817,11 @@ function getSessionsForCollaborator(collaborator) {
 }
 
 function getAllSessionsWithActive() {
-  const rows = [...sessions];
-  if (activeSession) {
-    rows.unshift({
-      ...activeSession,
-      end: getActiveSessionEffectiveEnd(activeSession).toISOString(),
-      durationMs: getActiveSessionDurationMs(activeSession),
-    });
+  const rows = new Map(sessions.map((session) => [session.id, session]));
+  for (const activeRow of getPersistedActiveSessions()) {
+    rows.set(activeRow.id, activeRow);
   }
-  return rows;
+  return Array.from(rows.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
 }
 
 function getActiveSessionEffectiveEnd(session) {
@@ -5914,6 +6301,8 @@ async function logoutCurrentUser() {
     session: null,
     appUser: null,
   };
+  activeSession = null;
+  persistActiveSession();
   if (loginNameInput) {
     loginNameInput.value = "";
   }

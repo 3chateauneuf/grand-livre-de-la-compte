@@ -34,12 +34,20 @@ En local, le service worker est desactive automatiquement pour eviter les versio
 - regles d'ecriture: [db/WRITE_RULES.md](/Users/ed/Documents/grand-livre-de-la-compte/db/WRITE_RULES.md)
 - auth + roles + RLS: [db/auth_rls.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_rls.sql)
 - sync auth profiles: [db/auth_profile_sync.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_profile_sync.sql)
+- stockage partage serveur: [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql)
 - staging import agenda: [db/agenda_import_staging.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/agenda_import_staging.sql)
 - exemple import Paulo: [db/import_paulo_week_2026_04_06.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/import_paulo_week_2026_04_06.sql)
 
 ## Stockage
 
-Toutes les donnees sont conservees localement dans `localStorage` sur le navigateur utilise.
+La version actuelle garde un cache local dans `localStorage`, mais peut maintenant utiliser Supabase comme source partagee pour:
+
+- `time_entries` comme historique commun
+- `active_sessions` comme verite serveur pour les chronos en cours ou en pause
+- `session_audit_log` pour tracer les modifications quand la table existe
+
+Pour activer ce mode partage, execute [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql) dans Supabase.
+Ce script ajoute aussi `session_audit_log` pour tracer les editions.
 
 ## Acces actuel
 

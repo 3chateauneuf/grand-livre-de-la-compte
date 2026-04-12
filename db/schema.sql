@@ -56,29 +56,71 @@ create table time_entries (
   time_entry_id text primary key
     check (time_entry_id ~ '^TE-[0-9]{6}$'),
 
+  source_session_id text,
+
   entry_date date not null,
+  started_at timestamptz,
+  ended_at timestamptz,
 
   user_id text not null references users(user_id),
   user_name text not null,
   team_name text not null,
 
-  project_id text not null references projects(project_id),
+  project_id text references projects(project_id),
   project_name text not null,
-  client_name text not null,
+  client_name text,
 
-  activity_category_id text not null references categories(activity_category_id),
-  activity_category_label text not null,
-  kpi_category_label text not null,
+  activity_category_id text references categories(activity_category_id),
+  activity_category_label text,
+  kpi_category_label text,
 
   duration_minutes integer not null
     check (duration_minutes > 0),
   duration_hours numeric(6,2),
 
   task_label text,
+  tags_text text,
+  notion_ref text,
+  objective_pole text,
+  objective_okr text,
+  objective_kr text,
+  notes text,
   source text not null
     check (source in ('quick', 'manual', 'timer')),
   status text not null default 'saved'
     check (status in ('saved', 'submitted')),
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table active_sessions (
+  active_session_id text primary key,
+
+  started_at timestamptz not null,
+  paused_at timestamptz,
+  paused_duration_ms bigint not null default 0
+    check (paused_duration_ms >= 0),
+
+  user_id text references users(user_id),
+  user_name text not null,
+  team_name text not null,
+
+  project_id text references projects(project_id),
+  project_name text not null,
+  client_name text,
+
+  activity_category_id text references categories(activity_category_id),
+  activity_category_label text,
+  kpi_category_label text,
+
+  task_label text,
+  tags_text text,
+  notion_ref text,
+  objective_pole text,
+  objective_okr text,
+  objective_kr text,
+  notes text,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -90,8 +132,14 @@ create index idx_time_entries_project_id on time_entries(project_id);
 create index idx_time_entries_category_id on time_entries(activity_category_id);
 create index idx_time_entries_team_name on time_entries(team_name);
 create index idx_time_entries_created_at on time_entries(created_at);
+create index idx_time_entries_source_session_id on time_entries(source_session_id);
+create index idx_time_entries_started_at on time_entries(started_at);
 create index idx_users_auth_user_id on users(auth_user_id);
 create index idx_users_email on users(email);
+create index idx_active_sessions_user_id on active_sessions(user_id);
+create index idx_active_sessions_team_name on active_sessions(team_name);
+create index idx_active_sessions_started_at on active_sessions(started_at);
+create index idx_active_sessions_updated_at on active_sessions(updated_at);
 
 -- Write-time rules enforced by the application layer
 --
@@ -107,6 +155,11 @@ create index idx_users_email on users(email);
 -- Notes
 -- - Denormalized labels are never manually entered by users.
 -- - duration_hours should be derived from duration_minutes when present.
+-- - source_session_id lets a running session become a historical row without losing continuity.
+-- - started_at / ended_at keep the real agenda placement when it is known.
+-- - tags_text stores comma-separated tags until a fuller relational model is needed.
+-- - objective_* and notes keep richer context available to shared reporting.
 -- - Historical time_entries should not be rewritten if source labels change later.
 -- - auth_user_id is the link to Supabase Auth when multi-user access is enabled.
 -- - managed_team_name can scope manager-level visibility without introducing more tables in V1.5.
+-- - active_sessions is the server-side source of truth for running or paused work.
