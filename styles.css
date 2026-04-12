@@ -665,7 +665,7 @@ button {
 }
 
 .note-textarea {
-  min-height: 118px;
+  min-height: 46px;
 }
 
 .token-field {
@@ -702,6 +702,31 @@ button {
 
 .chip {
   font-weight: 700;
+  cursor: grab;
+  user-select: none;
+  will-change: transform;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+
+.chip--dragging {
+  opacity: 0.55;
+  transform: scale(0.98);
+  cursor: grabbing;
+  box-shadow: 0 10px 24px rgba(24, 56, 74, 0.12);
+}
+
+.chip-row--sorting .chip {
+  transition:
+    transform 180ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.chip--drop-target {
+  border-color: rgba(15, 118, 110, 0.35);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.08);
 }
 
 .token-chip button {
@@ -741,6 +766,57 @@ button {
 .memory-strip-inline {
   background: var(--panel-soft);
   border-style: dashed;
+}
+
+.reprise-actions {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reprise-dropzone {
+  flex: 0 1 148px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(24, 56, 74, 0.14);
+  background: rgba(255, 255, 255, 0.52);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, color 160ms ease;
+}
+
+.reprise-dropzone-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.reprise-dropzone--active {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(24, 56, 74, 0.08);
+}
+
+.reprise-dropzone--archive.reprise-dropzone--active {
+  border-color: rgba(156, 104, 16, 0.35);
+  background: rgba(201, 128, 43, 0.12);
+  color: #7a4a12;
+}
+
+.reprise-dropzone--done.reprise-dropzone--active {
+  border-color: rgba(15, 118, 110, 0.32);
+  background: rgba(15, 118, 110, 0.12);
+  color: #0d5e58;
+}
+
+.field-manage-color-shell {
+  margin-top: -4px;
 }
 
 .view-toolbar {
