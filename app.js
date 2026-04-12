@@ -153,6 +153,8 @@ const managerObjectivesPanel = document.querySelector("#manager-objectives-panel
 const managerObjectivesGrid = document.querySelector("#manager-objectives-grid");
 const sessionList = document.querySelector("#session-list");
 const projectMemoryList = document.querySelector("#project-memory-list");
+const agendaImportPanel = document.querySelector("#agenda-import-panel");
+const agendaImportList = document.querySelector("#agenda-import-list");
 const sessionItemTemplate = document.querySelector("#session-item-template");
 const resourceTotal = document.querySelector("#resource-total");
 const resourceRange = document.querySelector("#resource-range");
@@ -762,6 +764,8 @@ let agendaDragState = null;
 let suppressNextAgendaClick = false;
 let auditTableAvailable = null;
 let activeStartEditorOpen = false;
+let agendaImportRows = [];
+let agendaImportLoaded = false;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -2671,6 +2675,9 @@ function stopActiveSession() {
 
 async function initializeReferenceCatalog() {
   const loaded = await ensureReferenceCatalogLoaded();
+  if (loaded && getAccessRole() === "admin") {
+    await loadAgendaImportRows();
+  }
   if (loaded) {
     render();
   }
@@ -2756,6 +2763,15 @@ function applyLocalAccessProfile(rawName, options = {}) {
 
   if (options.persist !== false) {
     storeAccessName(appUser.user_name);
+  }
+
+  if (accessProfile.role === "admin") {
+    void loadAgendaImportRows().then(() => {
+      renderAgendaImportPanel();
+    });
+  } else {
+    agendaImportRows = [];
+    agendaImportLoaded = false;
   }
 
   render();
@@ -3738,6 +3754,7 @@ function render() {
   renderSuggestions();
   renderQuickProjects();
   renderProjectMemoryList();
+  renderAgendaImportPanel();
   renderSessionList();
   renderCadreViews();
   renderManagerControls();
@@ -4015,6 +4032,91 @@ function renderProjectMemoryList() {
 
     card.append(copy, action);
     projectMemoryList.append(card);
+  }
+}
+
+async function loadAgendaImportRows() {
+  if (!window.supabase) {
+    return false;
+  }
+
+  const { data, error } = await window.supabase
+    .from("agenda_import_staging")
+    .select("*")
+    .order("entry_date", { ascending: false })
+    .order("start_time", { ascending: false })
+    .limit(24);
+
+  if (error) {
+    console.warn("agenda_import_staging load failed:", error);
+    agendaImportRows = [];
+    agendaImportLoaded = false;
+    return false;
+  }
+
+  agendaImportRows = data ?? [];
+  agendaImportLoaded = true;
+  return true;
+}
+
+function renderAgendaImportPanel() {
+  if (!agendaImportPanel || !agendaImportList) {
+    return;
+  }
+
+  const visible = getAccessRole() === "admin";
+  agendaImportPanel.hidden = !visible;
+  if (!visible) {
+    return;
+  }
+
+  agendaImportList.innerHTML = "";
+
+  if (!agendaImportLoaded) {
+    agendaImportList.append(createEmptyState("Chargez ou rechargez la vue pour lire les imports agenda."));
+    return;
+  }
+
+  if (!agendaImportRows.length) {
+    agendaImportList.append(createEmptyState("Aucun import agenda en staging pour le moment."));
+    return;
+  }
+
+  for (const row of agendaImportRows) {
+    const card = document.createElement("article");
+    card.className = "memory-card";
+
+    const copy = document.createElement("div");
+    copy.className = "memory-copy";
+
+    const title = document.createElement("h3");
+    title.textContent = row.title || "Sans titre";
+
+    const meta = document.createElement("p");
+    meta.className = "muted-copy";
+    const timeLabel = row.end_time ? `${row.start_time.slice(0, 5)} - ${row.end_time.slice(0, 5)}` : `${row.start_time.slice(0, 5)} - ?`;
+    meta.textContent = [row.user_name, row.entry_date, timeLabel].filter(Boolean).join(" · ");
+
+    const detail = document.createElement("div");
+    detail.className = "memory-meta";
+    renderPills(
+      detail,
+      [
+        row.project_name ? `Projet · ${row.project_name}` : "",
+        row.client_name ? `Client · ${row.client_name}` : "",
+        row.category_label ? `Categorie · ${row.category_label}` : "Categorie a attribuer",
+        row.needs_review ? "A revoir" : "",
+      ].filter(Boolean),
+    );
+
+    const notes = document.createElement("p");
+    notes.className = "session-notes";
+    notes.textContent = row.review_reason || row.notes || "";
+    notes.hidden = !notes.textContent;
+
+    copy.append(title, meta, detail, notes);
+    card.append(copy);
+    agendaImportList.append(card);
   }
 }
 

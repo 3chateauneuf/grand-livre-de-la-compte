@@ -34,6 +34,8 @@ En local, le service worker est desactive automatiquement pour eviter les versio
 - regles d'ecriture: [db/WRITE_RULES.md](/Users/ed/Documents/grand-livre-de-la-compte/db/WRITE_RULES.md)
 - auth + roles + RLS: [db/auth_rls.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_rls.sql)
 - sync auth profiles: [db/auth_profile_sync.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_profile_sync.sql)
+- staging import agenda: [db/agenda_import_staging.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/agenda_import_staging.sql)
+- exemple import Paulo: [db/import_paulo_week_2026_04_06.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/import_paulo_week_2026_04_06.sql)
 
 ## Stockage
 
