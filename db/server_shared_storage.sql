@@ -1,5 +1,9 @@
 begin;
 
+alter table public.categories
+  add column if not exists color_hex text
+    check (color_hex is null or color_hex ~ '^#[0-9A-Fa-f]{6}$');
+
 alter table public.time_entries
   add column if not exists source_session_id text,
   add column if not exists started_at timestamptz,
@@ -85,12 +89,31 @@ create index if not exists idx_session_audit_log_session_id
 create index if not exists idx_session_audit_log_created_at
   on public.session_audit_log(created_at desc);
 
+create table if not exists public.reprise_actions (
+  subject_user_name text not null,
+  memory_key text not null,
+  subject_project_name text,
+  action_kind text not null
+    check (action_kind in ('archive', 'done')),
+  actor_name text not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (subject_user_name, memory_key)
+);
+
+create index if not exists idx_reprise_actions_actor_name
+  on public.reprise_actions(actor_name);
+
+create index if not exists idx_reprise_actions_updated_at
+  on public.reprise_actions(updated_at desc);
+
 alter table public.users enable row level security;
 alter table public.projects enable row level security;
 alter table public.categories enable row level security;
 alter table public.time_entries enable row level security;
 alter table public.active_sessions enable row level security;
 alter table public.session_audit_log enable row level security;
+alter table public.reprise_actions enable row level security;
 
 drop policy if exists users_anon_read_lightweight on public.users;
 create policy users_anon_read_lightweight
@@ -99,6 +122,13 @@ for select
 to anon
 using (status = 'active');
 
+drop policy if exists users_anon_insert_lightweight on public.users;
+create policy users_anon_insert_lightweight
+on public.users
+for insert
+to anon
+with check (true);
+
 drop policy if exists projects_anon_read_lightweight on public.projects;
 create policy projects_anon_read_lightweight
 on public.projects
@@ -106,12 +136,34 @@ for select
 to anon
 using (true);
 
+drop policy if exists projects_anon_insert_lightweight on public.projects;
+create policy projects_anon_insert_lightweight
+on public.projects
+for insert
+to anon
+with check (true);
+
 drop policy if exists categories_anon_read_lightweight on public.categories;
 create policy categories_anon_read_lightweight
 on public.categories
 for select
 to anon
 using (true);
+
+drop policy if exists categories_anon_insert_lightweight on public.categories;
+create policy categories_anon_insert_lightweight
+on public.categories
+for insert
+to anon
+with check (true);
+
+drop policy if exists categories_anon_update_lightweight on public.categories;
+create policy categories_anon_update_lightweight
+on public.categories
+for update
+to anon
+using (true)
+with check (true);
 
 drop policy if exists time_entries_anon_read_shared on public.time_entries;
 create policy time_entries_anon_read_shared
@@ -184,5 +236,27 @@ on public.session_audit_log
 for select
 to anon
 using (true);
+
+drop policy if exists reprise_actions_anon_read_shared on public.reprise_actions;
+create policy reprise_actions_anon_read_shared
+on public.reprise_actions
+for select
+to anon
+using (true);
+
+drop policy if exists reprise_actions_anon_insert_shared on public.reprise_actions;
+create policy reprise_actions_anon_insert_shared
+on public.reprise_actions
+for insert
+to anon
+with check (true);
+
+drop policy if exists reprise_actions_anon_update_shared on public.reprise_actions;
+create policy reprise_actions_anon_update_shared
+on public.reprise_actions
+for update
+to anon
+using (true)
+with check (true);
 
 commit;

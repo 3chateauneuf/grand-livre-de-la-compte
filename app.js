@@ -2,7 +2,12 @@ const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
 const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
 const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
+const CATEGORY_COLOR_KEY = "grand-livre-category-colors-v1";
+const REPRISES_ORDER_KEY = "grand-livre-reprises-order-v1";
+const REPRISES_ACTIONS_KEY = "grand-livre-reprises-actions-v1";
 const REMOTE_SYNC_INTERVAL_MS = 15000;
+const QUICK_REPRISES_LIMIT = 6;
+const MEMORY_CONTEXT_LIMIT = 8;
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
@@ -102,6 +107,9 @@ const objectiveOkrSelected = document.querySelector("#objective-okr-selected");
 const objectiveKrSelected = document.querySelector("#objective-kr-selected");
 const notesInput = document.querySelector("#notes-input");
 const quickProjects = document.querySelector("#quick-projects");
+const repriseActionsShell = document.querySelector("#reprise-actions");
+const repriseArchiveZone = document.querySelector("#reprise-archive-zone");
+const repriseDoneZone = document.querySelector("#reprise-done-zone");
 const toggleButton = document.querySelector("#toggle-button");
 const pauseButton = document.querySelector("#pause-button");
 const openManualButton = document.querySelector("#open-manual-button");
@@ -212,6 +220,9 @@ const fieldManageDialog = document.querySelector("#field-manage-dialog");
 const fieldManageTitle = document.querySelector("#field-manage-title");
 const fieldManageCopy = document.querySelector("#field-manage-copy");
 const fieldManageDetail = document.querySelector("#field-manage-detail");
+const fieldManageColorShell = document.querySelector("#field-manage-color-shell");
+const fieldManageColorInput = document.querySelector("#field-manage-color-input");
+const fieldManageColorSaveButton = document.querySelector("#field-manage-color-save");
 const fieldManageCancelButton = document.querySelector("#field-manage-cancel");
 const fieldManageEditButton = document.querySelector("#field-manage-edit");
 const fieldManageDeleteButton = document.querySelector("#field-manage-delete");
@@ -761,6 +772,7 @@ let autocompleteState = {
 let autocompleteHideTimeoutId = null;
 let fieldManageState = null;
 let fieldManageConfirmMode = false;
+let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
 let auditTableAvailable = null;
@@ -768,6 +780,7 @@ let activeStartEditorOpen = false;
 let agendaImportRows = [];
 let agendaImportLoaded = false;
 let remoteActiveSessions = [];
+let repriseActions = loadStoredRepriseActions();
 let remoteStateAvailable = false;
 let remoteStateLoadingPromise = null;
 let remoteSyncIntervalId = null;
@@ -938,6 +951,136 @@ quickProjects.addEventListener("click", (event) => {
 
   fillFormFromMemory(memory);
 });
+
+quickProjects.addEventListener("dragstart", (event) => {
+  const chip = event.target.closest(".chip[data-memory-key]");
+  if (!chip) {
+    return;
+  }
+
+  quickProjectsDragState = {
+    key: chip.dataset.memoryKey,
+    collaborator: getCurrentCollaborator(),
+  };
+  quickProjects.classList.add("chip-row--sorting");
+  repriseActionsShell?.removeAttribute("hidden");
+  chip.classList.add("chip--dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", chip.dataset.memoryKey);
+});
+
+quickProjects.addEventListener("dragover", (event) => {
+  if (!quickProjectsDragState) {
+    return;
+  }
+  event.preventDefault();
+
+  const dragging = quickProjects.querySelector(".chip--dragging");
+  if (!dragging) {
+    return;
+  }
+
+  const target = event.target.closest(".chip[data-memory-key]");
+  quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
+
+  if (!target || target === dragging) {
+    const bounds = quickProjects.getBoundingClientRect();
+    if (event.clientX > bounds.left + bounds.width - 44) {
+      const beforePositions = captureChipPositions(quickProjects);
+      quickProjects.append(dragging);
+      animateChipReorder(quickProjects, beforePositions);
+    }
+    return;
+  }
+
+  target.classList.add("chip--drop-target");
+  const rect = target.getBoundingClientRect();
+  const insertAfter = event.clientX > rect.left + rect.width / 2;
+  const beforePositions = captureChipPositions(quickProjects);
+  if (insertAfter) {
+    quickProjects.insertBefore(dragging, target.nextSibling);
+  } else {
+    quickProjects.insertBefore(dragging, target);
+  }
+  animateChipReorder(quickProjects, beforePositions);
+});
+
+quickProjects.addEventListener("drop", (event) => {
+  if (!quickProjectsDragState) {
+    return;
+  }
+  event.preventDefault();
+  quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
+  persistReprisesOrderFromDom();
+  renderQuickProjects();
+  renderProjectMemoryList();
+});
+
+quickProjects.addEventListener("dragleave", (event) => {
+  const relatedTarget = event.relatedTarget;
+  if (relatedTarget && quickProjects.contains(relatedTarget)) {
+    return;
+  }
+  quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
+});
+
+quickProjects.addEventListener("dragend", () => {
+  quickProjects.querySelectorAll(".chip--dragging").forEach((chip) => chip.classList.remove("chip--dragging"));
+  quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
+  quickProjects.classList.remove("chip-row--sorting");
+  repriseActionsShell?.setAttribute("hidden", "");
+  repriseArchiveZone?.classList.remove("reprise-dropzone--active");
+  repriseDoneZone?.classList.remove("reprise-dropzone--active");
+  quickProjectsDragState = null;
+});
+
+function setupRepriseDropzone(zone, actionKind) {
+  if (!zone) {
+    return;
+  }
+
+  zone.addEventListener("dragover", (event) => {
+    if (!quickProjectsDragState) {
+      return;
+    }
+    event.preventDefault();
+    zone.classList.add("reprise-dropzone--active");
+  });
+
+  zone.addEventListener("dragleave", (event) => {
+    const relatedTarget = event.relatedTarget;
+    if (relatedTarget && zone.contains(relatedTarget)) {
+      return;
+    }
+    zone.classList.remove("reprise-dropzone--active");
+  });
+
+  zone.addEventListener("drop", async (event) => {
+    if (!quickProjectsDragState) {
+      return;
+    }
+    event.preventDefault();
+    zone.classList.remove("reprise-dropzone--active");
+
+    const memory = getProjectMemories(quickProjectsDragState.collaborator).find(
+      (item) => item.key === quickProjectsDragState.key,
+    );
+    if (!memory) {
+      repriseActionsShell?.setAttribute("hidden", "");
+      quickProjectsDragState = null;
+      return;
+    }
+
+    await saveRepriseAction(memory, actionKind);
+    repriseActionsShell?.setAttribute("hidden", "");
+    quickProjectsDragState = null;
+    renderQuickProjects();
+    renderProjectMemoryList();
+  });
+}
+
+setupRepriseDropzone(repriseArchiveZone, "archive");
+setupRepriseDropzone(repriseDoneZone, "done");
 
 projectMemoryList.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-memory-key]");
@@ -1139,6 +1282,16 @@ fieldManageConfirmButton?.addEventListener("click", () => {
     return;
   }
   applyFieldManageDeletion(fieldManageState.kind);
+  resetFieldManageDialog();
+  fieldManageDialog?.close();
+});
+
+fieldManageColorSaveButton?.addEventListener("click", async () => {
+  if (!fieldManageState || fieldManageState.kind !== "category" || !fieldManageColorInput?.value) {
+    return;
+  }
+
+  await saveCategoryColor(fieldManageState.detail, fieldManageColorInput.value);
   resetFieldManageDialog();
   fieldManageDialog?.close();
 });
@@ -2475,6 +2628,19 @@ function hydrateRemoteState(historyRows, activeRows) {
   persistActiveSession();
 }
 
+function hydrateRepriseActions(rows) {
+  repriseActions = (rows ?? []).map((row) => ({
+    subject_user_name: row.subject_user_name ?? "",
+    memory_key: row.memory_key ?? "",
+    subject_project_name: row.subject_project_name ?? "",
+    action_kind: row.action_kind ?? "archive",
+    actor_name: row.actor_name ?? "",
+    created_at: row.created_at ?? null,
+    updated_at: row.updated_at ?? null,
+  }));
+  storeRepriseActions(repriseActions);
+}
+
 function persistSessions() {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
 }
@@ -2498,27 +2664,36 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
-    const [historyResult, activeResult] = await Promise.allSettled([
+    const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
+      window.supabase.from("reprise_actions").select("*").order("updated_at", { ascending: false }),
     ]);
 
     const historyRows =
       historyResult.status === "fulfilled" && !historyResult.value.error ? historyResult.value.data ?? [] : null;
     const activeRows =
       activeResult.status === "fulfilled" && !activeResult.value.error ? activeResult.value.data ?? [] : null;
+    const repriseActionRows =
+      repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error
+        ? repriseActionsResult.value.data ?? []
+        : null;
 
-    if (!historyRows && !activeRows) {
+    if (!historyRows && !activeRows && !repriseActionRows) {
       if (historyResult.status === "fulfilled" && historyResult.value.error) {
         console.warn("time_entries load failed:", historyResult.value.error);
       }
       if (activeResult.status === "fulfilled" && activeResult.value.error) {
         console.warn("active_sessions load failed:", activeResult.value.error);
       }
+      if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
+        console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
+      }
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
+    hydrateRepriseActions(repriseActionRows ?? repriseActions);
     remoteStateAvailable = true;
 
     if (!silent) {
@@ -2708,6 +2883,9 @@ function openFieldManageDialog(kind) {
   fieldManageTitle.textContent = payload.title;
   fieldManageCopy.textContent = payload.copy;
   fieldManageDetail.textContent = payload.detail;
+  if (payload.kind === "category" && fieldManageColorInput) {
+    fieldManageColorInput.value = getCategoryColor(payload.detail);
+  }
   syncFieldManageDialogMode();
   fieldManageDialog.showModal();
 }
@@ -2772,6 +2950,279 @@ function getFieldManagePayload(kind) {
   return payload;
 }
 
+function loadStoredCategoryColors() {
+  try {
+    return JSON.parse(window.localStorage.getItem(CATEGORY_COLOR_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function loadStoredRepriseActions() {
+  try {
+    return JSON.parse(window.localStorage.getItem(REPRISES_ACTIONS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function storeRepriseActions(rows) {
+  try {
+    window.localStorage.setItem(REPRISES_ACTIONS_KEY, JSON.stringify(rows));
+  } catch {
+    // ignore local storage errors
+  }
+}
+
+function storeCategoryColor(label, color) {
+  const normalized = normalizeText(label);
+  if (!normalized || !color) {
+    return;
+  }
+
+  const current = loadStoredCategoryColors();
+  current[normalized] = color;
+  try {
+    window.localStorage.setItem(CATEGORY_COLOR_KEY, JSON.stringify(current));
+  } catch {
+    // ignore local storage errors
+  }
+}
+
+function generateStableHexColor(seed) {
+  const source = String(seed || "grand-livre");
+  let hash = 0;
+  for (const char of source) {
+    hash = (hash << 5) - hash + char.charCodeAt(0);
+    hash |= 0;
+  }
+  const hue = Math.abs(hash) % 360;
+  return hslToHex(hue, 55, 78);
+}
+
+function hslToHex(h, s, l) {
+  const saturation = s / 100;
+  const lightness = l / 100;
+  const c = (1 - Math.abs(2 * lightness - 1)) * saturation;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = lightness - c / 2;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  if (h < 60) {
+    r = c; g = x; b = 0;
+  } else if (h < 120) {
+    r = x; g = c; b = 0;
+  } else if (h < 180) {
+    r = 0; g = c; b = x;
+  } else if (h < 240) {
+    r = 0; g = x; b = c;
+  } else if (h < 300) {
+    r = x; g = 0; b = c;
+  } else {
+    r = c; g = 0; b = x;
+  }
+
+  const toHex = (value) => Math.round((value + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function getCategoryColor(label, fallbackSeed = "") {
+  const normalized = normalizeText(label ?? "");
+  if (!normalized) {
+    return generateStableHexColor(fallbackSeed || label || "sans-categorie");
+  }
+
+  const catalogColor = referenceCatalog.categories.find(
+    (item) => normalizeText(item.activity_category_label ?? "") === normalized,
+  )?.color_hex;
+  if (catalogColor) {
+    storeCategoryColor(label, catalogColor);
+    return catalogColor;
+  }
+
+  const storedColor = loadStoredCategoryColors()[normalized];
+  if (storedColor) {
+    return storedColor;
+  }
+
+  const generated = generateStableHexColor(label);
+  storeCategoryColor(label, generated);
+  return generated;
+}
+
+function applyCategorySurface(element, color) {
+  if (!element || !color) {
+    return;
+  }
+
+  element.style.setProperty("--chip-accent", color);
+  element.style.background = `${color}22`;
+  element.style.borderColor = `${color}55`;
+}
+
+function getMemoryAccentColor(memory) {
+  const category = memory.categories?.[0] ?? "";
+  if (category) {
+    return getCategoryColor(category, memory.key);
+  }
+  return generateStableHexColor(memory.key || memory.project || "memoire");
+}
+
+function loadStoredReprisesOrder() {
+  try {
+    return JSON.parse(window.localStorage.getItem(REPRISES_ORDER_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function storeReprisesOrder(orderMap) {
+  try {
+    window.localStorage.setItem(REPRISES_ORDER_KEY, JSON.stringify(orderMap));
+  } catch {
+    // ignore local storage errors
+  }
+}
+
+function getReprisesOrderKey(collaborator) {
+  return normalizeText(collaborator || "global");
+}
+
+function getOrderedProjectMemories(collaboratorName = "") {
+  const memories = getProjectMemories(collaboratorName);
+  const orderMap = loadStoredReprisesOrder();
+  const customOrder = orderMap[getReprisesOrderKey(collaboratorName)] ?? [];
+  const indexMap = new Map(customOrder.map((key, index) => [key, index]));
+
+  return memories
+    .slice()
+    .sort((left, right) => {
+      const leftIndex = indexMap.has(left.key) ? indexMap.get(left.key) : Number.POSITIVE_INFINITY;
+      const rightIndex = indexMap.has(right.key) ? indexMap.get(right.key) : Number.POSITIVE_INFINITY;
+      if (leftIndex !== rightIndex) {
+        return leftIndex - rightIndex;
+      }
+      return right.score - left.score || new Date(right.start) - new Date(left.start);
+    });
+}
+
+function getRepriseAction(memoryKey, collaboratorName) {
+  const normalizedCollaborator = normalizeText(collaboratorName);
+  const normalizedKey = normalizeText(memoryKey);
+  return repriseActions.find(
+    (item) =>
+      normalizeText(item.subject_user_name) === normalizedCollaborator &&
+      normalizeText(item.memory_key) === normalizedKey,
+  ) ?? null;
+}
+
+function persistReprisesOrderFromDom() {
+  const collaborator = getCurrentCollaborator();
+  const order = Array.from(quickProjects.querySelectorAll("[data-memory-key]")).map((node) => node.dataset.memoryKey);
+  const orderMap = loadStoredReprisesOrder();
+  orderMap[getReprisesOrderKey(collaborator)] = order;
+  storeReprisesOrder(orderMap);
+}
+
+function captureChipPositions(container) {
+  return new Map(
+    Array.from(container.querySelectorAll(".chip[data-memory-key]")).map((node) => [node.dataset.memoryKey, node.getBoundingClientRect()]),
+  );
+}
+
+function animateChipReorder(container, previousPositions) {
+  const chips = Array.from(container.querySelectorAll(".chip[data-memory-key]"));
+  for (const chip of chips) {
+    const previous = previousPositions.get(chip.dataset.memoryKey);
+    if (!previous) {
+      continue;
+    }
+    const next = chip.getBoundingClientRect();
+    const deltaX = previous.left - next.left;
+    const deltaY = previous.top - next.top;
+    if (!deltaX && !deltaY) {
+      continue;
+    }
+    chip.style.transition = "none";
+    chip.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    requestAnimationFrame(() => {
+      chip.style.transition = "";
+      chip.style.transform = "";
+    });
+  }
+}
+
+async function saveCategoryColor(categoryLabel, color) {
+  const match = referenceCatalog.categories.find(
+    (item) => normalizeText(item.activity_category_label ?? "") === normalizeText(categoryLabel),
+  );
+
+  storeCategoryColor(categoryLabel, color);
+
+  if (match) {
+    match.color_hex = color;
+    if (window.supabase) {
+      const { error } = await window.supabase
+        .from("categories")
+        .update({ color_hex: color, updated_at: new Date().toISOString() })
+        .eq("activity_category_id", match.activity_category_id);
+      if (error) {
+        console.warn("Category color update failed:", error);
+      }
+    }
+  }
+
+  renderSuggestions();
+  render();
+}
+
+async function saveRepriseAction(memory, actionKind) {
+  const payload = {
+    subject_user_name: memory.collaborator,
+    memory_key: memory.key,
+    subject_project_name: memory.project,
+    action_kind: actionKind,
+    actor_name: accessProfile.appUser?.user_name ?? memory.collaborator,
+    updated_at: new Date().toISOString(),
+  };
+
+  const existingIndex = repriseActions.findIndex(
+    (item) =>
+      normalizeText(item.subject_user_name) === normalizeText(memory.collaborator) &&
+      normalizeText(item.memory_key) === normalizeText(memory.key),
+  );
+
+  if (existingIndex >= 0) {
+    repriseActions[existingIndex] = {
+      ...repriseActions[existingIndex],
+      ...payload,
+    };
+  } else {
+    repriseActions = [
+      {
+        ...payload,
+        created_at: new Date().toISOString(),
+      },
+      ...repriseActions,
+    ];
+  }
+
+  storeRepriseActions(repriseActions);
+
+  if (window.supabase) {
+    const { error } = await window.supabase
+      .from("reprise_actions")
+      .upsert([payload], { onConflict: "subject_user_name,memory_key" });
+    if (error) {
+      console.warn("reprise_actions upsert failed:", error);
+    } else {
+      await loadServerBackedState({ silent: false });
+    }
+  }
+}
+
 function syncFieldManageDialogMode() {
   if (!fieldManageDeleteButton || !fieldManageConfirmButton || !fieldManageCopy || !fieldManageState) {
     return;
@@ -2779,6 +3230,9 @@ function syncFieldManageDialogMode() {
 
   fieldManageDeleteButton.hidden = fieldManageConfirmMode;
   fieldManageConfirmButton.hidden = !fieldManageConfirmMode;
+  if (fieldManageColorShell) {
+    fieldManageColorShell.hidden = fieldManageState.kind !== "category" || fieldManageConfirmMode;
+  }
 
   if (fieldManageConfirmMode) {
     fieldManageCopy.textContent = `Confirmer la suppression pour ${fieldManageState.title.toLowerCase()} ?`;
@@ -2790,6 +3244,9 @@ function syncFieldManageDialogMode() {
 function resetFieldManageDialog() {
   fieldManageState = null;
   fieldManageConfirmMode = false;
+  if (fieldManageColorShell) {
+    fieldManageColorShell.hidden = true;
+  }
 }
 
 function focusFieldForEditing(kind) {
@@ -2822,7 +3279,7 @@ function applyFieldManageDeletion(kind) {
     projectInput.value = "";
     delete projectInput.dataset.lastHydratedKey;
     projectMemoryHint.textContent =
-      "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
+      "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.";
   } else if (kind === "client") {
     taskInput.value = "";
   } else if (kind === "category") {
@@ -2920,7 +3377,7 @@ async function ensureReferenceCatalogLoaded(force = false) {
         ),
       window.supabase
         .from("categories")
-        .select("activity_category_id,activity_category_label,kpi_category_label,team_name,active"),
+        .select("activity_category_id,activity_category_label,kpi_category_label,color_hex,team_name,active"),
     ]);
 
     if (usersResult.error || projectsResult.error || categoriesResult.error) {
@@ -3349,6 +3806,7 @@ async function createCategoryReference(rawLabel, options = {}) {
     activity_category_id: nextId,
     activity_category_label: categoryLabel,
     kpi_category_label: inheritedCategory?.kpi_category_label ?? "Internal / Admin",
+    color_hex: getCategoryColor(categoryLabel),
     team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
     active: true,
   };
@@ -4318,7 +4776,7 @@ function renderLoginNameOptions(users = [...getKnownUsers()].sort((a, b) => a.us
 function renderQuickProjects() {
   quickProjects.innerHTML = "";
   const collaborator = getCurrentCollaborator();
-  const memories = getProjectMemories(collaborator).slice(0, 6);
+  const memories = getOrderedProjectMemories(collaborator).slice(0, QUICK_REPRISES_LIMIT);
 
   if (!memories.length) {
     const message = collaborator
@@ -4333,7 +4791,9 @@ function renderQuickProjects() {
     button.type = "button";
     button.className = "chip";
     button.dataset.memoryKey = memory.key;
+    button.draggable = true;
     button.textContent = collaborator ? memory.project : `${memory.project} · ${memory.collaborator}`;
+    applyCategorySurface(button, getMemoryAccentColor(memory));
     quickProjects.append(button);
   }
 }
@@ -4341,7 +4801,7 @@ function renderQuickProjects() {
 function renderProjectMemoryList() {
   projectMemoryList.innerHTML = "";
   const collaborator = getCurrentCollaborator();
-  const memories = getProjectMemories(collaborator).slice(0, 8);
+  const memories = getOrderedProjectMemories(collaborator).slice(0, MEMORY_CONTEXT_LIMIT);
 
   if (!memories.length) {
     const message = collaborator
@@ -4621,8 +5081,8 @@ function renderAgenda() {
   const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
   const scopedRows = rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator));
 
-  const startHour = 7;
-  const endHour = 21;
+  const startHour = 0;
+  const endHour = 24;
   const hourHeight = 38;
   agendaBoard.style.setProperty("--agenda-hour-height", `${hourHeight}px`);
 
@@ -4855,7 +5315,9 @@ function renderAgendaEventContents(element, session, visualSize) {
 
 function applyAgendaEventColor(element, session) {
   const label = session.categories?.[0] || session.objectivePole || session.project || session.collaborator || "agenda";
-  const baseColor = getAgendaCategoryColor(label);
+  const baseColor = session.categories?.[0]
+    ? getCategoryColor(session.categories[0], label)
+    : getAgendaCategoryColor(label);
   element.style.setProperty("--agenda-accent", baseColor);
   element.style.background = `${baseColor}1F`;
   element.style.borderColor = `${baseColor}42`;
@@ -5602,6 +6064,9 @@ function getProjectMemories(collaboratorName = "") {
     }
 
     const key = `${normalizeText(session.collaborator)}::${normalizeText(session.project)}`;
+    if (getRepriseAction(key, session.collaborator)) {
+      continue;
+    }
     const sessionDate = new Date(session.start);
     const memory =
       memories.get(key) ??
@@ -5693,13 +6158,13 @@ function applyProjectMemoryFromInput() {
   if (!rawProject) {
     delete projectInput.dataset.lastHydratedKey;
     projectMemoryHint.textContent =
-      "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
+      "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.";
     return;
   }
 
   const memory = resolveProjectMemory(rawProject, collaboratorInput.value.trim());
   if (!memory) {
-    projectMemoryHint.textContent = "Aucun projet connu ne correspond encore completement a cette saisie.";
+    projectMemoryHint.textContent = "Aucun sujet connu ne correspond encore completement a cette saisie.";
     return;
   }
 

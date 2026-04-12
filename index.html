@@ -71,6 +71,16 @@
                     <p>Les contextes les plus plausibles pour le cargonaute actif.</p>
                   </div>
                   <div id="quick-projects" class="chip-row"></div>
+                  <div id="reprise-actions" class="reprise-actions" hidden>
+                    <div id="reprise-archive-zone" class="reprise-dropzone reprise-dropzone--archive" data-action-kind="archive">
+                      <span class="reprise-dropzone-icon" aria-hidden="true">↓</span>
+                      <span>Archiver</span>
+                    </div>
+                    <div id="reprise-done-zone" class="reprise-dropzone reprise-dropzone--done" data-action-kind="done">
+                      <span class="reprise-dropzone-icon" aria-hidden="true">✓</span>
+                      <span>Traite</span>
+                    </div>
+                  </div>
                 </section>
 
                 <section class="timer-panel">
@@ -103,17 +113,17 @@
 
                   <label class="field field-wide">
                     <div class="field-head">
-                      <span>Projet</span>
+                      <span>Sujet</span>
                       <button id="manage-project-button" type="button" class="field-manage-button" hidden>Gerer</button>
                     </div>
                     <input
                       id="project-input"
                       type="text"
-                      placeholder="Client, dossier ou projet interne"
+                      placeholder="Ex. Reunion Boussole, audit ADEME, synthese compta"
                       list="project-suggestions"
                     />
                     <small id="project-memory-hint" class="hint">
-                      Un projet connu recharge automatiquement son contexte utile.
+                      Un sujet deja connu recharge automatiquement son contexte utile.
                     </small>
                     <datalist id="project-suggestions"></datalist>
                   </label>
@@ -178,11 +188,12 @@
 
                   <label class="field field-wide">
                     <span>Note rapide</span>
-                    <textarea
+                    <input
                       id="notes-input"
                       class="note-textarea"
+                      type="text"
                       placeholder="Contexte, precision ou correction a retenir"
-                    ></textarea>
+                    />
                   </label>
 
                   <div class="field field-full objective-shell">
@@ -674,8 +685,8 @@
           <input id="manual-collaborator-input" type="hidden" list="collaborator-suggestions" />
 
           <label class="field">
-            <span>Projet</span>
-            <input id="manual-project-input" type="text" list="project-suggestions" />
+            <span>Sujet</span>
+            <input id="manual-project-input" type="text" list="project-suggestions" placeholder="Ex. Reunion Boussole, audit ADEME, synthese compta" />
           </label>
 
           <label class="field field-full">
@@ -796,6 +807,16 @@
         <div class="conflict-copy">
           <p id="field-manage-copy"></p>
           <p id="field-manage-detail" class="muted-copy"></p>
+        </div>
+
+        <div id="field-manage-color-shell" class="field-manage-color-shell" hidden>
+          <label class="auth-field admin-favicon-field">
+            <span>Couleur</span>
+            <div class="admin-favicon-inline">
+              <input id="field-manage-color-input" type="color" value="#0f766e" />
+              <button id="field-manage-color-save" type="button" class="btn btn-secondary">Enregistrer la couleur</button>
+            </div>
+          </label>
         </div>
 
         <div class="dialog-actions">
