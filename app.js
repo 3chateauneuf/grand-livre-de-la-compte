@@ -863,11 +863,18 @@ activeStartInput.addEventListener("input", () => {
 });
 
 activeStartInput.addEventListener("change", () => {
-  updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
+  window.setTimeout(() => {
+    updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
+  }, 0);
 });
 
 activeStartInput.addEventListener("blur", () => {
-  updateActiveSessionStart({ reportValidity: false, closeEditor: true, audit: true });
+  window.setTimeout(() => {
+    if (!activeStartEditorOpen) {
+      return;
+    }
+    updateActiveSessionStart({ reportValidity: false, closeEditor: true, audit: true });
+  }, 0);
 });
 
 activeStartDisplay.addEventListener("click", () => {
