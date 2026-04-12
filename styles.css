@@ -255,33 +255,6 @@ button {
   margin-left: 2px;
 }
 
-.admin-tools {
-  display: grid;
-}
-
-.admin-favicon-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.admin-favicon-inline input {
-  width: 72px;
-  min-height: 40px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid rgba(24, 56, 74, 0.12);
-  background: rgba(255, 255, 255, 0.82);
-  text-align: center;
-  font-size: 1.2rem;
-}
-
-.admin-favicon-inline input:focus {
-  outline: none;
-  border-color: rgba(15, 118, 110, 0.46);
-  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
-}
-
 .topbar-nav a,
 .topbar-nav button,
 .chip,

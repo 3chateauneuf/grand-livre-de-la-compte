@@ -1,20 +1,12 @@
 const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
 const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
-const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 const CATEGORY_COLOR_KEY = "grand-livre-category-colors-v1";
 const REPRISES_ORDER_KEY = "grand-livre-reprises-order-v1";
 const REPRISES_ACTIONS_KEY = "grand-livre-reprises-actions-v1";
 const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
-const REMOTE_SYNC_INTERVAL_MS = 15000;
->>>>>>> origin/main
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
@@ -80,9 +72,6 @@ const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
 const loginNameInput = document.querySelector("#login-name-input");
 const authStatus = document.querySelector("#auth-status");
-const adminTools = document.querySelector("#admin-tools");
-const faviconEmojiInput = document.querySelector("#favicon-emoji-input");
-const applyFaviconButton = document.querySelector("#apply-favicon-button");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
 const projectInput = document.querySelector("#project-input");
@@ -782,28 +771,16 @@ let fieldManageConfirmMode = false;
 let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/main
 let auditTableAvailable = null;
 let activeStartEditorOpen = false;
 let agendaImportRows = [];
 let agendaImportLoaded = false;
 let remoteActiveSessions = [];
-<<<<<<< HEAD
 let repriseActions = loadStoredRepriseActions();
-=======
->>>>>>> origin/main
 let remoteStateAvailable = false;
 let remoteStateLoadingPromise = null;
 let remoteSyncIntervalId = null;
 let activeDraftSyncTimeoutId = null;
-<<<<<<< HEAD
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
->>>>>>> origin/main
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -825,7 +802,7 @@ setupTokenInput(tagsInput, {
 });
 
 initializeAutocomplete();
-initializeFaviconControls();
+applyBookFavicon();
 initializeObjectiveSelections();
 initializeViewNavigation();
 
@@ -1628,84 +1605,12 @@ function setupAutocompleteInput(config) {
   });
 }
 
-function initializeFaviconControls() {
-  applyStoredFaviconEmoji();
-
-  if (!applyFaviconButton || !faviconEmojiInput) {
-    return;
-  }
-
-  applyFaviconButton.addEventListener("click", () => {
-    const emoji = extractFirstEmoji(faviconEmojiInput.value.trim());
-    if (!emoji) {
-      clearStoredFaviconEmoji();
-      applyFaviconEmoji("");
-      renderAuthPanel();
-      return;
-    }
-
-    storeFaviconEmoji(emoji);
-    applyFaviconEmoji(emoji);
-    faviconEmojiInput.value = emoji;
-    renderAuthPanel();
-  });
-}
-
-function extractFirstEmoji(rawValue) {
-  const value = String(rawValue ?? "").trim();
-  if (!value) {
-    return "";
-  }
-
-  return Array.from(value)[0] ?? "";
-}
-
-function loadStoredFaviconEmoji() {
-  try {
-    return window.localStorage.getItem(FAVICON_EMOJI_KEY) ?? "";
-  } catch (error) {
-    return "";
-  }
-}
-
-function storeFaviconEmoji(emoji) {
-  try {
-    window.localStorage.setItem(FAVICON_EMOJI_KEY, emoji);
-  } catch (error) {
-    // ignore storage errors in local mode
-  }
-}
-
-function clearStoredFaviconEmoji() {
-  try {
-    window.localStorage.removeItem(FAVICON_EMOJI_KEY);
-  } catch (error) {
-    // ignore storage errors in local mode
-  }
-}
-
-function applyStoredFaviconEmoji() {
-  const emoji = loadStoredFaviconEmoji();
-  if (faviconEmojiInput) {
-    faviconEmojiInput.value = emoji;
-  }
-  applyFaviconEmoji(emoji);
-}
-
-function applyFaviconEmoji(emoji) {
+function applyBookFavicon() {
   const faviconLink = document.querySelector('link[rel="icon"]');
   if (!faviconLink) {
     return;
   }
-
-  if (!emoji) {
-    faviconLink.href = "icon.svg";
-    faviconLink.type = "image/svg+xml";
-    return;
-  }
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><text x="50%" y="52%" dominant-baseline="middle" text-anchor="middle" font-size="52">${emoji}</text></svg>`;
-  faviconLink.href = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  faviconLink.href = "icon.svg";
   faviconLink.type = "image/svg+xml";
 }
 
@@ -2548,11 +2453,6 @@ function normalizeSession(session) {
   };
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/main
 function parseCsvTokens(rawValue) {
   return String(rawValue ?? "")
     .split(",")
@@ -2652,7 +2552,6 @@ function hydrateRemoteState(historyRows, activeRows) {
   persistActiveSession();
 }
 
-<<<<<<< HEAD
 function hydrateRepriseActions(rows) {
   repriseActions = (rows ?? []).map((row) => ({
     subject_user_name: row.subject_user_name ?? "",
@@ -2666,9 +2565,6 @@ function hydrateRepriseActions(rows) {
   storeRepriseActions(repriseActions);
 }
 
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
->>>>>>> origin/main
 function persistSessions() {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
 }
@@ -2682,11 +2578,6 @@ function persistActiveSession() {
   window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(activeSession));
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> origin/main
 async function loadServerBackedState({ silent = false } = {}) {
   if (!window.supabase) {
     return false;
@@ -2697,53 +2588,36 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
-<<<<<<< HEAD
     const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
       window.supabase.from("reprise_actions").select("*").order("updated_at", { ascending: false }),
-=======
-    const [historyResult, activeResult] = await Promise.allSettled([
-      window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
-      window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
->>>>>>> origin/main
     ]);
 
     const historyRows =
       historyResult.status === "fulfilled" && !historyResult.value.error ? historyResult.value.data ?? [] : null;
     const activeRows =
       activeResult.status === "fulfilled" && !activeResult.value.error ? activeResult.value.data ?? [] : null;
-<<<<<<< HEAD
     const repriseActionRows =
       repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error
         ? repriseActionsResult.value.data ?? []
         : null;
 
     if (!historyRows && !activeRows && !repriseActionRows) {
-=======
-
-    if (!historyRows && !activeRows) {
->>>>>>> origin/main
       if (historyResult.status === "fulfilled" && historyResult.value.error) {
         console.warn("time_entries load failed:", historyResult.value.error);
       }
       if (activeResult.status === "fulfilled" && activeResult.value.error) {
         console.warn("active_sessions load failed:", activeResult.value.error);
       }
-<<<<<<< HEAD
       if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
         console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
       }
-=======
->>>>>>> origin/main
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
-<<<<<<< HEAD
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
-=======
->>>>>>> origin/main
     remoteStateAvailable = true;
 
     if (!silent) {
@@ -2808,10 +2682,6 @@ function syncActiveSessionDraftFromForm({ audit = false, source = "active-sessio
   }
 }
 
-<<<<<<< HEAD
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
->>>>>>> origin/main
 function hydrateFormFromActiveSession() {
   const source = activeSession ?? sessions[0] ?? null;
   collaboratorInput.value = activeSession?.collaborator ?? source?.collaborator ?? "";
@@ -3380,6 +3250,7 @@ function stopActiveSession() {
   };
 
   attemptSaveSession(finishedSession, {
+    excludeId: activeSession.id,
     onSuccess: (sessionToSave) => {
       upsertSession(sessionToSave);
       activeSession = null;
@@ -3860,16 +3731,8 @@ async function createCategoryReference(rawLabel, options = {}) {
     activity_category_id: nextId,
     activity_category_label: categoryLabel,
     kpi_category_label: inheritedCategory?.kpi_category_label ?? "Internal / Admin",
-<<<<<<< HEAD
-<<<<<<< HEAD
-    team_name: linkedUser?.team_name ?? referenceCatalog.users[0]?.team_name ?? null,
-=======
     color_hex: getCategoryColor(categoryLabel),
     team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
-    team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
->>>>>>> origin/main
     active: true,
   };
 
@@ -4684,13 +4547,6 @@ function renderAuthPanel() {
 
   loginNameInput.value = authenticated ? accessProfile.appUser.user_name : "";
 
-  if (adminTools) {
-    adminTools.hidden = accessProfile.role !== "admin";
-  }
-  if (faviconEmojiInput) {
-    faviconEmojiInput.value = loadStoredFaviconEmoji();
-  }
-
   if (!authStatus) {
     return;
   }
@@ -5376,21 +5232,10 @@ function renderAgendaEventContents(element, session, visualSize) {
 }
 
 function applyAgendaEventColor(element, session) {
-<<<<<<< HEAD
-<<<<<<< HEAD
-  const label = session.objectivePole || session.categories?.[0] || session.project || session.collaborator || "agenda";
-  const baseColor = colorForLabel(label);
-  element.style.background = `${baseColor}1A`;
-  element.style.borderColor = `${baseColor}33`;
-=======
   const label = session.categories?.[0] || session.objectivePole || session.project || session.collaborator || "agenda";
   const baseColor = session.categories?.[0]
     ? getCategoryColor(session.categories[0], label)
     : getAgendaCategoryColor(label);
-=======
-  const label = session.categories?.[0] || session.objectivePole || session.project || session.collaborator || "agenda";
-  const baseColor = getAgendaCategoryColor(label);
->>>>>>> origin/main
   element.style.setProperty("--agenda-accent", baseColor);
   element.style.background = `${baseColor}1F`;
   element.style.borderColor = `${baseColor}42`;
@@ -5433,10 +5278,6 @@ function createAgendaNowMarker(day, startHour, endHour, hourHeight) {
   label.textContent = formatTimeLabel(now);
   marker.append(label);
   return marker;
-<<<<<<< HEAD
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
->>>>>>> origin/main
 }
 
 function resolveAgendaSlotFromClick(track, event) {
@@ -6141,16 +5982,9 @@ function getProjectMemories(collaboratorName = "") {
     }
 
     const key = `${normalizeText(session.collaborator)}::${normalizeText(session.project)}`;
-<<<<<<< HEAD
-<<<<<<< HEAD
-    if (seen.has(key)) {
-      continue;
-=======
     if (getRepriseAction(key, session.collaborator)) {
       continue;
     }
-=======
->>>>>>> origin/main
     const sessionDate = new Date(session.start);
     const memory =
       memories.get(key) ??
@@ -6178,10 +6012,6 @@ function getProjectMemories(collaboratorName = "") {
     }
     if (getHourBucket(sessionDate) === getHourBucket(now)) {
       memory.hourBucketHits += 1;
-<<<<<<< HEAD
->>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
-=======
->>>>>>> origin/main
     }
 
     if (new Date(memory.start) < sessionDate) {
