@@ -1,7 +1,8 @@
 const STORAGE_KEY = "cadence-equipe-sessions-v3";
 const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
-const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v1";
+const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
 const FAVICON_EMOJI_KEY = "grand-livre-favicon-emoji-v1";
+<<<<<<< HEAD
 <<<<<<< HEAD
 =======
 const CATEGORY_COLOR_KEY = "grand-livre-category-colors-v1";
@@ -11,6 +12,9 @@ const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+const REMOTE_SYNC_INTERVAL_MS = 15000;
+>>>>>>> origin/main
 const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
@@ -19,6 +23,7 @@ const LOCAL_PROFILE_DIRECTORY = [
     role: "cadre",
     team_name: "Conseil Operations France",
     manager_user_id: "USR-002",
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
@@ -28,6 +33,7 @@ const LOCAL_PROFILE_DIRECTORY = [
     team_name: "Conseil Operations France",
     managed_team_name: "Conseil Operations France",
     manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
@@ -44,6 +50,7 @@ const LOCAL_PROFILE_DIRECTORY = [
     role: "cadre",
     team_name: "Conseil Operations France",
     manager_user_id: "USR-002",
+    weekly_capacity_hours: 39,
     status: "active",
   },
   {
@@ -60,6 +67,7 @@ const LOCAL_PROFILE_DIRECTORY = [
     role: "admin",
     team_name: "Conseil Operations France",
     manager_user_id: null,
+    weekly_capacity_hours: 39,
     status: "active",
   },
 ];
@@ -70,15 +78,8 @@ const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
 const analysisToolbarPanel = document.querySelector("#analysis-toolbar-panel");
 const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
-const currentUserName = document.querySelector("#current-user-name");
-const currentUserRole = document.querySelector("#current-user-role");
 const loginNameInput = document.querySelector("#login-name-input");
-const loginNameSuggestions = document.querySelector("#login-name-suggestions");
-const loginButton = document.querySelector("#login-button");
-const logoutButton = document.querySelector("#logout-button");
 const authStatus = document.querySelector("#auth-status");
-const loginQuickPicks = document.querySelector("#login-quick-picks");
-const loginDirectoryStatus = document.querySelector("#login-directory-status");
 const adminTools = document.querySelector("#admin-tools");
 const faviconEmojiInput = document.querySelector("#favicon-emoji-input");
 const applyFaviconButton = document.querySelector("#apply-favicon-button");
@@ -134,6 +135,10 @@ const personalStatsCopy = document.querySelector("#personal-stats-copy");
 const personalDistributionBar = document.querySelector("#personal-distribution-bar");
 const personalDistributionLegend = document.querySelector("#personal-distribution-legend");
 const agendaBoard = document.querySelector("#agenda-board");
+const agendaPrevWeekButton = document.querySelector("#agenda-prev-week");
+const agendaCurrentWeekButton = document.querySelector("#agenda-current-week");
+const agendaNextWeekButton = document.querySelector("#agenda-next-week");
+const agendaWeekLabel = document.querySelector("#agenda-week-label");
 const periodSwitch = document.querySelector("#period-switch");
 const analysisStatsSwitch = document.querySelector("#analysis-stats-switch");
 const reportAnchorInput = document.querySelector("#report-anchor");
@@ -164,6 +169,8 @@ const managerObjectivesPanel = document.querySelector("#manager-objectives-panel
 const managerObjectivesGrid = document.querySelector("#manager-objectives-grid");
 const sessionList = document.querySelector("#session-list");
 const projectMemoryList = document.querySelector("#project-memory-list");
+const agendaImportPanel = document.querySelector("#agenda-import-panel");
+const agendaImportList = document.querySelector("#agenda-import-list");
 const sessionItemTemplate = document.querySelector("#session-item-template");
 const resourceTotal = document.querySelector("#resource-total");
 const resourceRange = document.querySelector("#resource-range");
@@ -235,8 +242,8 @@ const OBJECTIVE_2026_CATALOG = [
     okrLabel:
       "On a developpe le CA et ameliore le taux horaire, en maitrisant le ratio matin/apres-midi",
     krs: [
-      "RC 1.1 : On a augmente le CA global du pole cyclologistique (livraison + stockage) de 10 % en 2026",
-      "RC 1.2 : Le taux horaire global livraison a augmente de 4,82 %",
+      "RC 1.1 : On a augmente le CA global du pole cyclologistique de 10% en 2026",
+      "RC 1.2 : Le taux horaire global livraison a augmente de 4,82%",
       "RC 1.3 : Le taux horaire de l'apres-midi a augmente de 10%",
       "RC 1.4 : Le ratio de CA matin/apres-midi est passe de 2,95 a 2,5",
     ],
@@ -244,13 +251,14 @@ const OBJECTIVE_2026_CATALOG = [
   {
     pole: "Cyclologistique",
     okrCode: "O2",
-    okrLabel: "On a developpe et diversifie le portefeuille commercial des activites livraison et stockage",
+    okrLabel:
+      "On a developpe et diversifie le portefeuille commercial des activites livraison et stockage",
     krs: [
-      "RC 2.1 : On a embarque 7 nouveaux clients avec un CA mensuel moyen > 1 000 EUR",
+      "RC 2.1 : On a embarque 7 nouveaux clients avec un CA mensuel moyen superieur a 1 000EUR",
       "RC 2.2 : On est passe de 5,6% a 8% de CA sur des clients 100% collecte",
-      "RC 2.3 : On a signe 2 contrats supplementaires en co-traitance avec d'autres acteurs franciliens",
-      "RC 2.4 : Le CA du TOP client (Yumi) ne represente pas plus de 50% du CA entrepot",
-      "RC 2.5 : On a augmente de 45% le nombre de clients actifs en stockage ET livraison",
+      "RC 2.3 : On a signe 2 contrats supplementaires en co-traitance",
+      "RC 2.4 : Le CA du top client ne represente pas plus de 50% du CA entrepot",
+      "RC 2.5 : On a augmente de 45% le nombre de clients actifs en stockage et livraison",
       "RC 2.6 : On est passe de 300 a 350 demandes entrantes issues du site web",
       "RC 2.7 : On sait suivre precisement le CA des operations speciales",
     ],
@@ -262,9 +270,9 @@ const OBJECTIVE_2026_CATALOG = [
     krs: [
       "RC 3.1 : On est passe de 12% a 15% des livraisons en horaires de bureau",
       "RC 3.2 : On a atteint 95% de respect des cut-off",
-      "RC 3.3 : Le taux de livraisons en retard >30 minutes est passe de 1,24% a 1,00%",
-      "RC 3.4 : Le taux de livraisons Rive droite hors 12 & 16 reste superieur a 70%",
-      "RC 3.5 : On a optimise les etapes de chargement et dechargement de tournee",
+      "RC 3.3 : Le taux de livraisons en retard de plus de 30 minutes est passe de 1,24% a 1,00%",
+      "RC 3.4 : Le taux de livraisons Rive droite hors 12 et 16 reste superieur a 70%",
+      "RC 3.5 : On a optimise le chargement au depart et le dechargement au retour de tournee",
     ],
   },
   {
@@ -272,8 +280,8 @@ const OBJECTIVE_2026_CATALOG = [
     okrCode: "O4",
     okrLabel: "On a developpe de nouvelles prestations a forte valeur ajoutee",
     krs: [
-      "RC 4.1 : On est capables d'expedier de la marchandise via des transporteurs externes partenaires",
-      "RC 4.2 : On a defini notre positionnement et notre calendrier sur un 20m3 electrique avec hayon",
+      "RC 4.1 : On est capables d'expedier de la marchandise via des transporteurs partenaires",
+      "RC 4.2 : On a defini la strategie et le calendrier d'un 20m3 electrique avec hayon",
       "RC 4.3 : On sait repondre aux demandes spot avec un tarif structure",
       "RC 4.4 : On a lance et commercialise l'offre livraison lourde en zone proche",
     ],
@@ -281,10 +289,10 @@ const OBJECTIVE_2026_CATALOG = [
   {
     pole: "Cyclologistique",
     okrCode: "O5",
-    okrLabel: "On a progresse en conformite et ameliore notre offre de services",
+    okrLabel: "On a progresse en conformite et ameliore l'offre de services",
     krs: [
       "RC 5.1 : On a obtenu le label Entrepositaire agree sous douane",
-      "RC 5.2 : On a deploye et commercialise une option de suivi et releve de temperature",
+      "RC 5.2 : On a deploye et commercialise une option de suivi de temperature",
       "RC 5.3 : On garantit 0 colis introuvable et 0 colis rackoone a tort",
       "RC 5.4 : On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
     ],
@@ -292,12 +300,12 @@ const OBJECTIVE_2026_CATALOG = [
   {
     pole: "Cyclologistique",
     okrCode: "O6",
-    okrLabel: "On a ameliore les conditions de travail : organisation, ergonomie, securite et outils",
+    okrLabel: "On a ameliore les conditions de travail, l'ergonomie, la securite et les outils",
     krs: [
-      "RC 6.1 : On a impose une limite stricte de poids par colis : aucun colis >15kg",
-      "RC 6.2 : On a >80% des livraisons entrantes sur palettes",
-      "RC 6.3 : On a mis en service et on utilise un gerbeur et un transpalette electriques",
-      "RC 6.4 : Le ratio nb de batteries / nb de velos est > 2 pour les bullit et les bosch",
+      "RC 6.1 : Aucun colis ne depasse 15 kg",
+      "RC 6.2 : Plus de 80% des livraisons entrantes arrivent sur palettes",
+      "RC 6.3 : On a mis en service un gerbeur et un transpalette electriques",
+      "RC 6.4 : Le ratio batteries sur velos est superieur a 2 pour les bullit et les bosch",
       "RC 6.5 : On a un calendrier de revisions preventives par types de velo",
     ],
   },
@@ -305,14 +313,14 @@ const OBJECTIVE_2026_CATALOG = [
     pole: "Cercle de management",
     okrCode: "O1",
     okrLabel:
-      "On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions operationnelles",
+      "On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions",
     krs: [
-      "RC 1.1 : Le nombre de shifts de depannage reste <= a 5% des shifts course par semaine",
-      "RC 1.2 : Moins de 5% des shifts depassent de plus de 45 minutes par rapport au planning",
-      "RC 1.3 : Aucune semaine consecutive ne depasse les seuils d'alerte de depannage ou retard",
+      "RC 1.1 : Les shifts de depannage restent inferieurs a 5% des shifts course par semaine",
+      "RC 1.2 : Moins de 5% des shifts depassent de plus de 45 minutes le planning",
+      "RC 1.3 : Aucune semaine consecutive ne depasse durablement les seuils de depannage",
       "RC 1.4 : Le deficit horaire reste inferieur a 0,8% sur l'annee",
       "RC 1.5 : Le planning est publie le mercredi au plus tard",
-      "RC 1.6 : On a un cadre pour les indisponibilites des salarie.e.s",
+      "RC 1.6 : On a un cadre pour les indisponibilites des salarie.es",
       "RC 1.7 : On utilise un dashboard pour mieux anticiper le volume de livraison",
     ],
   },
@@ -323,31 +331,32 @@ const OBJECTIVE_2026_CATALOG = [
     krs: [
       "RC 2.1 : Toutes les personnes recrutees en 2026 ont suivi au moins 3 jours de formation",
       "RC 2.2 : Chaque recrue a beneficie de 3 entretiens de feedback durant ses 2 premiers mois",
-      "RC 2.3 : 100% des salarie.e.s ont suivi une demi-journee de sensibilisation au commercial",
-      "RC 2.4 : 5 salarie.e.s ont suivi une formation externe",
+      "RC 2.3 : 100% des salarie.es ont suivi une demi-journee de sensibilisation au commercial",
+      "RC 2.4 : 5 salarie.es ont suivi une formation externe",
     ],
   },
   {
     pole: "Cercle de management",
     okrCode: "O3",
-    okrLabel: "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    okrLabel:
+      "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
     krs: [
-      "RC 3.1 : 100% des salarie.e.s en periode d'essai recoivent un kit de base complet",
-      "RC 3.2 : 100% du materiel soumis a une duree de vie definie est renouvelle dans les delais",
+      "RC 3.1 : 100% des salarie.es en periode d'essai recoivent un kit de base complet",
+      "RC 3.2 : 100% du materiel a duree de vie definie est renouvele dans les delais",
       "RC 3.3 : 100% des cadenas sont recuperes lors des departs",
-      "RC 3.4 : 100% des salarie.e.s eligibles beneficient d'une participation telephone",
+      "RC 3.4 : 100% des salarie.es eligibles recoivent la participation telephone",
     ],
   },
   {
     pole: "Cyke",
     okrCode: "O1",
-    okrLabel: "Nous realisons 5000 EUR de revenu mensuel recurrent en Europe",
+    okrLabel: "Nous realisons 5000EUR de revenu mensuel recurrent en Europe",
     krs: [
-      "R1 : Allemagne : 3 clients pour 1500 EUR / mois",
-      "R2 : Suisse : 2 clients pour 2000 EUR / mois",
-      "R3 : Italie : 2 nouveaux clients pour 300 EUR / mois",
-      "R4 : Espagne : 2 nouveaux clients pour 300 EUR / mois",
-      "R5 : Belgique : Urbike a teste sur le terrain et defini son plan de migration",
+      "R1 : Allemagne : 3 clients pour 1500EUR par mois",
+      "R2 : Suisse : 2 clients pour 2000EUR par mois",
+      "R3 : Italie : 2 nouveaux clients pour 300EUR par mois",
+      "R4 : Espagne : 2 nouveaux clients pour 300EUR par mois",
+      "R5 : Urbike a teste sur le terrain et defini son plan de migration",
       "R6 : Les clients etrangers ont 2 propositions d'entretiens utilisateurs dans l'annee",
     ],
   },
@@ -368,8 +377,8 @@ const OBJECTIVE_2026_CATALOG = [
     okrLabel: "Cyke gagne en fiabilite",
     krs: [
       "R1 : Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
-      "R2 : La mediane mensuelle d'erreur Sentry ruby par jour est <5",
-      "R3 : La mediane mensuelle d'erreur Sentry js et mobile par jour est <50",
+      "R2 : La mediane mensuelle d'erreur Sentry Ruby par jour est inferieure a 5",
+      "R3 : La mediane mensuelle d'erreur Sentry JS et mobile par jour est inferieure a 50",
     ],
   },
   {
@@ -378,8 +387,8 @@ const OBJECTIVE_2026_CATALOG = [
     okrLabel:
       "On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
     krs: [
-      "R1 : L'equipe ne ressent pas de surcharge de travail ou de ralentissement de la roadmap",
-      "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap et a la vision de Cyke",
+      "R1 : L'equipe ne ressent pas de surcharge ni de ralentissement lies aux projets annexes",
+      "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap ou la vision Cyke",
       "R3 : 100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
     ],
   },
@@ -393,13 +402,358 @@ const OBJECTIVE_2026_PILLARS = [
   "Vente de materiel",
 ];
 
+const LOCAL_DEMO_SESSIONS = [
+  {
+    id: "LOC-001",
+    collaborator: "Claire",
+    project: "Hub Paris - Exploitation",
+    task: "Vague du matin B2B",
+    categories: ["Preparation de commandes"],
+    tags: ["hub", "matin"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
+    notes: "Pic de commandes alimentaire.",
+    start: "2026-04-07T06:40:00+02:00",
+    end: "2026-04-07T08:20:00+02:00",
+    durationMs: 6000000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-002",
+    collaborator: "Claire",
+    project: "SAV Retards & Litiges",
+    task: "Reprise tickets clients",
+    categories: ["SAV client"],
+    tags: ["sav", "clients"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "Le taux de livraisons en retard de plus de 30 minutes est passe de 1,24% a 1,00%",
+    notes: "Beaucoup de retours sur creneaux non tenus.",
+    start: "2026-04-07T14:10:00+02:00",
+    end: "2026-04-07T15:20:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Support",
+  },
+  {
+    id: "LOC-003",
+    collaborator: "Eduardo",
+    project: "Etat de stock Hub Bercy",
+    task: "Controle ecarts de stock",
+    categories: ["Etat des stocks"],
+    tags: ["stock", "hub"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
+    notes: "Trois references a verifier apres retour client.",
+    start: "2026-04-07T15:40:00+02:00",
+    end: "2026-04-07T17:10:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-004",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
+    task: "Ajustements saisie rapide",
+    categories: ["Developpement outil interne"],
+    tags: ["produit", "ux"],
+    notionRef: "",
+    objectivePole: "Cyke",
+    objectiveOkr: "O3 · Cyke gagne en fiabilite",
+    objectiveKr: "Le nombre de pages qui chargent en plus de 3 secondes passe de 17 a 4",
+    notes: "Simplification du parcours principal.",
+    start: "2026-04-07T10:00:00+02:00",
+    end: "2026-04-07T12:00:00+02:00",
+    durationMs: 7200000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-005",
+    collaborator: "Alexis",
+    project: "Pilotage marge cooperatif",
+    task: "Revue couts SAV",
+    categories: ["Finance & administration"],
+    tags: ["marge", "sav"],
+    notionRef: "",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
+    notes: "Travail sur les couts caches du SAV.",
+    start: "2026-04-08T09:00:00+02:00",
+    end: "2026-04-08T10:30:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-006",
+    collaborator: "Paulo",
+    project: "Bacs reemploi & emballages",
+    task: "Test process retour contenants",
+    categories: ["R&D / innovation"],
+    tags: ["test", "reemploi"],
+    notionRef: "",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
+    notes: "Premier test avec deux clients pilotes.",
+    start: "2026-04-08T10:45:00+02:00",
+    end: "2026-04-08T12:00:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Innovation",
+  },
+  {
+    id: "LOC-007",
+    collaborator: "Tristan",
+    project: "Prospection enseignes Paris",
+    task: "Qualification nouveaux comptes",
+    categories: ["Prospection commerciale"],
+    tags: ["prospection", "retail"],
+    notionRef: "",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
+    notes: "Filtre charge exploitation dans le brief commercial.",
+    start: "2026-04-08T14:00:00+02:00",
+    end: "2026-04-08T15:20:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Business",
+  },
+  {
+    id: "LOC-008",
+    collaborator: "Claire",
+    project: "Tournees Bio Monceau",
+    task: "Dispatch tournees et mise a quai",
+    categories: ["Expeditions"],
+    tags: ["dispatch", "tournees"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
+    notes: "",
+    start: "2026-04-09T06:50:00+02:00",
+    end: "2026-04-09T08:00:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Monceau Bio",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-009",
+    collaborator: "Eduardo",
+    project: "Hub Paris - Exploitation",
+    task: "Point securite et mise a jour standard",
+    categories: ["QHSE / amelioration continue"],
+    tags: ["qhse", "standard"],
+    notionRef: "",
+    objectivePole: "Cercle de management",
+    objectiveOkr: "O3 · Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    objectiveKr: "100% du materiel a duree de vie definie est renouvele dans les delais",
+    notes: "",
+    start: "2026-04-09T08:15:00+02:00",
+    end: "2026-04-09T09:30:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-010",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
+    task: "Lecture manager et capacite",
+    categories: ["Developpement outil interne"],
+    tags: ["manager", "reporting"],
+    notionRef: "",
+    objectivePole: "Cyke",
+    objectiveOkr: "O2 · Cyke couvre mieux les differents cas d'usage de la cyclologistique",
+    objectiveKr: "On sait comment chaque client utilise Cyke et on en tire des pistes d'amelioration",
+    notes: "",
+    start: "2026-04-09T09:40:00+02:00",
+    end: "2026-04-09T11:20:00+02:00",
+    durationMs: 6000000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-011",
+    collaborator: "Claire",
+    project: "SAV Retards & Litiges",
+    task: "Analyse causes racines",
+    categories: ["Incident client / qualite"],
+    tags: ["sav", "qualite"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a optimise le chargement au depart et le dechargement au retour de tournee",
+    notes: "Retards dus aux informations de preparation incompletes.",
+    start: "2026-04-09T15:10:00+02:00",
+    end: "2026-04-09T16:30:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Support",
+  },
+  {
+    id: "LOC-012",
+    collaborator: "Alexis",
+    project: "Pilotage marge cooperatif",
+    task: "Synthese budget avril",
+    categories: ["Finance & administration"],
+    tags: ["budget", "pilotage"],
+    notionRef: "",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
+    notes: "",
+    start: "2026-04-09T11:00:00+02:00",
+    end: "2026-04-09T12:20:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+  {
+    id: "LOC-013",
+    collaborator: "Tristan",
+    project: "Prospection enseignes Paris",
+    task: "RDV client retail alimentaire",
+    categories: ["Prospection commerciale"],
+    tags: ["rdv", "client"],
+    notionRef: "",
+    objectivePole: "",
+    objectiveOkr: "",
+    objectiveKr: "",
+    notes: "",
+    start: "2026-04-09T15:30:00+02:00",
+    end: "2026-04-09T16:45:00+02:00",
+    durationMs: 4500000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Business",
+  },
+  {
+    id: "LOC-014",
+    collaborator: "Eduardo",
+    project: "Etat de stock Hub Bercy",
+    task: "Inventaire tournant",
+    categories: ["Etat des stocks"],
+    tags: ["stock", "inventaire"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On a deploye un WMS qui couvre au moins 80% du volume transitant par l'entrepot",
+    notes: "",
+    start: "2026-04-10T07:00:00+02:00",
+    end: "2026-04-10T08:10:00+02:00",
+    durationMs: 4200000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-015",
+    collaborator: "Claire",
+    project: "Hub Paris - Exploitation",
+    task: "Vague de reappro et cross-dock",
+    categories: ["Preparation de commandes"],
+    tags: ["reappro", "cross-dock"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
+    objectiveKr: "On a atteint 95% de respect des cut-off",
+    notes: "",
+    start: "2026-04-10T08:15:00+02:00",
+    end: "2026-04-10T10:00:00+02:00",
+    durationMs: 6300000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Operations",
+  },
+  {
+    id: "LOC-016",
+    collaborator: "Martin Salles",
+    project: "Grand Livre de la Comté",
+    task: "Corrections suggestions intelligentes",
+    categories: ["Developpement outil interne"],
+    tags: ["suggestions", "priorisation"],
+    notionRef: "",
+    objectivePole: "Cyke",
+    objectiveOkr: "O4 · On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
+    objectiveKr: "100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
+    notes: "",
+    start: "2026-04-10T10:15:00+02:00",
+    end: "2026-04-10T12:00:00+02:00",
+    durationMs: 6300000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Product",
+  },
+  {
+    id: "LOC-017",
+    collaborator: "Paulo",
+    project: "Bacs reemploi & emballages",
+    task: "Prototype retour bacs hub-client",
+    categories: ["R&D / innovation"],
+    tags: ["prototype", "hub"],
+    notionRef: "",
+    objectivePole: "Cercle de management",
+    objectiveOkr: "O1 · On anticipe mieux les besoins humains, le planning absorbe l'activite sans generer de tensions",
+    objectiveKr: "On utilise un dashboard pour mieux anticiper le volume de livraison",
+    notes: "",
+    start: "2026-04-10T13:40:00+02:00",
+    end: "2026-04-10T15:10:00+02:00",
+    durationMs: 5400000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Innovation",
+  },
+  {
+    id: "LOC-018",
+    collaborator: "Eduardo",
+    project: "SAV Retards & Litiges",
+    task: "Plan action incidents recurrents",
+    categories: ["QHSE / amelioration continue"],
+    tags: ["sav", "plan action"],
+    notionRef: "",
+    objectivePole: "Cyclologistique",
+    objectiveOkr: "O5 · On a progresse en conformite et ameliore l'offre de services",
+    objectiveKr: "On garantit 0 colis introuvable et 0 colis rackoone a tort",
+    notes: "Travail avec Claire sur les causes racines.",
+    start: "2026-04-10T15:20:00+02:00",
+    end: "2026-04-10T16:40:00+02:00",
+    durationMs: 4800000,
+    dbTeamName: "Conseil Operations France",
+    dbClientName: "Interne",
+    dbKpiCategoryLabel: "Internal",
+  },
+];
+
 let sessions = loadSessions();
 let activeSession = loadActiveSession();
 let currentCategories = [];
 let currentTags = [];
 let timerIntervalId = null;
 let reportPeriod = "week";
-let statsMode = "objectives";
+let statsMode = "categories";
 let manualEditingSessionId = null;
 let pendingConflict = null;
 let currentView = getInitialView();
@@ -429,24 +783,34 @@ let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/main
 let auditTableAvailable = null;
 let activeStartEditorOpen = false;
 let agendaImportRows = [];
 let agendaImportLoaded = false;
 let remoteActiveSessions = [];
+<<<<<<< HEAD
 let repriseActions = loadStoredRepriseActions();
+=======
+>>>>>>> origin/main
 let remoteStateAvailable = false;
 let remoteStateLoadingPromise = null;
 let remoteSyncIntervalId = null;
 let activeDraftSyncTimeoutId = null;
+<<<<<<< HEAD
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
   setValues: (values) => {
     currentCategories = values;
     renderCategoryTokens();
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-category" });
   },
   singleValue: true,
 });
@@ -456,6 +820,7 @@ setupTokenInput(tagsInput, {
   setValues: (values) => {
     currentTags = values;
     renderTagTokens();
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-tags" });
   },
 });
 
@@ -486,17 +851,27 @@ form.addEventListener("submit", async (event) => {
   }
 
   activeSession = {
-    id: crypto.randomUUID(),
+    id: createSessionId(),
     ...sessionDraft,
     start: new Date().toISOString(),
     pausedAt: null,
     pausedDurationMs: 0,
+    isServerActive: true,
   };
 
   persistActiveSession();
   startTimerLoopIfNeeded();
   render();
+  void upsertActiveSessionToSupabase(activeSession);
 });
+
+function createSessionId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  return `loc-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+}
 
 pauseButton.addEventListener("click", () => {
   togglePauseSession();
@@ -506,12 +881,16 @@ openManualButton.addEventListener("click", () => {
   openManualDialog();
 });
 
+activeStartInput.addEventListener("input", () => {
+  updateActiveSessionStart({ reportValidity: false, closeEditor: false, audit: false });
+});
+
 activeStartInput.addEventListener("change", () => {
-  updateActiveSessionStart();
+  updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
 });
 
 activeStartInput.addEventListener("blur", () => {
-  hideActiveStartEditor();
+  updateActiveSessionStart({ reportValidity: false, closeEditor: true, audit: true });
 });
 
 activeStartDisplay.addEventListener("click", () => {
@@ -562,6 +941,19 @@ categoriesInput.addEventListener("blur", () => {
 ].forEach((input) => {
   input.addEventListener("input", () => {
     updateFieldManageButtons();
+    syncActiveSessionDraftFromForm();
+  });
+  input.addEventListener("change", () => {
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-field" });
+  });
+});
+
+[projectInput, notesInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    syncActiveSessionDraftFromForm();
+  });
+  input.addEventListener("change", () => {
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-field" });
   });
 });
 
@@ -757,6 +1149,7 @@ analysisStatsSwitch.addEventListener("click", (event) => {
 reportAnchorInput.addEventListener("change", () => {
   renderCadreViews();
   renderManagerViews();
+  renderResourcesViews();
 });
 
 managerCollaboratorFilter.addEventListener("change", () => {
@@ -774,7 +1167,7 @@ sessionList.addEventListener("click", (event) => {
   }
 
   const sessionId = editButton.closest(".session-item")?.dataset.sessionId;
-  const session = sessions.find((item) => item.id === sessionId);
+  const session = findSessionById(sessionId);
   if (!session) {
     return;
   }
@@ -786,6 +1179,21 @@ agendaBoard.addEventListener("pointerdown", (event) => {
   beginAgendaDrag(event);
 });
 
+agendaPrevWeekButton?.addEventListener("click", () => {
+  shiftAgendaWeek(-1);
+});
+
+agendaCurrentWeekButton?.addEventListener("click", () => {
+  reportAnchorInput.value = formatDateInput(new Date());
+  renderCadreViews();
+  renderManagerViews();
+  renderResourcesViews();
+});
+
+agendaNextWeekButton?.addEventListener("click", () => {
+  shiftAgendaWeek(1);
+});
+
 agendaBoard.addEventListener("click", (event) => {
   if (suppressNextAgendaClick) {
     suppressNextAgendaClick = false;
@@ -794,9 +1202,7 @@ agendaBoard.addEventListener("click", (event) => {
 
   const target = event.target.closest("[data-session-id]");
   if (target) {
-    const session =
-      sessions.find((item) => item.id === target.dataset.sessionId) ??
-      (activeSession?.id === target.dataset.sessionId ? activeSession : null);
+    const session = findSessionById(target.dataset.sessionId);
     if (session) {
       openManualDialog(session);
     }
@@ -930,16 +1336,6 @@ function ensureAutocompleteHost(config) {
 
 function initializeAutocomplete() {
   const configs = [
-    {
-      input: loginNameInput,
-      getOptions: () =>
-        getKnownUsers().length
-          ? getKnownUsers().map((item) => item.user_name)
-          : uniqueValues("collaborator"),
-      applyValue: (value) => {
-        loginNameInput.value = value;
-      },
-    },
     {
       input: collaboratorInput,
       getOptions: () =>
@@ -1620,7 +2016,7 @@ function beginAgendaDrag(event) {
   }
 
   const sessionId = eventElement.dataset.sessionId;
-  const session = sessions.find((item) => item.id === sessionId);
+  const session = findSessionById(sessionId);
   const track = eventElement.closest(".agenda-day-track");
   if (!session || !track) {
     return;
@@ -1644,6 +2040,7 @@ function beginAgendaDrag(event) {
     startHour,
     endHour,
     hourHeight,
+    mode: resolveAgendaDragMode(event, eventElement),
     durationMs: Number(session.durationMs) || new Date(session.end).getTime() - new Date(session.start).getTime(),
     moved: false,
   };
@@ -1656,6 +2053,27 @@ function beginAgendaDrag(event) {
   window.addEventListener("pointercancel", handleAgendaDragCancel, { once: true });
 }
 
+function resolveAgendaDragMode(event, eventElement) {
+  if (event.target.closest(".agenda-resize-handle--start")) {
+    return "resize-start";
+  }
+  if (event.target.closest(".agenda-resize-handle--end")) {
+    return "resize-end";
+  }
+
+  const rect = eventElement.getBoundingClientRect();
+  const offsetY = event.clientY - rect.top;
+  const edgeThreshold = Math.min(Math.max(rect.height * 0.18, 10), 18);
+
+  if (offsetY <= edgeThreshold) {
+    return "resize-start";
+  }
+  if (offsetY >= rect.height - edgeThreshold) {
+    return "resize-end";
+  }
+  return "move";
+}
+
 function handleAgendaDragMove(event) {
   if (!agendaDragState || event.pointerId !== agendaDragState.pointerId) {
     return;
@@ -1666,31 +2084,53 @@ function handleAgendaDragMove(event) {
 
   const originalStart = new Date(agendaDragState.originalSession.start);
   const originalEnd = new Date(agendaDragState.originalSession.end);
-  const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
-  const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
-
   const dayStart = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
   dayStart.setHours(agendaDragState.startHour, 0, 0, 0);
   const dayEnd = new Date(agendaDragState.track.dataset.dayDate + "T00:00:00");
   dayEnd.setHours(agendaDragState.endHour, 0, 0, 0);
 
-  let boundedStart = nextStart;
-  let boundedEnd = nextEnd;
+  let boundedStart = new Date(originalStart);
+  let boundedEnd = new Date(originalEnd);
 
-  if (boundedStart < dayStart) {
-    boundedStart = new Date(dayStart);
-    boundedEnd = new Date(dayStart.getTime() + agendaDragState.durationMs);
+  if (agendaDragState.mode === "resize-start") {
+    boundedStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
+    if (boundedStart < dayStart) {
+      boundedStart = new Date(dayStart);
+    }
+    if (boundedStart >= boundedEnd) {
+      boundedStart = new Date(boundedEnd.getTime() - 15 * 60 * 1000);
+    }
+  } else if (agendaDragState.mode === "resize-end") {
+    boundedEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
+    if (boundedEnd > dayEnd) {
+      boundedEnd = new Date(dayEnd);
+    }
+    if (boundedEnd <= boundedStart) {
+      boundedEnd = new Date(boundedStart.getTime() + 15 * 60 * 1000);
+    }
+  } else {
+    const nextStart = new Date(originalStart.getTime() + minuteDelta * 60 * 1000);
+    const nextEnd = new Date(originalEnd.getTime() + minuteDelta * 60 * 1000);
+    boundedStart = nextStart;
+    boundedEnd = nextEnd;
+
+    if (boundedStart < dayStart) {
+      boundedStart = new Date(dayStart);
+      boundedEnd = new Date(dayStart.getTime() + agendaDragState.durationMs);
+    }
+    if (boundedEnd > dayEnd) {
+      boundedEnd = new Date(dayEnd);
+      boundedStart = new Date(dayEnd.getTime() - agendaDragState.durationMs);
+    }
   }
-  if (boundedEnd > dayEnd) {
-    boundedEnd = new Date(dayEnd);
-    boundedStart = new Date(dayEnd.getTime() - agendaDragState.durationMs);
-  }
+
+  const nextDurationMs = Math.max(boundedEnd.getTime() - boundedStart.getTime(), 15 * 60 * 1000);
 
   agendaDragState.previewSession = {
     ...agendaDragState.originalSession,
     start: boundedStart.toISOString(),
     end: boundedEnd.toISOString(),
-    durationMs: agendaDragState.durationMs,
+    durationMs: nextDurationMs,
   };
 
   agendaDragState.moved =
@@ -1713,11 +2153,28 @@ function handleAgendaDragEnd(event) {
   }
 
   suppressNextAgendaClick = true;
+  if (state.originalSession.isServerActive) {
+    const nextActiveSession = normalizeSession({
+      ...state.originalSession,
+      ...state.previewSession,
+      isServerActive: true,
+    });
+    activeSession =
+      activeSession?.id === nextActiveSession.id ? nextActiveSession : activeSession;
+    persistActiveSession();
+    void logSessionChange(state.originalSession, nextActiveSession, `agenda-${state.mode}`);
+    render();
+    void upsertActiveSessionToSupabase(nextActiveSession);
+    return;
+  }
+
   attemptSaveSession(state.previewSession, {
     excludeId: state.originalSession.id,
     onSuccess: (sessionToSave) => {
       upsertSession(sessionToSave);
       persistSessions();
+      void logSessionChange(state.originalSession, sessionToSave, `agenda-${state.mode}`);
+      void syncSessionToSupabase(sessionToSave, "manual");
       render();
     },
   });
@@ -2032,9 +2489,22 @@ function loadSessions() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return parsed.map(normalizeSession);
+    const normalized = parsed.map(normalizeSession);
+    const demoSessions = LOCAL_DEMO_SESSIONS.map(normalizeSession);
+    if (!normalized.length) {
+      return demoSessions;
+    }
+
+    const demoCollaborators = new Set(
+      LOCAL_DEMO_SESSIONS.map((session) => normalizeText(session.collaborator)),
+    );
+    const hasVisibleDemoProfiles = normalized.some((session) =>
+      demoCollaborators.has(normalizeText(session.collaborator)),
+    );
+
+    return hasVisibleDemoProfiles ? normalized : [...demoSessions, ...normalized];
   } catch {
-    return [];
+    return LOCAL_DEMO_SESSIONS.map(normalizeSession);
   }
 }
 
@@ -2051,6 +2521,7 @@ function loadActiveSession() {
 function normalizeSession(session) {
   return {
     ...session,
+    id: session.id ?? session.time_entry_id ?? session.active_session_id ?? createSessionId(),
     collaborator: session.collaborator ?? "",
     project: session.project ?? "",
     task: session.task ?? "",
@@ -2064,11 +2535,24 @@ function normalizeSession(session) {
     pausedAt: session.pausedAt ?? null,
     pausedDurationMs: Number(session.pausedDurationMs) || 0,
     durationMs: Number(session.durationMs) || 0,
+    dbTimeEntryId: session.dbTimeEntryId ?? null,
+    dbActiveSessionId: session.dbActiveSessionId ?? null,
+    dbUserId: session.dbUserId ?? null,
+    dbProjectId: session.dbProjectId ?? null,
+    dbActivityCategoryId: session.dbActivityCategoryId ?? null,
+    dbTeamName: session.dbTeamName ?? "",
+    dbClientName: session.dbClientName ?? "",
+    dbKpiCategoryLabel: session.dbKpiCategoryLabel ?? "",
+    isServerBacked: Boolean(session.isServerBacked),
+    isServerActive: Boolean(session.isServerActive),
   };
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/main
 function parseCsvTokens(rawValue) {
   return String(rawValue ?? "")
     .split(",")
@@ -2168,6 +2652,7 @@ function hydrateRemoteState(historyRows, activeRows) {
   persistActiveSession();
 }
 
+<<<<<<< HEAD
 function hydrateRepriseActions(rows) {
   repriseActions = (rows ?? []).map((row) => ({
     subject_user_name: row.subject_user_name ?? "",
@@ -2182,6 +2667,8 @@ function hydrateRepriseActions(rows) {
 }
 
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
 function persistSessions() {
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
 }
@@ -2196,7 +2683,10 @@ function persistActiveSession() {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> origin/main
 async function loadServerBackedState({ silent = false } = {}) {
   if (!window.supabase) {
     return false;
@@ -2207,36 +2697,53 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
+<<<<<<< HEAD
     const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
       window.supabase.from("reprise_actions").select("*").order("updated_at", { ascending: false }),
+=======
+    const [historyResult, activeResult] = await Promise.allSettled([
+      window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
+      window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
+>>>>>>> origin/main
     ]);
 
     const historyRows =
       historyResult.status === "fulfilled" && !historyResult.value.error ? historyResult.value.data ?? [] : null;
     const activeRows =
       activeResult.status === "fulfilled" && !activeResult.value.error ? activeResult.value.data ?? [] : null;
+<<<<<<< HEAD
     const repriseActionRows =
       repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error
         ? repriseActionsResult.value.data ?? []
         : null;
 
     if (!historyRows && !activeRows && !repriseActionRows) {
+=======
+
+    if (!historyRows && !activeRows) {
+>>>>>>> origin/main
       if (historyResult.status === "fulfilled" && historyResult.value.error) {
         console.warn("time_entries load failed:", historyResult.value.error);
       }
       if (activeResult.status === "fulfilled" && activeResult.value.error) {
         console.warn("active_sessions load failed:", activeResult.value.error);
       }
+<<<<<<< HEAD
       if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
         console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
       }
+=======
+>>>>>>> origin/main
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
+<<<<<<< HEAD
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
+=======
+>>>>>>> origin/main
     remoteStateAvailable = true;
 
     if (!silent) {
@@ -2301,7 +2808,10 @@ function syncActiveSessionDraftFromForm({ audit = false, source = "active-sessio
   }
 }
 
+<<<<<<< HEAD
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
 function hydrateFormFromActiveSession() {
   const source = activeSession ?? sessions[0] ?? null;
   collaboratorInput.value = activeSession?.collaborator ?? source?.collaborator ?? "";
@@ -2346,42 +2856,44 @@ async function validateAndNormalizeMainForm() {
     return null;
   }
   if (!sessionDraft.project) {
-    projectInput.focus();
+    showFieldResolutionError(projectInput, "Choisissez ou saisissez un projet avant de demarrer.");
     return null;
   }
 
-  const resolved = await resolveDraftReferences(sessionDraft, { allowCreate: true });
+  const resolved = await resolveDraftReferences(sessionDraft, { allowCreate: false });
   if (!resolved.loaded) {
-    return sessionDraft;
-  }
-
-  if (!resolved.user) {
-    showFieldResolutionError(
-      collaboratorInput,
-      "Choisissez un cargonaute existant dans la base pour enregistrer ce temps.",
-    );
-    return null;
-  }
-
-  if (!resolved.project) {
-    showFieldResolutionError(projectInput, "Choisissez un projet existant dans la base.");
-    return null;
-  }
-
-  if (!resolved.category) {
-    showFieldResolutionError(
-      categoriesInput,
-      "Impossible de rattacher cette categorie pour le moment. Reessayez ou choisissez une categorie existante.",
-    );
-    return null;
+    return hydrateSessionDraftDefaults(sessionDraft);
   }
 
   const normalizedDraft = buildCanonicalSessionDraft(sessionDraft, resolved);
-  applyCanonicalDraftToMainForm(normalizedDraft);
-  return normalizedDraft;
+  const hydratedDraft = hydrateSessionDraftDefaults(normalizedDraft);
+  applyCanonicalDraftToMainForm(hydratedDraft);
+  return hydratedDraft;
+}
+
+function hydrateSessionDraftDefaults(sessionDraft) {
+  const hydratedDraft = {
+    ...sessionDraft,
+    categories: Array.isArray(sessionDraft.categories) ? [...sessionDraft.categories].slice(0, 1) : [],
+  };
+
+  if (hydratedDraft.categories.length) {
+    return hydratedDraft;
+  }
+
+  const memory = resolveProjectMemory(hydratedDraft.project, hydratedDraft.collaborator);
+  if (memory?.categories?.length) {
+    hydratedDraft.categories = [...memory.categories].slice(0, 1);
+  }
+
+  return hydratedDraft;
 }
 
 function showFieldResolutionError(input, message) {
+  if (authStatus) {
+    authStatus.hidden = false;
+    authStatus.textContent = message;
+  }
   input.setCustomValidity(message);
   input.reportValidity();
   input.setCustomValidity("");
@@ -2390,7 +2902,8 @@ function showFieldResolutionError(input, message) {
 
 function showAuthRequiredMessage() {
   if (authStatus) {
-    authStatus.textContent = "Entrez votre nom pour lancer une session avec votre profil.";
+    authStatus.hidden = false;
+    authStatus.textContent = "Choisissez un nom pour lancer une session.";
   }
   loginNameInput?.focus();
 }
@@ -2875,7 +3388,7 @@ function stopActiveSession() {
       stopTimerLoop();
       resetFormAfterStop();
       render();
-      void syncSessionToSupabase(sessionToSave, "timer");
+      void finalizeStoppedSessionOnSupabase(sessionToSave, "timer");
     },
   });
 }
@@ -2883,6 +3396,13 @@ function stopActiveSession() {
 
 async function initializeReferenceCatalog() {
   const loaded = await ensureReferenceCatalogLoaded();
+  if (loaded) {
+    await loadServerBackedState({ silent: true });
+    startRemoteSyncLoop();
+  }
+  if (loaded && getAccessRole() === "admin") {
+    await loadAgendaImportRows();
+  }
   if (loaded) {
     render();
   }
@@ -2952,6 +3472,8 @@ function applyLocalAccessProfile(rawName, options = {}) {
       session: null,
       appUser: null,
     };
+    activeSession = null;
+    persistActiveSession();
     if (options.persist !== false) {
       clearStoredAccessName();
     }
@@ -2965,11 +3487,24 @@ function applyLocalAccessProfile(rawName, options = {}) {
     session: null,
     appUser,
   };
+  activeSession =
+    remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(appUser.user_name)) ?? null;
+  persistActiveSession();
 
   if (options.persist !== false) {
     storeAccessName(appUser.user_name);
   }
 
+  if (accessProfile.role === "admin") {
+    void loadAgendaImportRows().then(() => {
+      renderAgendaImportPanel();
+    });
+  } else {
+    agendaImportRows = [];
+    agendaImportLoaded = false;
+  }
+
+  void loadServerBackedState({ silent: false });
   render();
   return true;
 }
@@ -3108,7 +3643,11 @@ function getScopedSessions(rows) {
   const role = getAccessRole();
   const appUser = accessProfile.appUser;
 
-  if (role === "open" || role === "admin" || !appUser) {
+  if (role === "open" || !appUser) {
+    return [];
+  }
+
+  if (role === "admin") {
     return rows;
   }
 
@@ -3140,11 +3679,11 @@ async function resolveDraftReferences(sessionDraft, options = {}) {
     };
   }
 
-  let user = findReferenceMatch(referenceCatalog.users, "user_name", sessionDraft.collaborator);
+  let user = findReferenceMatch(getKnownUsers(), "user_name", sessionDraft.collaborator);
   if (!user && options.allowCreate && sessionDraft.collaborator?.trim()) {
     const createdUserName = await createUserReference(sessionDraft.collaborator.trim());
     user = createdUserName
-      ? findReferenceMatch(referenceCatalog.users, "user_name", createdUserName)
+      ? findReferenceMatch(getKnownUsers(), "user_name", createdUserName)
       : null;
   }
 
@@ -3297,9 +3836,7 @@ async function createCategoryReference(rawLabel, options = {}) {
     return null;
   }
 
-  const linkedUser = options.userName
-    ? findReferenceMatch(referenceCatalog.users, "user_name", options.userName)
-    : null;
+  const linkedUser = options.userName ? findReferenceMatch(getKnownUsers(), "user_name", options.userName) : null;
   const linkedProject = options.projectName
     ? findReferenceMatch(referenceCatalog.projects, "project_name", options.projectName)
     : null;
@@ -3324,11 +3861,15 @@ async function createCategoryReference(rawLabel, options = {}) {
     activity_category_label: categoryLabel,
     kpi_category_label: inheritedCategory?.kpi_category_label ?? "Internal / Admin",
 <<<<<<< HEAD
+<<<<<<< HEAD
     team_name: linkedUser?.team_name ?? referenceCatalog.users[0]?.team_name ?? null,
 =======
     color_hex: getCategoryColor(categoryLabel),
     team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+    team_name: linkedUser?.team_name ?? getKnownUsers()[0]?.team_name ?? null,
+>>>>>>> origin/main
     active: true,
   };
 
@@ -3364,7 +3905,9 @@ function findReferenceMatch(rows, labelField, rawValue) {
 function buildCanonicalSessionDraft(sessionDraft, resolved) {
   const normalizedCategories = resolved.category
     ? [resolved.category.activity_category_label]
-    : sessionDraft.categories.slice(0, 1);
+    : resolved.selectedCategoryLabel
+      ? [resolved.selectedCategoryLabel]
+      : sessionDraft.categories.slice(0, 1);
 
   return {
     ...sessionDraft,
@@ -3451,24 +3994,26 @@ async function canonicalizeCategorySelection() {
 
 async function resolveSessionReferences(session) {
   const resolved = await resolveDraftReferences(session);
-  if (!resolved.loaded) {
-    return null;
-  }
-  const { user, project, category, selectedCategoryLabel } = resolved;
+  const fallbackUser = getSessionSourceUser(session);
+  const project =
+    resolved.project ??
+    findReferenceMatch(referenceCatalog.projects, "project_name", session.project) ??
+    null;
+  const category =
+    resolved.category ??
+    findReferenceMatch(referenceCatalog.categories, "activity_category_label", session.categories?.[0] ?? "") ??
+    null;
 
-  if (!user || !project || !category) {
-    console.warn("Supabase sync skipped because references could not be resolved.", {
-      collaborator: session.collaborator,
-      project: session.project,
-      category: selectedCategoryLabel,
-      userResolved: Boolean(user),
-      projectResolved: Boolean(project),
-      categoryResolved: Boolean(category),
-    });
+  if (!resolved.loaded && !fallbackUser) {
     return null;
   }
 
-  return { user, project, category };
+  return {
+    user: resolved.user ?? fallbackUser,
+    project,
+    category,
+    selectedCategoryLabel: resolved.selectedCategoryLabel ?? session.categories?.[0] ?? "",
+  };
 }
 
 async function getNextTimeEntryId() {
@@ -3507,26 +4052,40 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
     return null;
   }
 
-  const nextId = await getNextTimeEntryId();
-  if (!nextId) {
+  const timeEntryId = session.dbTimeEntryId ?? (await getNextTimeEntryId());
+  if (!timeEntryId || !references.user) {
     return null;
   }
 
+  const start = new Date(session.start);
+  const end = session.end ? new Date(session.end) : getActiveSessionEffectiveEnd(session);
+  const durationMs =
+    Number(session.durationMs) || Math.max(end.getTime() - start.getTime(), 0);
+
   return {
-    time_entry_id: nextId,
-    entry_date: new Date(session.start).toISOString().slice(0, 10),
+    time_entry_id: timeEntryId,
+    source_session_id: session.id,
+    entry_date: start.toISOString().slice(0, 10),
+    started_at: start.toISOString(),
+    ended_at: end.toISOString(),
     user_id: references.user.user_id,
     user_name: references.user.user_name,
     team_name: references.user.team_name ?? "",
-    project_id: references.project.project_id,
-    project_name: references.project.project_name,
-    client_name: references.project.client_name ?? "",
-    activity_category_id: references.category.activity_category_id,
-    activity_category_label: references.category.activity_category_label,
-    kpi_category_label: references.category.kpi_category_label ?? "",
-    duration_minutes: Math.max(1, Math.round((Number(session.durationMs) || 0) / 60000)),
-    duration_hours: Number(((Number(session.durationMs) || 0) / 3600000).toFixed(2)),
+    project_id: references.project?.project_id ?? session.dbProjectId ?? null,
+    project_name: references.project?.project_name ?? session.project ?? "",
+    client_name: references.project?.client_name ?? session.dbClientName ?? "",
+    activity_category_id: references.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
+    activity_category_label: references.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    kpi_category_label: references.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
+    duration_minutes: Math.max(1, Math.round(durationMs / 60000)),
+    duration_hours: Number((durationMs / 3600000).toFixed(2)),
     task_label: session.task || "",
+    tags_text: (session.tags ?? []).join(", "),
+    notion_ref: session.notionRef || "",
+    objective_pole: session.objectivePole || "",
+    objective_okr: session.objectiveOkr || "",
+    objective_kr: session.objectiveKr || "",
+    notes: session.notes || "",
     source,
     status: "saved",
   };
@@ -3538,19 +4097,27 @@ async function syncSessionToSupabase(session, source = "manual") {
     return false;
   }
 
-  return createTimeEntry(payload);
+  return createTimeEntry(payload, { updateExisting: Boolean(session.dbTimeEntryId) });
 }
 
-async function createTimeEntry(data) {
+async function createTimeEntry(data, options = {}) {
   if (!window.supabase) {
     return false;
   }
 
   try {
-    const { data: inserted, error } = await window.supabase
-      .from("time_entries")
-      .insert([data])
-      .select();
+    const query = options.updateExisting
+      ? window.supabase
+          .from("time_entries")
+          .update({
+            ...data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("time_entry_id", data.time_entry_id)
+          .select()
+      : window.supabase.from("time_entries").insert([data]).select();
+
+    const { data: inserted, error } = await query;
 
     if (error) {
       console.error("Supabase insert error:", error);
@@ -3558,11 +4125,168 @@ async function createTimeEntry(data) {
     }
 
     console.log("Supabase insert success:", inserted);
+    await loadServerBackedState({ silent: false });
     return true;
   } catch (e) {
     console.error("Unexpected Supabase error:", e);
     return false;
   }
+}
+
+async function buildActiveSessionPayload(session) {
+  const references = await resolveSessionReferences(session);
+  const user = references?.user ?? getSessionSourceUser(session);
+  if (!user) {
+    return null;
+  }
+
+  return {
+    active_session_id: session.dbActiveSessionId ?? session.id,
+    started_at: session.start,
+    paused_at: session.pausedAt ?? null,
+    paused_duration_ms: Number(session.pausedDurationMs) || 0,
+    user_id: user.user_id ?? session.dbUserId ?? null,
+    user_name: user.user_name ?? session.collaborator ?? "",
+    team_name: user.team_name ?? session.dbTeamName ?? "",
+    project_id: references?.project?.project_id ?? session.dbProjectId ?? null,
+    project_name: references?.project?.project_name ?? session.project ?? "",
+    client_name: references?.project?.client_name ?? session.dbClientName ?? "",
+    activity_category_id: references?.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
+    activity_category_label: references?.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    kpi_category_label: references?.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
+    task_label: session.task || "",
+    tags_text: (session.tags ?? []).join(", "),
+    notion_ref: session.notionRef || "",
+    objective_pole: session.objectivePole || "",
+    objective_okr: session.objectiveOkr || "",
+    objective_kr: session.objectiveKr || "",
+    notes: session.notes || "",
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function upsertActiveSessionToSupabase(session) {
+  if (!window.supabase || !session) {
+    return false;
+  }
+
+  const payload = await buildActiveSessionPayload(session);
+  if (!payload) {
+    return false;
+  }
+
+  const { error } = await window.supabase
+    .from("active_sessions")
+    .upsert([payload], { onConflict: "active_session_id" });
+
+  if (error) {
+    console.warn("active_sessions upsert failed:", error);
+    return false;
+  }
+
+  await loadServerBackedState({ silent: false });
+  return true;
+}
+
+async function removeActiveSessionFromSupabase(sessionId) {
+  if (!window.supabase || !sessionId) {
+    return false;
+  }
+
+  const { error } = await window.supabase.from("active_sessions").delete().eq("active_session_id", sessionId);
+  if (error) {
+    console.warn("active_sessions delete failed:", error);
+    return false;
+  }
+
+  await loadServerBackedState({ silent: false });
+  return true;
+}
+
+async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
+  const historySaved = await syncSessionToSupabase(session, source);
+  const activeRemoved = await removeActiveSessionFromSupabase(session.dbActiveSessionId ?? session.id);
+  return historySaved && activeRemoved;
+}
+
+async function logSessionChange(previousSession, nextSession, source = "manual") {
+  if (!window.supabase) {
+    return false;
+  }
+  if (auditTableAvailable === false) {
+    return false;
+  }
+
+  const rows = [];
+  const actorName = getCurrentCollaborator() || nextSession?.collaborator || "";
+  const fields = [
+    ["project", "Projet"],
+    ["task", "Client"],
+    ["start", "Debut"],
+    ["end", "Fin"],
+    ["durationMs", "Duree"],
+    ["categories", "Categorie"],
+    ["tags", "Tags"],
+    ["notionRef", "Lien d'interet"],
+    ["objectivePole", "Pole"],
+    ["objectiveOkr", "OKR"],
+    ["objectiveKr", "KR"],
+    ["notes", "Note"],
+  ];
+
+  for (const [field, label] of fields) {
+    const before = previousSession?.[field];
+    const after = nextSession?.[field];
+    const beforeValue = Array.isArray(before) ? before.join(", ") : before;
+    const afterValue = Array.isArray(after) ? after.join(", ") : after;
+    if (String(beforeValue ?? "") === String(afterValue ?? "")) {
+      continue;
+    }
+    rows.push({
+      session_id: nextSession.id,
+      change_source: source,
+      actor_name: actorName,
+      field_label: label,
+      old_value:
+        field === "durationMs"
+          ? beforeValue
+            ? formatDurationHours(Number(beforeValue))
+            : ""
+          : field === "start" || field === "end"
+            ? beforeValue
+              ? new Date(beforeValue).toLocaleString("fr-FR")
+              : ""
+            : String(beforeValue ?? ""),
+      new_value:
+        field === "durationMs"
+          ? afterValue
+            ? formatDurationHours(Number(afterValue))
+            : ""
+          : field === "start" || field === "end"
+            ? afterValue
+              ? new Date(afterValue).toLocaleString("fr-FR")
+              : ""
+            : String(afterValue ?? ""),
+    });
+  }
+
+  if (!rows.length) {
+    return true;
+  }
+
+  const { error } = await window.supabase.from("session_audit_log").insert(rows);
+  if (error) {
+    if (error.code === "42P01") {
+      auditTableAvailable = false;
+      console.warn("session_audit_log table missing; audit logging skipped.");
+      return false;
+    }
+    console.warn("session_audit_log insert failed:", error);
+    return false;
+  }
+
+  auditTableAvailable = true;
+  return true;
 }
 
 
@@ -3603,11 +4327,15 @@ function togglePauseSession() {
 
   persistActiveSession();
   render();
+  scheduleActiveSessionServerSync({ immediate: true });
 }
 
-function updateActiveSessionStart() {
+function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
   if (!activeSession || !activeStartInput.value) {
-    return;
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
+    return false;
   }
 
   const nextStart = new Date(activeStartInput.value);
@@ -3616,13 +4344,21 @@ function updateActiveSessionStart() {
     effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
 
   if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
-    activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
-    activeStartInput.reportValidity();
-    activeStartInput.setCustomValidity("");
+    if (reportValidity) {
+      activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
+      activeStartInput.reportValidity();
+      activeStartInput.setCustomValidity("");
+    }
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
     renderActiveSession();
-    return;
+    return false;
   }
 
+  activeStartInput.setCustomValidity("");
+
+  const previousSession = { ...activeSession };
   const candidate = {
     ...activeSession,
     start: nextStart.toISOString(),
@@ -3632,17 +4368,35 @@ function updateActiveSessionStart() {
 
   const overlap = findOverlappingSession(candidate);
   if (overlap) {
-    activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
-    activeStartInput.reportValidity();
+    if (reportValidity) {
+      activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
+      activeStartInput.reportValidity();
+      activeStartInput.setCustomValidity("");
+    }
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
     activeStartInput.setCustomValidity("");
     renderActiveSession();
-    return;
+    return false;
   }
 
-  activeSession.start = candidate.start;
+  activeSession = {
+    ...activeSession,
+    ...candidate,
+  };
   persistActiveSession();
-  hideActiveStartEditor();
-  render();
+  if (closeEditor) {
+    hideActiveStartEditor();
+  } else {
+    renderActiveSession();
+  }
+  hydrateFormFromActiveSession();
+  if (audit) {
+    void logSessionChange(previousSession, activeSession, "active-session-start");
+  }
+  scheduleActiveSessionServerSync({ immediate: true });
+  return true;
 }
 
 function openManualDialog(session = null, preset = null) {
@@ -3711,11 +4465,39 @@ function saveManualEntry() {
     durationMs,
   };
 
+  const activeSessionBeingEdited =
+    (manualEditingSessionId && getPersistedActiveSessions().find((item) => item.id === manualEditingSessionId)) ?? null;
+
+  if (activeSessionBeingEdited) {
+    const nextActiveSession = normalizeSession({
+      ...activeSessionBeingEdited,
+      ...manualSession,
+      pausedAt: activeSessionBeingEdited.pausedAt ?? null,
+      pausedDurationMs: Number(activeSessionBeingEdited.pausedDurationMs) || 0,
+      isServerActive: true,
+    });
+    activeSession = nextActiveSession;
+    persistActiveSession();
+    hydrateFormFromActiveSession();
+    manualEditingSessionId = null;
+    manualDialog.close();
+    saveManualButton.textContent = "Enregistrer";
+    renderObjectiveSelections();
+    render();
+    void logSessionChange(activeSessionBeingEdited, nextActiveSession, "manual-edit-active");
+    void upsertActiveSessionToSupabase(nextActiveSession);
+    return;
+  }
+
   attemptSaveSession(manualSession, {
     excludeId: manualEditingSessionId,
     onSuccess: (sessionToSave) => {
+      const previousSession =
+        manualEditingSessionId ? findSessionById(manualEditingSessionId) ?? null : null;
       upsertSession(sessionToSave);
       persistSessions();
+      void logSessionChange(previousSession, sessionToSave, previousSession ? "manual-edit" : "manual-create");
+      void syncSessionToSupabase(sessionToSave, previousSession ? "manual" : "manual");
       manualEditingSessionId = null;
       manualDialog.close();
       saveManualButton.textContent = "Enregistrer";
@@ -3743,11 +4525,12 @@ function attemptSaveSession(session, options = {}) {
 }
 
 function upsertSession(session) {
+  const normalizedSession = normalizeSession(session);
   const index = sessions.findIndex((item) => item.id === session.id);
   if (index >= 0) {
-    sessions[index] = session;
+    sessions[index] = normalizedSession;
   } else {
-    sessions.unshift(session);
+    sessions.unshift(normalizedSession);
   }
   sessions.sort((a, b) => new Date(b.start) - new Date(a.start));
 }
@@ -3758,7 +4541,7 @@ function findOverlappingSession(session, excludeId = null) {
   const collaboratorKey = normalizeText(session.collaborator);
 
   return (
-    sessions.find((existing) => {
+    getAllSessionsWithActive().find((existing) => {
       if (existing.id === excludeId) {
         return false;
       }
@@ -3845,12 +4628,12 @@ function render() {
   renderAccessControlledInputs();
   renderCurrentUserContext();
   renderAuthPanel();
-  renderLoginQuickPicks();
   updateFieldManageButtons();
   renderActiveSession();
   renderSuggestions();
   renderQuickProjects();
   renderProjectMemoryList();
+  renderAgendaImportPanel();
   renderSessionList();
   renderCadreViews();
   renderManagerControls();
@@ -3859,18 +4642,7 @@ function render() {
 }
 
 function renderCurrentUserContext() {
-  if (accessProfile.appUser?.user_name) {
-    currentUserName.textContent = accessProfile.appUser.user_name;
-    if (currentUserRole) {
-      currentUserRole.textContent = formatRoleLabel(getAccessRole());
-    }
-    return;
-  }
-
-  currentUserName.textContent = "Nom requis";
-  if (currentUserRole) {
-    currentUserRole.textContent = "Entrez votre nom pour commencer";
-  }
+  // The active identity is now handled directly by the dropdown in the topbar.
 }
 
 function renderAccessControlledInputs() {
@@ -3896,62 +4668,41 @@ function formatRoleLabel(role) {
     return "Manager";
   }
   if (role === "cadre") {
-    return "Cadre";
+    return "Cargonaute";
   }
   return "Mode local";
 }
 
 function renderAuthPanel() {
-  if (!logoutButton || !authStatus || !loginButton || !loginNameInput) {
+  if (!loginNameInput) {
     return;
   }
 
   const authenticated = Boolean(accessProfile.appUser?.user_name);
   const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
-  const hasDatabaseUsers = referenceCatalog.users.length > 0;
+  renderLoginNameOptions(visibleUsers);
 
-  if (loginDirectoryStatus) {
-    if (!referenceCatalog.loaded) {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = "Chargement des noms depuis la base…";
-    } else if (!visibleUsers.length) {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = "Aucun nom disponible pour le moment.";
-    } else {
-      loginDirectoryStatus.hidden = false;
-      loginDirectoryStatus.textContent = hasDatabaseUsers
-        ? `${visibleUsers.length} noms disponibles dans la liste ci-dessous.`
-        : `${visibleUsers.length} noms disponibles localement. La base n'en expose aucun pour l'instant.`;
-    }
+  loginNameInput.value = authenticated ? accessProfile.appUser.user_name : "";
+
+  if (adminTools) {
+    adminTools.hidden = accessProfile.role !== "admin";
+  }
+  if (faviconEmojiInput) {
+    faviconEmojiInput.value = loadStoredFaviconEmoji();
   }
 
-  if (authenticated) {
-    loginNameInput.value = accessProfile.appUser.user_name;
-    loginNameInput.readOnly = true;
-    loginButton.hidden = true;
-    logoutButton.hidden = false;
-    if (adminTools) {
-      adminTools.hidden = accessProfile.role !== "admin";
-    }
-    if (faviconEmojiInput) {
-      faviconEmojiInput.value = loadStoredFaviconEmoji();
-    }
-    authStatus.textContent =
-      accessProfile.role === "admin" || accessProfile.role === "manager" || accessProfile.role === "cadre"
-        ? `Profil charge: ${accessProfile.appUser.user_name} · ${formatRoleLabel(accessProfile.role)}.`
-        : `Profil charge: ${accessProfile.appUser.user_name}.`;
+  if (!authStatus) {
     return;
   }
 
-  loginNameInput.readOnly = false;
-  loginButton.hidden = false;
-  logoutButton.hidden = true;
-  if (adminTools) {
-    adminTools.hidden = true;
+  if (!visibleUsers.length) {
+    authStatus.hidden = false;
+    authStatus.textContent = "Aucun nom disponible pour le moment.";
+    return;
   }
-  if (!authStatus.textContent || authStatus.textContent.startsWith("Profil charge")) {
-    authStatus.textContent = "Entrez un nom existant pour charger le bon profil.";
-  }
+
+  authStatus.hidden = true;
+  authStatus.textContent = "";
 }
 
 function renderActiveSession() {
@@ -3968,6 +4719,7 @@ function renderActiveSession() {
     activeStartInput.hidden = true;
     activeStartInput.value = "";
     activeStartInput.disabled = true;
+    activeStartEditorOpen = false;
     return;
   }
 
@@ -3980,8 +4732,8 @@ function renderActiveSession() {
   pauseButton.classList.toggle("paused", isPaused);
   activeStartDisplay.textContent = `Demarre a ${formatTimeLabel(new Date(activeSession.start))}`;
   activeStartDisplay.disabled = false;
-  activeStartDisplay.hidden = false;
-  activeStartInput.hidden = true;
+  activeStartDisplay.hidden = activeStartEditorOpen;
+  activeStartInput.hidden = !activeStartEditorOpen;
   activeStartInput.disabled = false;
   activeStartInput.value = formatDateTimeLocal(new Date(activeSession.start));
   updateLiveTimer();
@@ -3992,9 +4744,8 @@ function showActiveStartEditor() {
     return;
   }
 
-  activeStartDisplay.hidden = true;
-  activeStartInput.hidden = false;
-  activeStartInput.disabled = false;
+  activeStartEditorOpen = true;
+  renderActiveSession();
   activeStartInput.focus();
   if (typeof activeStartInput.showPicker === "function") {
     try {
@@ -4007,13 +4758,14 @@ function showActiveStartEditor() {
 
 function hideActiveStartEditor() {
   if (!activeSession) {
+    activeStartEditorOpen = false;
     activeStartInput.hidden = true;
     activeStartDisplay.hidden = false;
     return;
   }
 
-  activeStartInput.hidden = true;
-  activeStartDisplay.hidden = false;
+  activeStartEditorOpen = false;
+  renderActiveSession();
 }
 
 function renderSuggestions() {
@@ -4027,12 +4779,6 @@ function renderSuggestions() {
     collaboratorSuggestions,
     getVisibleReferenceUsers().length
       ? getVisibleReferenceUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
-      : uniqueValues("collaborator"),
-  );
-  fillDatalist(
-    loginNameSuggestions,
-    getKnownUsers().length
-      ? getKnownUsers().map((item) => item.user_name).sort((a, b) => a.localeCompare(b, "fr"))
       : uniqueValues("collaborator"),
   );
   fillDatalist(
@@ -4066,38 +4812,27 @@ function renderSuggestions() {
   managerCollaboratorFilter.value = collaborators.includes(currentValue) ? currentValue : "all";
 }
 
-function renderLoginQuickPicks() {
-  if (!loginQuickPicks) {
+function renderLoginNameOptions(users = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"))) {
+  if (!loginNameInput) {
     return;
   }
 
-  loginQuickPicks.innerHTML = "";
+  const currentValue = accessProfile.appUser?.user_name || loginNameInput.value || "";
+  loginNameInput.innerHTML = "";
 
-  if (accessProfile.appUser?.user_name) {
-    loginQuickPicks.hidden = true;
-    return;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choisir un nom";
+  loginNameInput.append(placeholder);
+
+  for (const user of users) {
+    const option = document.createElement("option");
+    option.value = user.user_name;
+    option.textContent = user.user_name;
+    loginNameInput.append(option);
   }
 
-  const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
-
-  if (!visibleUsers.length) {
-    loginQuickPicks.hidden = true;
-    return;
-  }
-
-  loginQuickPicks.hidden = false;
-
-  for (const user of visibleUsers) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "login-quick-pick";
-    button.textContent = user.user_name;
-    button.addEventListener("click", async () => {
-      loginNameInput.value = user.user_name;
-      await loginWithName();
-    });
-    loginQuickPicks.append(button);
-  }
+  loginNameInput.value = users.some((user) => user.user_name === currentValue) ? currentValue : "";
 }
 
 function renderQuickProjects() {
@@ -4107,8 +4842,8 @@ function renderQuickProjects() {
 
   if (!memories.length) {
     const message = collaborator
-      ? "Les dernieres reprises apparaitront ici."
-      : "Connectez-vous pour retrouver vos reprises recentes.";
+      ? "Les reprises probables apparaitront ici."
+      : "Choisissez un nom pour retrouver vos reprises probables.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -4150,7 +4885,7 @@ function renderProjectMemoryList() {
 
     const meta = document.createElement("p");
     meta.className = "muted-copy";
-    meta.textContent = `${memory.collaborator} · ${memory.task || "Travail recurrent"} · ${formatDate(memory.start)}`;
+    meta.textContent = `${memory.task || "Client non precise"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
 
     const tags = document.createElement("div");
     tags.className = "memory-meta";
@@ -4178,6 +4913,91 @@ function renderProjectMemoryList() {
 
     card.append(copy, action);
     projectMemoryList.append(card);
+  }
+}
+
+async function loadAgendaImportRows() {
+  if (!window.supabase) {
+    return false;
+  }
+
+  const { data, error } = await window.supabase
+    .from("agenda_import_staging")
+    .select("*")
+    .order("entry_date", { ascending: false })
+    .order("start_time", { ascending: false })
+    .limit(24);
+
+  if (error) {
+    console.warn("agenda_import_staging load failed:", error);
+    agendaImportRows = [];
+    agendaImportLoaded = false;
+    return false;
+  }
+
+  agendaImportRows = data ?? [];
+  agendaImportLoaded = true;
+  return true;
+}
+
+function renderAgendaImportPanel() {
+  if (!agendaImportPanel || !agendaImportList) {
+    return;
+  }
+
+  const visible = getAccessRole() === "admin";
+  agendaImportPanel.hidden = !visible;
+  if (!visible) {
+    return;
+  }
+
+  agendaImportList.innerHTML = "";
+
+  if (!agendaImportLoaded) {
+    agendaImportList.append(createEmptyState("Chargez ou rechargez la vue pour lire les imports agenda."));
+    return;
+  }
+
+  if (!agendaImportRows.length) {
+    agendaImportList.append(createEmptyState("Aucun import agenda en staging pour le moment."));
+    return;
+  }
+
+  for (const row of agendaImportRows) {
+    const card = document.createElement("article");
+    card.className = "memory-card";
+
+    const copy = document.createElement("div");
+    copy.className = "memory-copy";
+
+    const title = document.createElement("h3");
+    title.textContent = row.title || "Sans titre";
+
+    const meta = document.createElement("p");
+    meta.className = "muted-copy";
+    const timeLabel = row.end_time ? `${row.start_time.slice(0, 5)} - ${row.end_time.slice(0, 5)}` : `${row.start_time.slice(0, 5)} - ?`;
+    meta.textContent = [row.user_name, row.entry_date, timeLabel].filter(Boolean).join(" · ");
+
+    const detail = document.createElement("div");
+    detail.className = "memory-meta";
+    renderPills(
+      detail,
+      [
+        row.project_name ? `Projet · ${row.project_name}` : "",
+        row.client_name ? `Client · ${row.client_name}` : "",
+        row.category_label ? `Categorie · ${row.category_label}` : "Categorie a attribuer",
+        row.needs_review ? "A revoir" : "",
+      ].filter(Boolean),
+    );
+
+    const notes = document.createElement("p");
+    notes.className = "session-notes";
+    notes.textContent = row.review_reason || row.notes || "";
+    notes.hidden = !notes.textContent;
+
+    copy.append(title, meta, detail, notes);
+    card.append(copy);
+    agendaImportList.append(card);
   }
 }
 
@@ -4239,7 +5059,7 @@ function renderPersonalStats() {
   if (!collaborator) {
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-    todayPanelCopy.textContent = "Connectez-vous pour charger votre semaine.";
+  todayPanelCopy.textContent = "Choisissez un nom pour charger votre semaine.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
@@ -4284,7 +5104,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Renseignez un cargonaute pour voir sa semaine.");
+    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Choisissez un cargonaute pour voir sa semaine.");
     return;
   }
 
@@ -4310,10 +5130,16 @@ function renderAgenda() {
   agendaBoard.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    agendaBoard.append(createEmptyState("Connectez-vous pour afficher et deplacer vos creneaux."));
+    agendaBoard.append(createEmptyState("Choisissez un nom pour afficher et deplacer vos creneaux."));
+    if (agendaWeekLabel) {
+      agendaWeekLabel.textContent = "";
+    }
     return;
   }
   const range = getPeriodRange(getReportAnchorDate(), "week");
+  if (agendaWeekLabel) {
+    agendaWeekLabel.textContent = formatPeriodLabel(range.start, range.end, "week");
+  }
   const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
   const scopedRows = rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator));
 
@@ -4389,9 +5215,13 @@ function renderAgenda() {
     dayTrack.dataset.hourHeight = String(hourHeight);
 
     if (!dayRows.length) {
-      const empty = createEmptyState("Aucun creneau.");
+      const empty = createEmptyState("Ajouter un shift");
       empty.classList.add("agenda-empty-state");
       dayTrack.append(empty);
+      const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
+      if (nowMarker) {
+        dayTrack.append(nowMarker);
+      }
       dayCard.append(dayTrack);
       agendaBoard.append(dayCard);
       continue;
@@ -4419,6 +5249,11 @@ function renderAgenda() {
       renderAgendaEventContents(event, session, visualSize);
 
       dayTrack.append(event);
+    }
+
+    const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
+    if (nowMarker) {
+      dayTrack.append(nowMarker);
     }
 
     dayCard.append(dayTrack);
@@ -4509,6 +5344,11 @@ function getAgendaEventVisualSize(heightPx) {
 function renderAgendaEventContents(element, session, visualSize) {
   element.innerHTML = "";
 
+  const topHandle = document.createElement("span");
+  topHandle.className = "agenda-resize-handle agenda-resize-handle--start";
+  topHandle.setAttribute("aria-hidden", "true");
+  element.append(topHandle);
+
   if (visualSize !== "tiny") {
     const time = document.createElement("p");
     time.className = "agenda-event-time";
@@ -4528,9 +5368,15 @@ function renderAgendaEventContents(element, session, visualSize) {
     icon.textContent = "i";
     element.append(icon);
   }
+
+  const bottomHandle = document.createElement("span");
+  bottomHandle.className = "agenda-resize-handle agenda-resize-handle--end";
+  bottomHandle.setAttribute("aria-hidden", "true");
+  element.append(bottomHandle);
 }
 
 function applyAgendaEventColor(element, session) {
+<<<<<<< HEAD
 <<<<<<< HEAD
   const label = session.objectivePole || session.categories?.[0] || session.project || session.collaborator || "agenda";
   const baseColor = colorForLabel(label);
@@ -4541,6 +5387,10 @@ function applyAgendaEventColor(element, session) {
   const baseColor = session.categories?.[0]
     ? getCategoryColor(session.categories[0], label)
     : getAgendaCategoryColor(label);
+=======
+  const label = session.categories?.[0] || session.objectivePole || session.project || session.collaborator || "agenda";
+  const baseColor = getAgendaCategoryColor(label);
+>>>>>>> origin/main
   element.style.setProperty("--agenda-accent", baseColor);
   element.style.background = `${baseColor}1F`;
   element.style.borderColor = `${baseColor}42`;
@@ -4583,7 +5433,10 @@ function createAgendaNowMarker(day, startHour, endHour, hourHeight) {
   label.textContent = formatTimeLabel(now);
   marker.append(label);
   return marker;
+<<<<<<< HEAD
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
 }
 
 function resolveAgendaSlotFromClick(track, event) {
@@ -4674,7 +5527,7 @@ function renderManagerViews() {
   } else {
     managerObjectivesGrid.innerHTML = "";
   }
-  renderTeamTable(allRows);
+  renderTeamTable(teamReportList, allRows, range, "Aucune donnee equipe sur cette plage.");
   renderReportTable(
     reportProjectList,
     buildReportRows(scopedRows, "project"),
@@ -4709,8 +5562,6 @@ function renderResourcesViews() {
   const objectiveTotals = buildObjectiveOkrRows(allRows);
   const categoryTotals = buildReportRows(allRows, "categories");
   const krTotals = buildObjectiveKrRowsFromSessions(allRows);
-  const collaboratorTotals = buildReportRows(allRows, "collaborator");
-
   resourceTotal.textContent = formatDuration(totalMs);
   resourceRange.textContent = formatPeriodLabel(range.start, range.end, reportPeriod);
   resourceTopProject.textContent = projectTotals[0]?.label ?? "-";
@@ -4744,12 +5595,7 @@ function renderResourcesViews() {
   } else {
     resourceObjectivesGrid.innerHTML = "";
   }
-  renderReportTable(
-    resourceTeamList,
-    collaboratorTotals,
-    totalMs,
-    "Aucune donnee cargonaute sur cette plage.",
-  );
+  renderTeamTable(resourceTeamList, allRows, range, "Aucune donnee equipe sur cette plage.");
   renderReportTable(
     resourceProjectList,
     projectTotals,
@@ -5161,34 +6007,61 @@ function renderEvolutionGrid(container, anchor, filterCollaborator) {
   }
 }
 
-function renderTeamTable(rows) {
+function getCollaboratorProfile(collaborator) {
+  return getKnownUsers().find((item) => normalizeText(item.user_name) === normalizeText(collaborator));
+}
+
+function getCapacityHoursForRange(collaborator, range) {
+  const weeklyCapacityHours = Number(getCollaboratorProfile(collaborator)?.weekly_capacity_hours) || 0;
+  if (!weeklyCapacityHours || !range?.start || !range?.end) {
+    return 0;
+  }
+
+  const rangeDurationMs = Math.max(new Date(range.end) - new Date(range.start), 0);
+  const rangeDurationDays = rangeDurationMs / (24 * 60 * 60 * 1000);
+  return Number(((weeklyCapacityHours * rangeDurationDays) / 7).toFixed(1));
+}
+
+function formatCapacityRate(durationMs, capacityHours) {
+  if (!capacityHours) {
+    return "-";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format((Number(durationMs) || 0) / 3600000 / capacityHours);
+}
+
+function renderTeamTable(container, rows, range, emptyMessage) {
   const teamRows = buildReportRows(rows, "collaborator").map((row) => ({
     ...row,
     mainProject: getMainProjectForCollaborator(rows, row.label),
+    capacityHours: getCapacityHoursForRange(row.label, range),
   }));
 
-  teamReportList.innerHTML = "";
+  container.innerHTML = "";
   if (!teamRows.length) {
     const tr = document.createElement("tr");
     const td = document.createElement("td");
     td.colSpan = 5;
-    td.append(createEmptyState("Aucune donnee equipe sur cette plage."));
+    td.append(createEmptyState(emptyMessage));
     tr.append(td);
-    teamReportList.append(tr);
+    container.append(tr);
     return;
   }
 
-  const totalMs = rows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
   for (const row of teamRows) {
     const tr = document.createElement("tr");
     tr.append(
       createCell(row.label),
       createCell(formatDuration(row.durationMs)),
-      createCell(formatShare(row.durationMs, totalMs)),
+      createCell(formatCapacityRate(row.durationMs, row.capacityHours)),
       createCell(row.mainProject || "-"),
       createCell(String(row.count)),
     );
-    teamReportList.append(tr);
+    container.append(tr);
   }
 }
 
@@ -5254,8 +6127,8 @@ function getProjectMemories(collaboratorName = "") {
   const allRows = getAllSessionsWithActive()
     .slice()
     .sort((a, b) => new Date(b.start) - new Date(a.start));
-  const memories = [];
-  const seen = new Set();
+  const now = new Date();
+  const memories = new Map();
   const normalizedCollaborator = normalizeText(collaboratorName);
 
   for (const session of allRows) {
@@ -5269,12 +6142,15 @@ function getProjectMemories(collaboratorName = "") {
 
     const key = `${normalizeText(session.collaborator)}::${normalizeText(session.project)}`;
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (seen.has(key)) {
       continue;
 =======
     if (getRepriseAction(key, session.collaborator)) {
       continue;
     }
+=======
+>>>>>>> origin/main
     const sessionDate = new Date(session.start);
     const memory =
       memories.get(key) ??
@@ -5302,36 +6178,48 @@ function getProjectMemories(collaboratorName = "") {
     }
     if (getHourBucket(sessionDate) === getHourBucket(now)) {
       memory.hourBucketHits += 1;
+<<<<<<< HEAD
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
     }
 
-    if (referenceCatalog.loaded && referenceCatalog.projects.length && getKnownUsers().length) {
-      const projectResolved = findReferenceMatch(referenceCatalog.projects, "project_name", session.project);
-      const collaboratorResolved = findReferenceMatch(getKnownUsers(), "user_name", session.collaborator);
-      if (!projectResolved || !collaboratorResolved) {
-        continue;
-      }
+    if (new Date(memory.start) < sessionDate) {
+      memory.task = session.task;
+      memory.categories = [...(session.categories ?? []).slice(0, 1)];
+      memory.tags = [...(session.tags ?? [])];
+      memory.notionRef = session.notionRef ?? "";
+      memory.objectivePole = session.objectivePole ?? "";
+      memory.objectiveOkr = session.objectiveOkr ?? "";
+      memory.objectiveKr = session.objectiveKr ?? "";
+      memory.notes = session.notes ?? "";
+      memory.start = session.start;
     }
 
-    seen.add(key);
-
-    memories.push({
-      key,
-      collaborator: session.collaborator,
-      project: session.project,
-      task: session.task,
-      categories: [...(session.categories ?? []).slice(0, 1)],
-      tags: [...(session.tags ?? [])],
-      notionRef: session.notionRef ?? "",
-      objectivePole: session.objectivePole ?? "",
-      objectiveOkr: session.objectiveOkr ?? "",
-      objectiveKr: session.objectiveKr ?? "",
-      notes: session.notes ?? "",
-      start: session.start,
-    });
+    memories.set(key, memory);
   }
 
-  return memories;
+  return Array.from(memories.values())
+    .map((memory) => ({
+      ...memory,
+      score: rankProjectMemory(memory, now),
+    }))
+    .sort((left, right) => right.score - left.score || new Date(right.start) - new Date(left.start));
+}
+
+function getHourBucket(dateValue) {
+  return Math.floor(new Date(dateValue).getHours() / 4);
+}
+
+function rankProjectMemory(memory, referenceDate = new Date()) {
+  const lastStart = new Date(memory.start);
+  const daysSinceLastUse = Math.max((referenceDate - lastStart) / (24 * 60 * 60 * 1000), 0);
+  const recencyScore = Math.max(0, 1 - Math.min(daysSinceLastUse, 21) / 21);
+  const frequencyScore = Math.min(memory.usesCount / 5, 1);
+  const weekdayScore = memory.usesCount ? memory.weekdayHits / memory.usesCount : 0;
+  const hourScore = memory.usesCount ? memory.hourBucketHits / memory.usesCount : 0;
+
+  return frequencyScore * 40 + recencyScore * 35 + weekdayScore * 15 + hourScore * 10;
 }
 
 function fillFormFromMemory(memory) {
@@ -5443,6 +6331,38 @@ function getCurrentCollaborator() {
   return "";
 }
 
+function findSessionById(sessionId) {
+  if (!sessionId) {
+    return null;
+  }
+
+  return (
+    sessions.find((item) => item.id === sessionId) ??
+    remoteActiveSessions.find((item) => item.id === sessionId) ??
+    (activeSession?.id === sessionId ? activeSession : null)
+  );
+}
+
+function getPersistedActiveSessions() {
+  const currentId = activeSession?.id ?? null;
+  const merged = new Map();
+
+  for (const session of remoteActiveSessions) {
+    merged.set(session.id, session);
+  }
+
+  if (activeSession) {
+    merged.set(activeSession.id, activeSession);
+  }
+
+  return Array.from(merged.values()).map((session) => ({
+    ...session,
+    end: getActiveSessionEffectiveEnd(session).toISOString(),
+    durationMs: getActiveSessionDurationMs(session),
+    isServerActive: true,
+  }));
+}
+
 function getSessionsForCollaborator(collaborator) {
   return getScopedSessions(getAllSessionsWithActive()).filter(
     (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
@@ -5450,15 +6370,11 @@ function getSessionsForCollaborator(collaborator) {
 }
 
 function getAllSessionsWithActive() {
-  const rows = [...sessions];
-  if (activeSession) {
-    rows.unshift({
-      ...activeSession,
-      end: getActiveSessionEffectiveEnd(activeSession).toISOString(),
-      durationMs: getActiveSessionDurationMs(activeSession),
-    });
+  const rows = new Map(sessions.map((session) => [session.id, session]));
+  for (const activeRow of getPersistedActiveSessions()) {
+    rows.set(activeRow.id, activeRow);
   }
-  return rows;
+  return Array.from(rows.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
 }
 
 function getActiveSessionEffectiveEnd(session) {
@@ -5473,6 +6389,15 @@ function getActiveSessionDurationMs(session) {
 
 function getReportAnchorDate() {
   return reportAnchorInput.value ? new Date(`${reportAnchorInput.value}T12:00:00`) : new Date();
+}
+
+function shiftAgendaWeek(delta) {
+  const anchor = getReportAnchorDate();
+  anchor.setDate(anchor.getDate() + delta * 7);
+  reportAnchorInput.value = formatDateInput(anchor);
+  renderCadreViews();
+  renderManagerViews();
+  renderResourcesViews();
 }
 
 function getPeriodRange(anchor, period) {
@@ -5862,33 +6787,43 @@ function registerServiceWorker() {
     return;
   }
 
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
+    const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+    if (isLocalhost) {
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        if ("caches" in window) {
+          const cacheKeys = await window.caches.keys();
+          await Promise.all(cacheKeys.map((key) => window.caches.delete(key)));
+        }
+      } catch (error) {
+        // Ignore local cleanup failures and continue without a service worker.
+      }
+      return;
+    }
+
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
 }
-loginButton?.addEventListener("click", async () => {
-  await loginWithName();
-});
-
-loginNameInput?.addEventListener("keydown", async (event) => {
-  if (event.key !== "Enter") {
+loginNameInput?.addEventListener("change", async () => {
+  if (!loginNameInput.value) {
+    await logoutCurrentUser();
     return;
   }
 
-  event.preventDefault();
   await loginWithName();
-});
-
-logoutButton?.addEventListener("click", async () => {
-  await logoutCurrentUser();
 });
 
 async function loginWithName() {
   const name = loginNameInput?.value.trim() ?? "";
 
   if (!name) {
-    if (authStatus) authStatus.textContent = "Entrez votre nom pour continuer.";
-    loginNameInput?.focus();
+    if (authStatus) {
+      authStatus.hidden = false;
+      authStatus.textContent = "Choisissez un nom pour continuer.";
+    }
     return;
   }
 
@@ -5898,13 +6833,17 @@ async function loginWithName() {
 
   const success = applyLocalAccessProfile(name);
   if (!success) {
-    if (authStatus) authStatus.textContent = "Nom inconnu. Choisissez un nom existant dans la liste visible sous le champ.";
-    loginNameInput?.focus();
-    loginNameInput?.select?.();
+    if (authStatus) {
+      authStatus.hidden = false;
+      authStatus.textContent = "Nom inconnu.";
+    }
     return;
   }
 
-  if (authStatus) authStatus.textContent = `Profil charge: ${name}.`;
+  if (authStatus) {
+    authStatus.hidden = true;
+    authStatus.textContent = "";
+  }
 }
 
 async function logoutCurrentUser() {
@@ -5915,9 +6854,14 @@ async function logoutCurrentUser() {
     session: null,
     appUser: null,
   };
+  activeSession = null;
+  persistActiveSession();
   if (loginNameInput) {
     loginNameInput.value = "";
   }
-  if (authStatus) authStatus.textContent = "Déconnecté.";
+  if (authStatus) {
+    authStatus.hidden = true;
+    authStatus.textContent = "";
+  }
   render();
 }

@@ -17,9 +17,9 @@
   --success: #18794e;
   --danger: #b74b35;
   --shadow: 0 18px 55px rgba(34, 39, 43, 0.08);
-  --radius-panel: 26px;
-  --radius-card: 18px;
-  --radius-input: 14px;
+  --radius-panel: 14px;
+  --radius-card: 10px;
+  --radius-input: 8px;
   --content-width: 1380px;
 }
 
@@ -58,9 +58,9 @@ button {
 .app-shell {
   width: min(var(--content-width), calc(100% - 32px));
   margin: 0 auto;
-  padding: 22px 0 36px;
+  padding: 12px 0 28px;
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 .topbar,
@@ -73,11 +73,11 @@ button {
 
 .topbar {
   border-radius: var(--radius-panel);
-  padding: 14px 18px;
+  padding: 7px 10px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -158,7 +158,7 @@ button {
   align-items: flex-start;
   gap: 7px;
   padding: 9px 11px;
-  border-radius: 16px;
+  border-radius: 10px;
   background: rgba(24, 56, 74, 0.04);
   border: 1px solid rgba(24, 56, 74, 0.08);
 }
@@ -185,47 +185,21 @@ button {
 }
 
 .topbar-context {
-  flex: 1 1 560px;
-  min-width: min(520px, 100%);
+  flex: 1 1 360px;
+  min-width: min(320px, 100%);
   flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-start;
-  padding: 8px 10px;
-  border-radius: 16px;
-  background: rgba(24, 56, 74, 0.05);
-  border: 1px solid rgba(24, 56, 74, 0.08);
-  gap: 12px;
-}
-
-.topbar-context-label {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.topbar-context-meta {
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-.topbar-identity {
-  display: grid;
-  gap: 1px;
-  flex: 0 0 auto;
-  min-width: 138px;
-}
-
-.topbar-context strong {
-  font-size: 0.95rem;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  gap: 10px;
 }
 
 .auth-panel {
-  display: grid;
-  grid-template-columns: minmax(180px, 220px) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
@@ -235,81 +209,53 @@ button {
 
 .auth-field {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .auth-field span {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
   font-weight: 800;
 }
 
+.auth-name-field > span {
+  display: none;
+}
+
+.auth-name-field select,
 .auth-name-field input {
   width: 100%;
-  min-height: 40px;
-  padding: 9px 11px;
-  border-radius: 12px;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 8px;
   border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(255, 255, 255, 0.82);
 }
 
+.auth-name-field {
+  width: min(210px, 100%);
+}
+
+.auth-name-field select {
+  appearance: none;
+}
+
+.auth-name-field select:focus,
 .auth-name-field input:focus {
   outline: none;
   border-color: rgba(15, 118, 110, 0.46);
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.11);
 }
 
-.auth-actions {
-  gap: 6px;
-  flex-wrap: nowrap;
-  align-self: center;
-}
-
-.auth-actions .btn {
-  min-height: 40px;
-  padding: 10px 12px;
-  white-space: nowrap;
-}
-
 #auth-status {
-  grid-column: 1 / -1;
-  min-height: 1em;
-  font-size: 0.78rem;
-}
-
-.login-quick-picks {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.login-directory-status {
-  grid-column: 1 / -1;
-  font-size: 0.76rem;
-}
-
-.login-quick-pick {
-  border: 1px solid rgba(24, 56, 74, 0.08);
-  background: rgba(24, 56, 74, 0.04);
-  color: var(--text);
-  border-radius: 999px;
-  min-height: 30px;
-  padding: 6px 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.login-quick-pick:hover {
-  border-color: rgba(15, 118, 110, 0.22);
-  background: rgba(15, 118, 110, 0.08);
+  font-size: 0.72rem;
+  margin-left: 2px;
 }
 
 .admin-tools {
-  grid-column: 1 / -1;
   display: grid;
 }
 
@@ -323,7 +269,7 @@ button {
   width: 72px;
   min-height: 40px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 8px;
   border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(255, 255, 255, 0.82);
   text-align: center;
@@ -348,17 +294,18 @@ button {
   align-items: center;
   gap: 8px;
   text-decoration: none;
-  border-radius: 999px;
+  border-radius: 8px;
   font-weight: 700;
 }
 
 .topbar-nav a,
 .topbar-nav button {
-  padding: 10px 13px;
+  padding: 7px 10px;
   color: var(--text);
-  background: rgba(24, 56, 74, 0.05);
-  border: 1px solid rgba(24, 56, 74, 0.08);
+  background: rgba(24, 56, 74, 0.03);
+  border: 1px solid rgba(24, 56, 74, 0.06);
   appearance: none;
+  font-size: 0.92rem;
 }
 
 .topbar-nav button {
@@ -366,8 +313,8 @@ button {
 }
 
 .topbar-nav .active {
-  background: rgba(24, 56, 74, 0.12);
-  border-color: rgba(24, 56, 74, 0.16);
+  background: rgba(24, 56, 74, 0.08);
+  border-color: rgba(24, 56, 74, 0.1);
 }
 
 .workspace-grid,
@@ -453,14 +400,15 @@ button {
 }
 
 .capture-layout {
-  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.2fr);
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.45fr);
   align-items: start;
 }
 
 .capture-form-panel {
   width: 100%;
-  max-width: 660px;
-  justify-self: start;
+  max-width: none;
+  min-width: 0;
+  justify-self: stretch;
 }
 
 .form-grid {
@@ -734,7 +682,7 @@ button {
   height: 18px;
   border: none;
   padding: 0;
-  border-radius: 50%;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
 }
@@ -1027,6 +975,27 @@ button {
   margin-bottom: 2px;
 }
 
+.agenda-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.agenda-week-nav {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agenda-week-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .agenda-time-rail {
   display: grid;
   gap: 0;
@@ -1133,7 +1102,7 @@ button {
   gap: 4px;
   align-content: start;
   padding: 7px 8px 8px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: rgba(15, 118, 110, 0.09);
   border: 1px solid rgba(15, 118, 110, 0.14);
   color: var(--text);
@@ -1142,6 +1111,7 @@ button {
   touch-action: none;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
   overflow: hidden;
+  --agenda-accent: #0f766e;
 }
 
 .agenda-event--compact {
@@ -1152,14 +1122,14 @@ button {
 
 .agenda-event--tiny {
   padding: 0;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .agenda-event:hover {
   transform: translateY(-1px);
-  border-color: rgba(15, 118, 110, 0.3);
+  border-color: color-mix(in srgb, var(--agenda-accent) 58%, white);
   box-shadow: 0 10px 24px rgba(24, 56, 74, 0.12);
-  background: rgba(15, 118, 110, 0.14);
+  background: color-mix(in srgb, var(--agenda-accent) 18%, white);
 }
 
 .agenda-event--dragging {
@@ -1207,6 +1177,77 @@ button {
   background: rgba(24, 56, 74, 0.08);
   color: var(--muted);
   font-size: 0.6rem;
+  font-weight: 800;
+}
+
+.agenda-resize-handle {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  height: 12px;
+  opacity: 0;
+  transition: opacity 140ms ease;
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.agenda-resize-handle::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--agenda-accent) 70%, white);
+  transform: translateY(-50%);
+}
+
+.agenda-resize-handle--start {
+  top: 0;
+  cursor: ns-resize;
+}
+
+.agenda-resize-handle--end {
+  bottom: 0;
+  cursor: ns-resize;
+}
+
+.agenda-event:hover .agenda-resize-handle,
+.agenda-event--dragging .agenda-resize-handle {
+  opacity: 1;
+}
+
+.agenda-now-marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #be4fc8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.agenda-now-marker::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #be4fc8;
+}
+
+.agenda-now-label {
+  position: absolute;
+  right: 6px;
+  top: -12px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(190, 79, 200, 0.12);
+  color: #a03cab;
+  font-size: 0.64rem;
   font-weight: 800;
 }
 
@@ -1434,7 +1475,7 @@ button {
 .dialog-shell {
   width: min(760px, calc(100% - 24px));
   border: none;
-  border-radius: 24px;
+  border-radius: 12px;
   padding: 0;
   background: var(--panel);
   box-shadow: 0 26px 90px rgba(24, 56, 74, 0.22);
@@ -1451,7 +1492,7 @@ button {
   max-height: min(340px, 42vh);
   overflow-y: auto;
   overflow-x: hidden;
-  border-radius: 18px;
+  border-radius: 10px;
   border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(255, 253, 250, 0.98);
   box-shadow: 0 18px 45px rgba(24, 56, 74, 0.18);
@@ -1511,7 +1552,7 @@ button {
 .dialog-close {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 8px;
   border: 1px solid rgba(24, 56, 74, 0.12);
   background: rgba(24, 56, 74, 0.05);
   color: var(--muted);
@@ -1532,7 +1573,7 @@ button {
 
 .empty-state {
   padding: 16px;
-  border-radius: 16px;
+  border-radius: 10px;
   border: 1px dashed rgba(24, 56, 74, 0.14);
   background: rgba(255, 255, 255, 0.72);
   color: var(--muted);

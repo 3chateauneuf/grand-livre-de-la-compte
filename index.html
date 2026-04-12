@@ -30,26 +30,14 @@
     <main class="app-shell">
       <header class="topbar">
         <div class="topbar-context">
-          <div class="topbar-identity">
-            <span class="topbar-context-label">Profil actif</span>
-            <strong id="current-user-name">Nom requis</strong>
-            <span id="current-user-role" class="topbar-context-meta">Entrez votre nom pour commencer</span>
-          </div>
           <section id="auth-panel" class="auth-panel">
             <label class="auth-field auth-name-field">
               <span>Nom</span>
-              <input id="login-name-input" type="text" placeholder="Ex. Paulo" list="login-name-suggestions" />
+              <select id="login-name-input">
+                <option value="">Choisir un nom</option>
+              </select>
             </label>
-            <datalist id="login-name-suggestions"></datalist>
-
-            <div class="button-row auth-actions">
-              <button id="login-button" type="button" class="btn btn-primary">Entrer</button>
-              <button id="logout-button" type="button" class="btn btn-secondary" hidden>Se déconnecter</button>
-            </div>
-
-            <p id="auth-status" class="muted-copy"></p>
-            <div id="login-quick-picks" class="login-quick-picks"></div>
-            <p id="login-directory-status" class="muted-copy login-directory-status" hidden></p>
+            <p id="auth-status" class="muted-copy" hidden></p>
 
             <div id="admin-tools" class="admin-tools" hidden>
               <label class="auth-field admin-favicon-field">
@@ -79,8 +67,8 @@
               <section class="capture-quick-column">
                 <section class="memory-strip memory-strip-inline">
                   <div class="section-minihead">
-                    <h3>Reprises</h3>
-                    <p>Les derniers contextes utiles du cargonaute actif.</p>
+                    <h3>Reprises probables</h3>
+                    <p>Les contextes les plus plausibles pour le cargonaute actif.</p>
                   </div>
                   <div id="quick-projects" class="chip-row"></div>
                   <div id="reprise-actions" class="reprise-actions" hidden>
@@ -133,10 +121,13 @@
                       type="text"
 <<<<<<< HEAD
                       placeholder="Client, dossier ou projet interne"
+<<<<<<< HEAD
                       required
 =======
                       placeholder="Ex. Reunion Boussole, audit ADEME, synthese compta"
 >>>>>>> 69985e3 (Refine reprise chips and shared archive actions)
+=======
+>>>>>>> origin/main
                       list="project-suggestions"
                     />
                     <small id="project-memory-hint" class="hint">
@@ -287,15 +278,15 @@
             <p class="panel-copy">Lecture immediate de la charge et de la repartition.</p>
           </div>
           <div id="personal-stats-switch" class="view-switch">
-            <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
-            <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+            <button type="button" class="period-btn" data-stats-mode="objectives">Objectifs</button>
+            <button type="button" class="period-btn active" data-stats-mode="categories">Categories</button>
           </div>
 
           <div class="cadre-summary">
             <article class="summary-card">
               <p>Aujourd'hui</p>
               <strong id="today-total">0 h 00</strong>
-              <span id="today-panel-copy">Temps saisi pour la personne en cours.</span>
+              <span id="today-panel-copy">Temps saisi pour le cargonaute en cours.</span>
             </article>
             <article class="summary-card">
               <p>Cette semaine</p>
@@ -303,7 +294,7 @@
               <span>Vue du lundi au dimanche.</span>
             </article>
             <article class="summary-card">
-              <p>Cargonautes suivis</p>
+              <p>Cargonautes visibles</p>
               <strong id="team-count">0</strong>
               <span id="active-count-copy">Aucune session en cours.</span>
             </article>
@@ -312,8 +303,8 @@
           <section class="cadre-stack">
             <article class="inner-card">
               <div class="section-minihead">
-                <h3 id="personal-stats-title">Objectifs en cours</h3>
-                <p id="personal-stats-copy">Lecture compacte par OKR et KR quand ils sont renseignes.</p>
+                <h3 id="personal-stats-title">Categories en cours</h3>
+                <p id="personal-stats-copy">Lecture compacte de la semaine, par objectifs ou categories.</p>
               </div>
               <div id="personal-distribution-bar" class="distribution-bar"></div>
               <div id="personal-distribution-legend" class="distribution-legend"></div>
@@ -329,6 +320,14 @@
               <h2>Vue semaine</h2>
             </div>
             <p class="panel-copy">Le calendrier prend toute la largeur utile pour mieux lire la semaine.</p>
+          </div>
+          <div class="agenda-toolbar">
+            <div class="agenda-week-nav">
+              <button id="agenda-prev-week" type="button" class="period-btn">Semaine precedente</button>
+              <button id="agenda-current-week" type="button" class="period-btn">Cette semaine</button>
+              <button id="agenda-next-week" type="button" class="period-btn">Semaine suivante</button>
+            </div>
+            <p id="agenda-week-label" class="agenda-week-label"></p>
           </div>
           <div id="agenda-board" class="agenda-board agenda-board-wide"></div>
         </section>
@@ -356,8 +355,8 @@
           <div class="toolbar-group">
             <span class="toolbar-group-label">Lecture</span>
             <div id="analysis-stats-switch" class="view-switch">
-              <button type="button" class="period-btn active" data-stats-mode="objectives">Objectifs</button>
-              <button type="button" class="period-btn" data-stats-mode="categories">Categories</button>
+              <button type="button" class="period-btn" data-stats-mode="objectives">Objectifs</button>
+              <button type="button" class="period-btn active" data-stats-mode="categories">Categories</button>
             </div>
           </div>
           <div class="toolbar-meta">
@@ -394,7 +393,7 @@
             <span id="report-top-project-time">0 h 00</span>
           </article>
           <article class="summary-card">
-            <p id="report-top-category-label">OKR principal</p>
+            <p id="report-top-category-label">Categorie principale</p>
             <strong id="report-top-category">-</strong>
             <span id="report-top-category-time">0 h 00</span>
           </article>
@@ -408,8 +407,8 @@
         <div class="manager-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3 id="manager-distribution-title">Repartition OKR</h3>
-              <p id="manager-distribution-copy">Poids relatif des objectifs sur la periode.</p>
+              <h3 id="manager-distribution-title">Repartition categories</h3>
+              <p id="manager-distribution-copy">Poids relatif des categories sur la periode.</p>
             </div>
             <div id="manager-distribution-bar" class="distribution-bar"></div>
             <div id="manager-distribution-legend" class="distribution-legend"></div>
@@ -418,7 +417,7 @@
           <article class="inner-card">
             <div class="section-minihead">
               <h3>Evolution</h3>
-              <p>Tendance de la periode ou d'une personne.</p>
+                <p>Tendance de la periode ou d'un cargonaute.</p>
             </div>
             <div id="evolution-grid" class="evolution-grid"></div>
           </article>
@@ -435,16 +434,16 @@
         <div class="manager-analysis-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Equipe</h3>
-              <p>Lecture compacte par cargonaute.</p>
+              <h3>Cargonautes</h3>
+              <p>Charge lue par cargonaute, avec un repere de capacite.</p>
             </div>
             <div class="table-shell">
               <table class="report-table">
                 <thead>
                   <tr>
-                    <th>Cargonaute</th>
+                    <th>Personne</th>
                     <th>Temps</th>
-                    <th>%</th>
+                    <th>% capacite</th>
                     <th>Projet principal</th>
                     <th>Sessions</th>
                   </tr>
@@ -475,13 +474,13 @@
               </div>
 
               <div class="table-shell">
-                <table class="report-table compact-table">
-                  <thead>
-                    <tr>
-                      <th id="report-category-head">OKR</th>
-                      <th>Temps</th>
-                      <th>%</th>
-                      <th>Sessions</th>
+                  <table class="report-table compact-table">
+                    <thead>
+                      <tr>
+                        <th id="report-category-head">Categorie</th>
+                        <th>Temps</th>
+                        <th>%</th>
+                        <th>Sessions</th>
                     </tr>
                   </thead>
                   <tbody id="report-category-list"></tbody>
@@ -529,7 +528,7 @@
               <span id="resource-top-project-time">0 h 00</span>
             </article>
           <article class="summary-card">
-            <p id="resource-top-category-label">OKR principal</p>
+            <p id="resource-top-category-label">Categorie principale</p>
             <strong id="resource-top-category">-</strong>
             <span id="resource-top-category-time">0 h 00</span>
           </article>
@@ -543,8 +542,8 @@
         <div class="manager-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3 id="resource-distribution-title">Repartition globale OKR</h3>
-              <p id="resource-distribution-copy">Lecture transversale des objectifs sur la plage choisie.</p>
+              <h3 id="resource-distribution-title">Repartition globale categories</h3>
+              <p id="resource-distribution-copy">Lecture transversale des categories sur la plage choisie.</p>
             </div>
             <div id="resource-distribution-bar" class="distribution-bar"></div>
             <div id="resource-distribution-legend" class="distribution-legend"></div>
@@ -570,16 +569,17 @@
         <div class="manager-analysis-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Cargonautes</h3>
-                <p>Poids relatif des personnes sur la plage active.</p>
+              <h3>Personnes</h3>
+                <p>Charge et capacite par cargonaute sur la plage active.</p>
               </div>
               <div class="table-shell">
                 <table class="report-table compact-table">
                   <thead>
                     <tr>
-                      <th>Cargonaute</th>
+                      <th>Personne</th>
                       <th>Temps</th>
-                      <th>%</th>
+                      <th>% capacite</th>
+                      <th>Projet principal</th>
                       <th>Sessions</th>
                     </tr>
                   </thead>
@@ -612,7 +612,7 @@
                   <table class="report-table compact-table">
                     <thead>
                       <tr>
-                        <th id="resource-category-head">OKR</th>
+                        <th id="resource-category-head">Categorie</th>
                         <th>Temps</th>
                         <th>%</th>
                         <th>Sessions</th>
@@ -663,6 +663,17 @@
             <p class="panel-copy">Les derniers contextes reutilisables reviennent ici.</p>
           </div>
           <div id="project-memory-list" class="memory-list"></div>
+        </section>
+
+        <section id="agenda-import-panel" class="panel" hidden>
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Import agenda</p>
+              <h2>Staging calendrier</h2>
+            </div>
+            <p class="panel-copy">Lecture admin des imports d'agenda avant nettoyage vers la base principale.</p>
+          </div>
+          <div id="agenda-import-list" class="memory-list"></div>
         </section>
       </section>
       </section>

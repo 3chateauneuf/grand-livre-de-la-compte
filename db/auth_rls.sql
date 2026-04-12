@@ -206,4 +206,73 @@ for delete
 to authenticated
 using (public.is_admin());
 
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'active_sessions'
+  ) then
+    execute 'alter table public.active_sessions enable row level security';
+
+    execute 'drop policy if exists active_sessions_scope_select on public.active_sessions';
+    execute $policy$
+      create policy active_sessions_scope_select
+      on public.active_sessions
+      for select
+      to authenticated
+      using (
+        public.is_admin()
+        or user_id = public.current_app_user_id()
+        or (
+          public.is_manager()
+          and team_name = public.current_managed_team_name()
+        )
+      )
+    $policy$;
+
+    execute 'drop policy if exists active_sessions_self_write on public.active_sessions';
+    execute $policy$
+      create policy active_sessions_self_write
+      on public.active_sessions
+      for insert
+      to authenticated
+      with check (
+        public.is_admin()
+        or user_id = public.current_app_user_id()
+      )
+    $policy$;
+
+    execute 'drop policy if exists active_sessions_self_update on public.active_sessions';
+    execute $policy$
+      create policy active_sessions_self_update
+      on public.active_sessions
+      for update
+      to authenticated
+      using (
+        public.is_admin()
+        or user_id = public.current_app_user_id()
+      )
+      with check (
+        public.is_admin()
+        or user_id = public.current_app_user_id()
+      )
+    $policy$;
+
+    execute 'drop policy if exists active_sessions_self_delete on public.active_sessions';
+    execute $policy$
+      create policy active_sessions_self_delete
+      on public.active_sessions
+      for delete
+      to authenticated
+      using (
+        public.is_admin()
+        or user_id = public.current_app_user_id()
+      )
+    $policy$;
+  end if;
+end
+$$;
+
 commit;
