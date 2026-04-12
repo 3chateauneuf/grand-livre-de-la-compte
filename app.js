@@ -761,12 +761,14 @@ let fieldManageConfirmMode = false;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
 let auditTableAvailable = null;
+let activeStartEditorOpen = false;
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
   setValues: (values) => {
     currentCategories = values;
     renderCategoryTokens();
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-category" });
   },
   singleValue: true,
 });
@@ -776,6 +778,7 @@ setupTokenInput(tagsInput, {
   setValues: (values) => {
     currentTags = values;
     renderTagTokens();
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-tags" });
   },
 });
 
@@ -834,12 +837,16 @@ openManualButton.addEventListener("click", () => {
   openManualDialog();
 });
 
+activeStartInput.addEventListener("input", () => {
+  updateActiveSessionStart({ reportValidity: false, closeEditor: false, audit: false });
+});
+
 activeStartInput.addEventListener("change", () => {
-  updateActiveSessionStart();
+  updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
 });
 
 activeStartInput.addEventListener("blur", () => {
-  hideActiveStartEditor();
+  updateActiveSessionStart({ reportValidity: false, closeEditor: true, audit: true });
 });
 
 activeStartDisplay.addEventListener("click", () => {
@@ -890,6 +897,19 @@ categoriesInput.addEventListener("blur", () => {
 ].forEach((input) => {
   input.addEventListener("input", () => {
     updateFieldManageButtons();
+    syncActiveSessionDraftFromForm();
+  });
+  input.addEventListener("change", () => {
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-field" });
+  });
+});
+
+[projectInput, notesInput].forEach((input) => {
+  input.addEventListener("input", () => {
+    syncActiveSessionDraftFromForm();
+  });
+  input.addEventListener("change", () => {
+    syncActiveSessionDraftFromForm({ audit: true, source: "active-session-field" });
   });
 });
 
@@ -2332,6 +2352,23 @@ function persistActiveSession() {
   window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(activeSession));
 }
 
+function syncActiveSessionDraftFromForm({ audit = false, source = "active-session-context" } = {}) {
+  if (!activeSession) {
+    return;
+  }
+
+  const previousSession = { ...activeSession };
+  activeSession = {
+    ...activeSession,
+    ...readFormValues(),
+  };
+  persistActiveSession();
+  renderActiveSession();
+  if (audit) {
+    void logSessionChange(previousSession, activeSession, source);
+  }
+}
+
 function hydrateFormFromActiveSession() {
   const source = activeSession ?? sessions[0] ?? null;
   collaboratorInput.value = activeSession?.collaborator ?? source?.collaborator ?? "";
@@ -3425,9 +3462,12 @@ function togglePauseSession() {
   render();
 }
 
-function updateActiveSessionStart() {
+function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
   if (!activeSession || !activeStartInput.value) {
-    return;
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
+    return false;
   }
 
   const nextStart = new Date(activeStartInput.value);
@@ -3436,13 +3476,21 @@ function updateActiveSessionStart() {
     effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
 
   if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
-    activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
-    activeStartInput.reportValidity();
-    activeStartInput.setCustomValidity("");
+    if (reportValidity) {
+      activeStartInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
+      activeStartInput.reportValidity();
+      activeStartInput.setCustomValidity("");
+    }
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
     renderActiveSession();
-    return;
+    return false;
   }
 
+  activeStartInput.setCustomValidity("");
+
+  const previousSession = { ...activeSession };
   const candidate = {
     ...activeSession,
     start: nextStart.toISOString(),
@@ -3452,17 +3500,34 @@ function updateActiveSessionStart() {
 
   const overlap = findOverlappingSession(candidate);
   if (overlap) {
-    activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
-    activeStartInput.reportValidity();
+    if (reportValidity) {
+      activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
+      activeStartInput.reportValidity();
+      activeStartInput.setCustomValidity("");
+    }
+    if (closeEditor) {
+      hideActiveStartEditor();
+    }
     activeStartInput.setCustomValidity("");
     renderActiveSession();
-    return;
+    return false;
   }
 
-  activeSession.start = candidate.start;
+  activeSession = {
+    ...activeSession,
+    ...candidate,
+  };
   persistActiveSession();
-  hideActiveStartEditor();
-  render();
+  if (closeEditor) {
+    hideActiveStartEditor();
+  } else {
+    renderActiveSession();
+  }
+  hydrateFormFromActiveSession();
+  if (audit) {
+    void logSessionChange(previousSession, activeSession, "active-session-start");
+  }
+  return true;
 }
 
 function openManualDialog(session = null, preset = null) {
@@ -3758,6 +3823,7 @@ function renderActiveSession() {
     activeStartInput.hidden = true;
     activeStartInput.value = "";
     activeStartInput.disabled = true;
+    activeStartEditorOpen = false;
     return;
   }
 
@@ -3770,8 +3836,8 @@ function renderActiveSession() {
   pauseButton.classList.toggle("paused", isPaused);
   activeStartDisplay.textContent = `Demarre a ${formatTimeLabel(new Date(activeSession.start))}`;
   activeStartDisplay.disabled = false;
-  activeStartDisplay.hidden = false;
-  activeStartInput.hidden = true;
+  activeStartDisplay.hidden = activeStartEditorOpen;
+  activeStartInput.hidden = !activeStartEditorOpen;
   activeStartInput.disabled = false;
   activeStartInput.value = formatDateTimeLocal(new Date(activeSession.start));
   updateLiveTimer();
@@ -3782,9 +3848,8 @@ function showActiveStartEditor() {
     return;
   }
 
-  activeStartDisplay.hidden = true;
-  activeStartInput.hidden = false;
-  activeStartInput.disabled = false;
+  activeStartEditorOpen = true;
+  renderActiveSession();
   activeStartInput.focus();
   if (typeof activeStartInput.showPicker === "function") {
     try {
@@ -3797,13 +3862,14 @@ function showActiveStartEditor() {
 
 function hideActiveStartEditor() {
   if (!activeSession) {
+    activeStartEditorOpen = false;
     activeStartInput.hidden = true;
     activeStartDisplay.hidden = false;
     return;
   }
 
-  activeStartInput.hidden = true;
-  activeStartDisplay.hidden = false;
+  activeStartEditorOpen = false;
+  renderActiveSession();
 }
 
 function renderSuggestions() {
