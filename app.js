@@ -4261,7 +4261,7 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
     durationMs: nextDurationMs,
   };
 
-  const overlap = findOverlappingSession(candidate);
+  const overlap = findOverlappingSession(candidate, activeSession.id);
   if (overlap) {
     if (reportValidity) {
       activeStartInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
