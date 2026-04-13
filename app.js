@@ -4617,20 +4617,27 @@ function renderActiveSession() {
 }
 
 function showActiveStartEditor() {
-  if (!activeSession || !activeStartDialog || !activeStartDialogInput) {
+  if (!activeSession) {
     return;
   }
 
-  activeStartDialogInput.value = formatDateTimeLocal(new Date(activeSession.start));
-  activeStartDialog.showModal();
-  activeStartDialogInput.focus();
-  if (typeof activeStartDialogInput.showPicker === "function") {
-    try {
-      activeStartDialogInput.showPicker();
-    } catch (error) {
-      // Some browsers refuse showPicker outside strict user gesture timing.
+  const editableSession = normalizeSession({
+    ...activeSession,
+    end: getActiveSessionEffectiveEnd(activeSession).toISOString(),
+    durationMs: getActiveSessionDurationMs(activeSession),
+  });
+
+  openManualDialog(editableSession);
+  window.setTimeout(() => {
+    manualStartInput.focus();
+    if (typeof manualStartInput.showPicker === "function") {
+      try {
+        manualStartInput.showPicker();
+      } catch (error) {
+        // Some browsers refuse showPicker outside strict user gesture timing.
+      }
     }
-  }
+  }, 0);
 }
 
 function hideActiveStartEditor() {
