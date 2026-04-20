@@ -18,6 +18,54 @@ Puis ouvrez [http://localhost:8000](http://localhost:8000).
 Evitez `file://` pour cette version, sinon le manifest, le service worker et certains comportements navigateur seront partiellement bloques.
 En local, le service worker est desactive automatiquement pour eviter les versions cachees pendant les iterations UI.
 
+## Mise en ligne
+
+La version la plus simple de Mordologie en ligne est:
+
+- front sur Vercel
+- donnees sur Supabase
+- sous-domaine dedie, par exemple `mordologie.eduardodo.com`
+
+### Vercel
+
+1. Importer ce repo GitHub dans Vercel
+2. Laisser les reglages de build vides:
+   - Framework preset: `Other`
+   - Build command: vide
+   - Output directory: vide
+3. Deployer
+
+Le fichier [vercel.json](/Users/ed/Documents/grand-livre-de-la-compte/vercel.json) suffit pour cette app statique.
+
+### Domaine
+
+Une fois le projet cree dans Vercel:
+
+1. Ajouter le domaine `mordologie.eduardodo.com` dans les settings du projet
+2. Copier la cible DNS demandee par Vercel
+3. Dans GoDaddy, creer le CNAME correspondant
+
+En general:
+
+- type: `CNAME`
+- nom: `mordologie`
+- valeur: la cible fournie par Vercel
+
+### Supabase
+
+Le front pointe deja vers le projet Supabase configure dans [index.html](/Users/ed/Documents/grand-livre-de-la-compte/index.html).
+
+Avant usage en production, verifier que la base contient bien:
+
+- `users`
+- `projects`
+- `categories`
+- `time_entries`
+- `active_sessions`
+- `reprise_actions`
+
+Et que [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql) a bien ete execute si tu veux le stockage partage serveur complet.
+
 ## Ce que contient cette version
 
 - saisie chronometree avec pause et reprise
