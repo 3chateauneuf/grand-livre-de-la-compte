@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entrepox · Revue de facturation</title>
+    <link rel="icon" href="./logo-logo.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg:#f7f6f2;
+        --surface:#ffffff;
+        --border:#e4e7ec;
+        --text:#1f1b18;
+        --text2:#62584d;
+        --text3:#9a8d7c;
+        --brand-orange:#ee7531;
+        --brand-gold:#fab855;
+        --brand-green:#75bf91;
+        --coral:#b83838;
+        --radius:6px;
+      }
+      * { box-sizing:border-box; }
+      html, body { margin:0; min-height:100%; }
+      body {
+        font-family:"Manrope", sans-serif;
+        color:var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(250,184,85,0.16), transparent 24%),
+          linear-gradient(180deg, #fffdf9 0%, var(--bg) 100%);
+      }
+      .shell {
+        min-height:100vh;
+        padding:24px;
+        display:grid;
+        gap:18px;
+      }
+      .panel {
+        background:rgba(255,255,255,0.88);
+        border-radius:6px;
+        padding:18px;
+      }
+      .header {
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:16px;
+      }
+      .header strong,
+      h1,
+      h2,
+      h3 {
+        margin:0;
+        font-family:"Bricolage Grotesque", sans-serif;
+        letter-spacing:-0.04em;
+      }
+      .eyebrow {
+        margin:0 0 4px;
+        color:var(--text3);
+        text-transform:uppercase;
+        letter-spacing:0.12em;
+        font-size:0.74rem;
+        font-weight:800;
+      }
+      .mini {
+        margin:0;
+        color:var(--text2);
+        line-height:1.5;
+      }
+      .toolbar {
+        display:grid;
+        grid-template-columns:repeat(6, minmax(0, 1fr));
+        gap:12px;
+      }
+      .totals {
+        display:grid;
+        grid-template-columns:repeat(4, minmax(0, 1fr));
+        gap:12px;
+      }
+      .adjustment-grid {
+        display:grid;
+        grid-template-columns:1.1fr 0.8fr 0.8fr 1.4fr auto;
+        gap:12px;
+        align-items:end;
+      }
+      .field {
+        display:grid;
+        gap:6px;
+      }
+      .field label {
+        font-size:0.84rem;
+        font-weight:700;
+        color:var(--text2);
+      }
+      .field input,
+      .field select {
+        border:1px solid var(--border);
+        border-radius:6px;
+        padding:11px 12px;
+        background:#fff;
+      }
+      .stat {
+        display:grid;
+        gap:4px;
+        padding:14px;
+        border-radius:6px;
+        background:#fff;
+      }
+      .stat strong {
+        font-size:1.42rem;
+      }
+      .stat.warn strong { color:var(--coral); }
+      .stat.ok strong { color:#2f7a4f; }
+      .stat.soft strong { color:#8a5a12; }
+      .table-wrap { overflow:auto; }
+      table {
+        width:100%;
+        border-collapse:collapse;
+        font-size:0.93rem;
+      }
+      th, td {
+        padding:11px 10px;
+        border-bottom:1px solid rgba(228,231,236,0.9);
+        text-align:left;
+        vertical-align:top;
+      }
+      th {
+        color:var(--text2);
+        font-size:0.78rem;
+        text-transform:uppercase;
+        letter-spacing:0.08em;
+      }
+      .badge {
+        display:inline-flex;
+        align-items:center;
+        padding:6px 9px;
+        border-radius:999px;
+        font-size:0.76rem;
+        font-weight:800;
+        white-space:nowrap;
+      }
+      .badge.billable { background:#edf8f1; color:#2f7a4f; }
+      .badge.review { background:#ffe8e2; color:#b83838; }
+      .badge.pending { background:#fff6e5; color:#a16b14; }
+      .badge.nonbillable { background:#eef1f5; color:#5f6775; }
+      .badge.readytoinvoice { background:#eef5ff; color:#315a9b; }
+      .badge.invoiced { background:#edf8f1; color:#2f7a4f; }
+      .badge.excluded { background:#f3edf7; color:#7651a5; }
+      .mono { font-family:"DM Mono", monospace; }
+      .row-between {
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+      }
+      .back-link {
+        color:var(--text2);
+        text-decoration:none;
+        font-weight:700;
+      }
+      .back-link:hover { color:var(--text); }
+      .empty {
+        padding:28px 0 10px;
+        color:var(--text2);
+      }
+      @media (max-width: 1024px) {
+        .toolbar,
+        .totals,
+        .adjustment-grid { grid-template-columns:1fr 1fr; }
+      }
+      @media (max-width: 720px) {
+        .shell { padding:16px; }
+        .toolbar,
+        .totals,
+        .adjustment-grid { grid-template-columns:1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <section class="panel header">
+        <div>
+          <p class="eyebrow">Tarification</p>
+          <h1>Revue de facturation</h1>
+          <p class="mini">Comparer les faits du mois, les règles client et les lignes effectivement calculées.</p>
+        </div>
+        <a class="back-link" href="./index.html">← Retour admin</a>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <div class="field">
+            <label for="billing-review-client">Client</label>
+            <select id="billing-review-client"></select>
+          </div>
+          <div class="field">
+            <label for="billing-review-period">Période</label>
+            <input id="billing-review-period" type="month" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="billing-review-refresh" style="border:1px solid var(--border);border-radius:6px;padding:11px 12px;background:#fff;font-weight:700;cursor:pointer;">Actualiser</button>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="billing-review-open-admin" style="border:1px solid var(--border);border-radius:6px;padding:11px 12px;background:#fff;font-weight:700;cursor:pointer;">Ouvrir le client</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="totals">
+          <div class="stat ok">
+            <span class="eyebrow">Théorique</span>
+            <strong id="billing-total-theoretical">0,00 €</strong>
+            <span class="mini" id="billing-total-lines">0 ligne</span>
+          </div>
+          <div class="stat soft">
+            <span class="eyebrow">Ajustements</span>
+            <strong id="billing-total-adjustments">0,00 €</strong>
+            <span class="mini" id="billing-total-adjustment-count">0 mouvement</span>
+          </div>
+          <div class="stat ok">
+            <span class="eyebrow">Final à sortir</span>
+            <strong id="billing-total-final">0,00 €</strong>
+            <span class="mini">Théorique - exclus ± ajustements</span>
+          </div>
+          <div class="stat">
+            <span class="eyebrow">Paré à facturer</span>
+            <strong id="billing-total-ready">0,00 €</strong>
+            <span class="mini" id="billing-total-ready-count">0 ligne</span>
+          </div>
+          <div class="stat ok">
+            <span class="eyebrow">Facturé</span>
+            <strong id="billing-total-invoiced">0,00 €</strong>
+            <span class="mini" id="billing-total-invoiced-count">0 ligne</span>
+          </div>
+          <div class="stat soft">
+            <span class="eyebrow">Exclu</span>
+            <strong id="billing-total-excluded">0,00 €</strong>
+            <span class="mini" id="billing-total-excluded-count">0 ligne</span>
+          </div>
+          <div class="stat warn">
+            <span class="eyebrow">À revoir</span>
+            <strong id="billing-total-review">0 cas</strong>
+            <span class="mini">Règles absentes, tarifs nuls ou faits incomplets</span>
+          </div>
+          <div class="stat">
+            <span class="eyebrow">En attente</span>
+            <strong id="billing-total-pending">0</strong>
+            <span class="mini" id="billing-total-nonbillable">0 non facturable · faits non clôturés</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="row-between">
+          <div>
+            <p class="eyebrow">Commercial</p>
+            <h3>Remises et ajustements</h3>
+          </div>
+          <span class="mini">Mensuels, par client, hors faits métier</span>
+        </div>
+        <div class="adjustment-grid" style="margin-top:14px;">
+          <div class="field">
+            <label for="billing-adjustment-label">Libellé</label>
+            <input id="billing-adjustment-label" type="text" placeholder="Remise lancement, geste commercial..." />
+          </div>
+          <div class="field">
+            <label for="billing-adjustment-mode">Mode</label>
+            <select id="billing-adjustment-mode">
+              <option value="amount">Montant (€)</option>
+              <option value="percent">Pourcentage (%)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="billing-adjustment-value">Valeur</label>
+            <input id="billing-adjustment-value" type="text" placeholder="-50 ou -5" />
+          </div>
+          <div class="field">
+            <label for="billing-adjustment-comment">Commentaire</label>
+            <input id="billing-adjustment-comment" type="text" placeholder="Visible en revue mensuelle" />
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="billing-adjustment-save" style="border:1px solid var(--border);border-radius:6px;padding:11px 12px;background:#fff;font-weight:700;cursor:pointer;">Ajouter</button>
+          </div>
+        </div>
+        <div id="billing-adjustments-wrap" class="table-wrap" style="margin-top:16px;"></div>
+      </section>
+
+      <section class="panel">
+        <div class="row-between">
+          <div>
+            <p class="eyebrow">Lignes</p>
+            <h3>Lignes facturables</h3>
+          </div>
+          <span class="mini" id="billing-period-caption"></span>
+        </div>
+        <div id="billing-lines-wrap" class="table-wrap"></div>
+      </section>
+
+      <section class="panel">
+        <div class="row-between">
+          <div>
+            <p class="eyebrow">Anomalies</p>
+            <h3>Points à revoir</h3>
+          </div>
+          <span class="mini">Toujours visibles tant qu’un doute subsiste</span>
+        </div>
+        <div id="billing-issues-wrap" class="table-wrap"></div>
+      </section>
+    </div>
+
+    <script type="module">
+      import { STORAGE_KEYS, computeClientBilling, loadOperationalDataset, loadPricingContext } from "./pricing-engine.js";
+
+      const params = new URLSearchParams(window.location.search);
+      const clientSelect = document.getElementById("billing-review-client");
+      const periodInput = document.getElementById("billing-review-period");
+      const refreshButton = document.getElementById("billing-review-refresh");
+      const openAdminButton = document.getElementById("billing-review-open-admin");
+      const adjustmentLabelInput = document.getElementById("billing-adjustment-label");
+      const adjustmentModeInput = document.getElementById("billing-adjustment-mode");
+      const adjustmentValueInput = document.getElementById("billing-adjustment-value");
+      const adjustmentCommentInput = document.getElementById("billing-adjustment-comment");
+      const adjustmentSaveButton = document.getElementById("billing-adjustment-save");
+
+      function esc(value) {
+        return String(value ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function formatEuro(value) {
+        return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(Number(value || 0));
+      }
+
+      function readAdjustments() {
+        try {
+          return JSON.parse(window.localStorage.getItem(STORAGE_KEYS.billingAdjustments) || "[]");
+        } catch (error) {
+          console.warn("Lecture ajustements impossible", error);
+          return [];
+        }
+      }
+
+      function writeAdjustments(items) {
+        window.localStorage.setItem(STORAGE_KEYS.billingAdjustments, JSON.stringify(items));
+      }
+
+      function readLineDecisions() {
+        try {
+          return JSON.parse(window.localStorage.getItem(STORAGE_KEYS.billingLineDecisions) || "[]");
+        } catch (error) {
+          console.warn("Lecture suivi facture impossible", error);
+          return [];
+        }
+      }
+
+      function writeLineDecisions(items) {
+        window.localStorage.setItem(STORAGE_KEYS.billingLineDecisions, JSON.stringify(items));
+      }
+
+      function parseLooseNumber(value) {
+        return Number(String(value || "").replace(",", ".").trim()) || 0;
+      }
+
+      function hydrateClientSelect() {
+        const profileStore = loadPricingContext();
+        const profiles = profileStore.billingProfiles || [];
+        clientSelect.innerHTML = profiles.length
+          ? profiles
+              .map((profile) => '<option value="' + esc(profile.clientId) + '">' + esc(profile.clientName || profile.clientId) + "</option>")
+              .join("")
+          : '<option value="">Aucun client tarifé</option>';
+        const requestedClient = params.get("client");
+        if (requestedClient && profiles.some((profile) => profile.clientId === requestedClient)) {
+          clientSelect.value = requestedClient;
+        }
+      }
+
+      function renderLines(result) {
+        const host = document.getElementById("billing-lines-wrap");
+        if (!result.lines.length) {
+          host.innerHTML = '<div class="empty">Aucune ligne calculée sur cette période.</div>';
+          return;
+        }
+        host.innerHTML =
+          '<table><thead><tr><th>Date</th><th>Domaine</th><th>Libellé</th><th>Règle</th><th>Qté / TTH</th><th>PU</th><th>Montant</th><th>Calcul</th><th>Suivi facture</th></tr></thead><tbody>' +
+          result.lines
+            .map(
+              (line) =>
+                "<tr><td class='mono'>" +
+                esc(line.eventDate || "—") +
+                "</td><td>" +
+                esc(line.domain) +
+                "</td><td><strong>" +
+                esc(line.label) +
+                "</strong><div class='mini'>" +
+                esc(line.explanation || "—") +
+                "</div></td><td>" +
+                esc(line.ruleLabel || "—") +
+                "</td><td>" +
+                esc(String(line.quantity || 0) + " " + (line.unitLabel || "")) +
+                "</td><td>" +
+                esc(formatEuro(line.unitPrice || 0)) +
+                "</td><td><strong>" +
+                esc(formatEuro(line.amount || 0)) +
+                "</strong></td><td><span class='badge " +
+                esc((line.status || "billable").replace("_", "")) +
+                "'>" +
+                esc(
+                  line.status === "billable"
+                    ? "Facturable"
+                    : line.status === "review"
+                      ? "À revoir"
+                      : line.status === "pending"
+                        ? "En attente"
+                        : "Non facturable"
+                ) +
+                "</span></td><td>" +
+                (line.status === "billable"
+                  ? "<div style='display:grid;gap:6px;min-width:180px;'><select data-line-status='" +
+                    esc(line.id) +
+                    "' style='border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:#fff;'>" +
+                    "<option value='ready_to_invoice'" +
+                    (line.workflowStatus === "ready_to_invoice" ? " selected" : "") +
+                    ">Paré à facturer</option>" +
+                    "<option value='invoiced'" +
+                    (line.workflowStatus === "invoiced" ? " selected" : "") +
+                    ">Facturé</option>" +
+                    "<option value='excluded'" +
+                    (line.workflowStatus === "excluded" ? " selected" : "") +
+                    ">Exclu</option>" +
+                    "</select><input data-line-invoice-ref='" +
+                    esc(line.id) +
+                    "' type='text' value='" +
+                    esc(line.invoiceRef || "") +
+                    "' placeholder='Réf. facture / avoir' style='border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:#fff;' /></div>"
+                  : "<span class='badge " +
+                    esc((line.workflowStatus || "review").replace(/_/g, "")) +
+                    "'>" +
+                    esc(
+                      line.workflowStatus === "pending"
+                        ? "En attente"
+                        : line.workflowStatus === "non_billable"
+                          ? "Non facturable"
+                          : "À revoir"
+                    ) +
+                    "</span>") +
+                "</td></tr>"
+            )
+            .join("") +
+          "</tbody></table>";
+        host.querySelectorAll("[data-line-status]").forEach((select) => {
+          select.addEventListener("change", () => persistLineDecision(select.getAttribute("data-line-status")));
+        });
+        host.querySelectorAll("[data-line-invoice-ref]").forEach((input) => {
+          input.addEventListener("change", () => persistLineDecision(input.getAttribute("data-line-invoice-ref")));
+          input.addEventListener("blur", () => persistLineDecision(input.getAttribute("data-line-invoice-ref")));
+        });
+      }
+
+      function renderAdjustments(result) {
+        const host = document.getElementById("billing-adjustments-wrap");
+        if (!result.adjustmentLines.length) {
+          host.innerHTML = '<div class="empty">Aucun ajustement commercial sur cette période.</div>';
+          return;
+        }
+        host.innerHTML =
+          '<table><thead><tr><th>Libellé</th><th>Mode</th><th>Valeur</th><th>Impact</th><th>Commentaire</th><th>Action</th></tr></thead><tbody>' +
+          result.adjustmentLines
+            .map(
+              (line) =>
+                "<tr><td><strong>" +
+                esc(line.label) +
+                "</strong></td><td>" +
+                esc(line.mode === "percent" ? "Pourcentage" : "Montant") +
+                "</td><td>" +
+                esc(line.mode === "percent" ? String(line.value || 0).replace(".", ",") + " %" : formatEuro(line.value || 0)) +
+                "</td><td><strong>" +
+                esc(formatEuro(line.amount || 0)) +
+                "</strong></td><td>" +
+                esc(line.comment || "—") +
+                "</td><td><button type='button' data-adjustment-delete='" +
+                esc(line.id) +
+                "' style='border:1px solid var(--border);border-radius:6px;padding:8px 10px;background:#fff;font-weight:700;cursor:pointer;'>Supprimer</button></td></tr>"
+            )
+            .join("") +
+          "</tbody></table>";
+        host.querySelectorAll("[data-adjustment-delete]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const next = readAdjustments().filter((item) => item.id !== button.getAttribute("data-adjustment-delete"));
+            writeAdjustments(next);
+            render();
+          });
+        });
+      }
+
+      function renderIssues(result) {
+        const host = document.getElementById("billing-issues-wrap");
+        if (!result.reviewIssues.length) {
+          host.innerHTML = '<div class="empty">Aucun point bloquant sur cette période.</div>';
+          return;
+        }
+        host.innerHTML =
+          '<table><thead><tr><th>Niveau</th><th>Domaine</th><th>Libellé</th><th>Détail</th></tr></thead><tbody>' +
+          result.reviewIssues
+            .map(
+              (issue) =>
+                "<tr><td><span class='badge review'>" +
+                esc(issue.severity || "info") +
+                "</span></td><td>" +
+                esc(issue.domain || "billing") +
+                "</td><td><strong>" +
+                esc(issue.label || issue.code) +
+                "</strong><div class='mini mono'>" +
+                esc(issue.code || "—") +
+                "</div></td><td>" +
+                esc(issue.detail || "—") +
+                "</td></tr>"
+            )
+            .join("") +
+          "</tbody></table>";
+      }
+
+      function render() {
+        const profileStore = loadPricingContext();
+        const dataset = loadOperationalDataset();
+        const clientId = clientSelect.value;
+        if (!clientId) {
+          document.getElementById("billing-lines-wrap").innerHTML = '<div class="empty">Aucun profil de facturation disponible.</div>';
+          document.getElementById("billing-issues-wrap").innerHTML = "";
+          return;
+        }
+        const period = periodInput.value || new Date().toISOString().slice(0, 7);
+        const result = computeClientBilling(period, clientId, dataset, profileStore);
+        document.getElementById("billing-total-theoretical").textContent = formatEuro(result.totals.theoreticalAmount);
+        document.getElementById("billing-total-lines").textContent = result.totals.facturableCount + " ligne(s)";
+        document.getElementById("billing-total-adjustments").textContent = formatEuro(result.totals.adjustmentAmount);
+        document.getElementById("billing-total-adjustment-count").textContent = result.totals.adjustmentCount + " ajustement(s)";
+        document.getElementById("billing-total-final").textContent = formatEuro(result.totals.finalAmount);
+        document.getElementById("billing-total-ready").textContent = formatEuro(result.totals.readyToInvoiceAmount);
+        document.getElementById("billing-total-ready-count").textContent = result.totals.readyToInvoiceCount + " ligne(s)";
+        document.getElementById("billing-total-invoiced").textContent = formatEuro(result.totals.invoicedAmount);
+        document.getElementById("billing-total-invoiced-count").textContent = result.totals.invoicedCount + " ligne(s)";
+        document.getElementById("billing-total-excluded").textContent = formatEuro(result.totals.excludedAmount);
+        document.getElementById("billing-total-excluded-count").textContent = result.totals.excludedCount + " ligne(s)";
+        document.getElementById("billing-total-review").textContent = result.totals.reviewCount + " cas";
+        document.getElementById("billing-total-nonbillable").textContent =
+          result.totals.nonBillableCount + " non facturable · " + result.totals.pendingCount + " en attente";
+        document.getElementById("billing-total-pending").textContent = String(result.totals.pendingCount);
+        document.getElementById("billing-period-caption").textContent = "Période " + period + " · " + result.events.length + " fait(s)";
+        renderAdjustments(result);
+        renderLines(result);
+        renderIssues(result);
+        const nextUrl = new URL(window.location.href);
+        nextUrl.searchParams.set("client", clientId);
+        nextUrl.searchParams.set("period", period);
+        window.history.replaceState({}, "", nextUrl.toString());
+      }
+
+      function persistLineDecision(lineId) {
+        const clientId = clientSelect.value;
+        const period = periodInput.value || new Date().toISOString().slice(0, 7);
+        if (!clientId || !lineId) {
+          return;
+        }
+        const statusEl = document.querySelector("[data-line-status='" + CSS.escape(lineId) + "']");
+        const refEl = document.querySelector("[data-line-invoice-ref='" + CSS.escape(lineId) + "']");
+        if (!statusEl) {
+          return;
+        }
+        const next = readLineDecisions().filter((item) => !(item.clientId === clientId && item.period === period && item.lineId === lineId));
+        next.push({
+          id: "bld-" + Math.random().toString(36).slice(2, 9),
+          clientId,
+          period,
+          lineId,
+          status: statusEl.value,
+          invoiceRef: refEl ? refEl.value.trim() : "",
+          updatedAt: new Date().toISOString(),
+        });
+        writeLineDecisions(next);
+        render();
+      }
+
+      hydrateClientSelect();
+      periodInput.value = params.get("period") || new Date().toISOString().slice(0, 7);
+      refreshButton.addEventListener("click", render);
+      clientSelect.addEventListener("change", render);
+      periodInput.addEventListener("change", render);
+      adjustmentSaveButton.addEventListener("click", () => {
+        const clientId = clientSelect.value;
+        const period = periodInput.value || new Date().toISOString().slice(0, 7);
+        const label = adjustmentLabelInput.value.trim();
+        const value = parseLooseNumber(adjustmentValueInput.value);
+        if (!clientId || !label) {
+          return;
+        }
+        const next = readAdjustments();
+        next.push({
+          id: "badj-" + Math.random().toString(36).slice(2, 9),
+          clientId,
+          period,
+          label,
+          mode: adjustmentModeInput.value === "percent" ? "percent" : "amount",
+          value,
+          comment: adjustmentCommentInput.value.trim(),
+          active: true,
+        });
+        writeAdjustments(next);
+        adjustmentLabelInput.value = "";
+        adjustmentValueInput.value = "";
+        adjustmentCommentInput.value = "";
+        adjustmentModeInput.value = "amount";
+        render();
+      });
+      openAdminButton.addEventListener("click", () => {
+        if (!clientSelect.value) {
+          return;
+        }
+        window.location.href = "./index.html?page=clients&client=" + encodeURIComponent(clientSelect.value);
+      });
+      render();
+    </script>
+  </body>
+</html>
