@@ -1,4 +1,4 @@
--- Grand Livre de la Comté
+-- Mordologie
 -- Sync Supabase Auth users with public.users by email
 
 begin;

@@ -1,4 +1,4 @@
--- Grand Livre de la Comté
+-- Mordologie
 -- V1 pragmatic schema
 -- PostgreSQL-oriented SQL
 --

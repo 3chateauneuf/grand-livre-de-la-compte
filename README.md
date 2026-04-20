@@ -1,4 +1,4 @@
-# Grand Livre de la Comte
+# Mordologie
 
 Prototype web local pour suivre le temps d'une equipe avec deux lectures:
 

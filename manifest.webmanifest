@@ -1,6 +1,6 @@
 {
-  "name": "Grand Livre de la Comté",
-  "short_name": "Comté",
+  "name": "Mordologie",
+  "short_name": "Mordologie",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f0e6",

@@ -1,4 +1,4 @@
-const CACHE_NAME = "grand-livre-comte-v3";
+const CACHE_NAME = "mordologie-v1";
 const APP_ASSETS = [
   "./",
   "./index.html",

@@ -1,9 +1,17 @@
-const STORAGE_KEY = "cadence-equipe-sessions-v3";
-const ACTIVE_SESSION_KEY = "cadence-equipe-active-session-v3";
-const ACCESS_PROFILE_KEY = "grand-livre-access-profile-v2";
-const CATEGORY_COLOR_KEY = "grand-livre-category-colors-v1";
-const REPRISES_ORDER_KEY = "grand-livre-reprises-order-v1";
-const REPRISES_ACTIONS_KEY = "grand-livre-reprises-actions-v1";
+const STORAGE_KEY = "mordologie-sessions-v1";
+const ACTIVE_SESSION_KEY = "mordologie-active-session-v1";
+const ACCESS_PROFILE_KEY = "mordologie-access-profile-v1";
+const CATEGORY_COLOR_KEY = "mordologie-category-colors-v1";
+const REPRISES_ORDER_KEY = "mordologie-reprises-order-v1";
+const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
+const LEGACY_STORAGE_KEYS = {
+  [STORAGE_KEY]: "cadence-equipe-sessions-v3",
+  [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
+  [ACCESS_PROFILE_KEY]: "grand-livre-access-profile-v2",
+  [CATEGORY_COLOR_KEY]: "grand-livre-category-colors-v1",
+  [REPRISES_ORDER_KEY]: "grand-livre-reprises-order-v1",
+  [REPRISES_ACTIONS_KEY]: "grand-livre-reprises-actions-v1",
+};
 const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
@@ -64,6 +72,15 @@ const LOCAL_PROFILE_DIRECTORY = [
   },
 ];
 
+for (const [nextKey, legacyKey] of Object.entries(LEGACY_STORAGE_KEYS)) {
+  if (window.localStorage.getItem(nextKey) == null) {
+    const legacyValue = window.localStorage.getItem(legacyKey);
+    if (legacyValue != null) {
+      window.localStorage.setItem(nextKey, legacyValue);
+    }
+  }
+}
+
 const form = document.querySelector("#time-form");
 const viewTabs = Array.from(document.querySelectorAll("[data-view-target]"));
 const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
@@ -120,7 +137,9 @@ const activeCountCopy = document.querySelector("#active-count-copy");
 const personalStatsSwitch = document.querySelector("#personal-stats-switch");
 const personalStatsTitle = document.querySelector("#personal-stats-title");
 const personalStatsCopy = document.querySelector("#personal-stats-copy");
-const personalDistributionBar = document.querySelector("#personal-distribution-bar");
+const personalDistributionDonut = document.querySelector("#personal-distribution-donut");
+const personalDistributionTotal = document.querySelector("#personal-distribution-total");
+const personalDistributionSubcopy = document.querySelector("#personal-distribution-subcopy");
 const personalDistributionLegend = document.querySelector("#personal-distribution-legend");
 const agendaBoard = document.querySelector("#agenda-board");
 const agendaPrevWeekButton = document.querySelector("#agenda-prev-week");
@@ -156,6 +175,11 @@ const reportKrList = document.querySelector("#report-kr-list");
 const managerObjectivesPanel = document.querySelector("#manager-objectives-panel");
 const managerObjectivesGrid = document.querySelector("#manager-objectives-grid");
 const sessionList = document.querySelector("#session-list");
+const journalFilterFromInput = document.querySelector("#journal-filter-from");
+const journalFilterToInput = document.querySelector("#journal-filter-to");
+const journalFilterCategoryInput = document.querySelector("#journal-filter-category");
+const journalFilterSubjectInput = document.querySelector("#journal-filter-subject");
+const journalFilterResetButton = document.querySelector("#journal-filter-reset");
 const projectMemoryList = document.querySelector("#project-memory-list");
 const agendaImportPanel = document.querySelector("#agenda-import-panel");
 const agendaImportList = document.querySelector("#agenda-import-list");
@@ -455,7 +479,7 @@ const LOCAL_DEMO_SESSIONS = [
   {
     id: "LOC-004",
     collaborator: "Martin Salles",
-    project: "Grand Livre de la Comté",
+    project: "Mordologie",
     task: "Ajustements saisie rapide",
     categories: ["Developpement outil interne"],
     tags: ["produit", "ux"],
@@ -569,7 +593,7 @@ const LOCAL_DEMO_SESSIONS = [
   {
     id: "LOC-010",
     collaborator: "Martin Salles",
-    project: "Grand Livre de la Comté",
+    project: "Mordologie",
     task: "Lecture manager et capacite",
     categories: ["Developpement outil interne"],
     tags: ["manager", "reporting"],
@@ -683,7 +707,7 @@ const LOCAL_DEMO_SESSIONS = [
   {
     id: "LOC-016",
     collaborator: "Martin Salles",
-    project: "Grand Livre de la Comté",
+    project: "Mordologie",
     task: "Corrections suggestions intelligentes",
     categories: ["Developpement outil interne"],
     tags: ["suggestions", "priorisation"],
@@ -1133,6 +1157,23 @@ managerCollaboratorFilter.addEventListener("change", () => {
 
 exportCsvButton?.addEventListener("click", () => {
   exportCurrentAnalysisCsv();
+});
+
+[journalFilterFromInput, journalFilterToInput, journalFilterCategoryInput, journalFilterSubjectInput].forEach((input) => {
+  input?.addEventListener("input", () => {
+    renderSessionList();
+  });
+  input?.addEventListener("change", () => {
+    renderSessionList();
+  });
+});
+
+journalFilterResetButton?.addEventListener("click", () => {
+  if (journalFilterFromInput) journalFilterFromInput.value = "";
+  if (journalFilterToInput) journalFilterToInput.value = "";
+  if (journalFilterCategoryInput) journalFilterCategoryInput.value = "";
+  if (journalFilterSubjectInput) journalFilterSubjectInput.value = "";
+  renderSessionList();
 });
 
 sessionList.addEventListener("click", (event) => {
@@ -2944,7 +2985,7 @@ function storeCategoryColor(label, color) {
 }
 
 function generateStableHexColor(seed) {
-  const source = String(seed || "grand-livre");
+  const source = String(seed || "mordologie");
   let hash = 0;
   for (const char of source) {
     hash = (hash << 5) - hash + char.charCodeAt(0);
@@ -4878,48 +4919,94 @@ function renderAgendaImportPanel() {
   }
 }
 
+function getFilteredJournalSessions(rows) {
+  const fromDate = journalFilterFromInput?.value ? new Date(`${journalFilterFromInput.value}T00:00:00`) : null;
+  const toDate = journalFilterToInput?.value ? new Date(`${journalFilterToInput.value}T23:59:59.999`) : null;
+  const categoryFilter = normalizeText(journalFilterCategoryInput?.value ?? "");
+  const subjectFilter = normalizeText(journalFilterSubjectInput?.value ?? "");
+
+  return rows.filter((session) => {
+    const start = new Date(session.start);
+    if (fromDate && start < fromDate) {
+      return false;
+    }
+    if (toDate && start > toDate) {
+      return false;
+    }
+    if (
+      categoryFilter &&
+      !(session.categories ?? []).some((category) => normalizeText(category).includes(categoryFilter))
+    ) {
+      return false;
+    }
+
+    const subjectHaystack = normalizeText([session.project, session.task].filter(Boolean).join(" · "));
+    if (subjectFilter && !subjectHaystack.includes(subjectFilter)) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 function renderSessionList() {
   sessionList.innerHTML = "";
-  const visibleSessions = getScopedSessions(sessions);
+  const visibleSessions = getFilteredJournalSessions(getScopedSessions(sessions));
 
   if (!visibleSessions.length) {
-    sessionList.append(createEmptyState("Le journal affichera ici les entrees enregistrees."));
+    const filtersActive = Boolean(
+      journalFilterFromInput?.value ||
+        journalFilterToInput?.value ||
+        journalFilterCategoryInput?.value ||
+        journalFilterSubjectInput?.value,
+    );
+    sessionList.append(
+      createEmptyState(
+        filtersActive
+          ? "Aucune entree ne correspond a ces filtres."
+          : "Le journal affichera ici les entrees enregistrees.",
+      ),
+    );
     return;
   }
 
-  for (const session of visibleSessions.slice(0, 10)) {
+  for (const session of visibleSessions.slice(0, 18)) {
     const fragment = sessionItemTemplate.content.cloneNode(true);
     const item = fragment.querySelector(".session-item");
     item.dataset.sessionId = session.id;
-
-    fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans projet";
-    fragment.querySelector(".session-secondary").textContent = [
-      session.collaborator,
-      session.task,
-      session.notionRef ? "Lien" : "",
+    item.title = [
+      `Sujet: ${session.project || session.task || "Sans sujet"}`,
+      session.task ? `Client: ${session.task}` : "",
+      session.categories?.length ? `Categorie: ${session.categories.join(", ")}` : "",
+      session.tags?.length ? `Tags: ${session.tags.join(", ")}` : "",
+      `Date: ${formatDate(session.start)}`,
+      `Horaire: ${formatTimeLabel(new Date(session.start))}${session.end ? ` - ${formatTimeLabel(new Date(session.end))}` : ""}`,
+      session.notes ? `Note: ${session.notes}` : "",
     ]
       .filter(Boolean)
-      .join(" · ");
+      .join("\n");
+
+    fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans sujet";
+    const secondaryElement = fragment.querySelector(".session-secondary");
+    secondaryElement.textContent = session.task || "";
+    secondaryElement.hidden = true;
     fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
-    fragment.querySelector(".session-date").textContent = formatDate(session.start);
+    const dateElement = fragment.querySelector(".session-date");
+    dateElement.textContent = formatDate(session.start);
+    dateElement.hidden = true;
 
     const notesElement = fragment.querySelector(".session-notes");
     notesElement.textContent = session.notes || "";
-    notesElement.hidden = !session.notes;
+    notesElement.hidden = true;
 
-    const metaParts = [
-      ...(session.categories ?? []).slice(0, 1).map((category) => `Categorie · ${category}`),
-      ...(session.objectiveOkr ? [`OKR · ${formatObjectiveOkrDisplay(session.objectiveOkr)}`] : []),
-      ...(session.objectiveKr ? [`KR · ${formatObjectiveKrDisplay(session.objectiveKr)}`] : []),
-    ];
     const categoriesElement = fragment.querySelector(".session-categories");
-    categoriesElement.textContent = metaParts.join(" · ");
-    categoriesElement.hidden = !metaParts.length;
+    categoriesElement.innerHTML = "";
+    renderPills(categoriesElement, (session.categories ?? []).slice(0, 1));
+    categoriesElement.hidden = !(session.categories ?? []).length;
 
-    renderPills(
-      fragment.querySelector(".session-tags"),
-      session.tags.map((tag) => `#${tag}`),
-    );
+    const tagsElement = fragment.querySelector(".session-tags");
+    tagsElement.innerHTML = "";
+    tagsElement.hidden = true;
 
     sessionList.append(fragment);
   }
@@ -4981,7 +5068,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderDistribution(personalDistributionBar, personalDistributionLegend, [], 0, "Choisissez un cargonaute pour voir sa semaine.");
+    renderPersonalDistributionDonut([], 0, usesObjectives, "Choisissez un cargonaute pour voir sa semaine.");
     return;
   }
 
@@ -4992,11 +5079,10 @@ function renderPersonalDistribution() {
   const displayRows = usesObjectives ? objectiveRows : fallbackRows;
   const totalMs = displayRows.reduce((sum, row) => sum + row.durationMs, 0);
 
-  renderDistribution(
-    personalDistributionBar,
-    personalDistributionLegend,
+  renderPersonalDistributionDonut(
     displayRows,
     totalMs,
+    usesObjectives,
     usesObjectives
       ? "Aucun objectif 2026 renseigne cette semaine pour ce cargonaute."
       : "Aucune categorie enregistree cette semaine pour ce cargonaute.",
@@ -5547,7 +5633,7 @@ function exportCurrentAnalysisCsv() {
   const anchor = getReportAnchorDate();
   const scope = currentView === "manager" ? "manager" : "ressources";
   link.href = url;
-  link.download = `grand-livre-${scope}-${reportPeriod}-${formatDateInput(anchor)}.csv`;
+  link.download = `mordologie-${scope}-${reportPeriod}-${formatDateInput(anchor)}.csv`;
   document.body.append(link);
   link.click();
   link.remove();
@@ -5982,6 +6068,87 @@ function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyM
 
     legend.append(swatch, label);
     legendContainer.append(legend);
+  }
+}
+
+function getDistributionColor(label, usesObjectives = false) {
+  if (!usesObjectives) {
+    return getCategoryColor(label, label);
+  }
+  return colorForLabel(label);
+}
+
+function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMessage) {
+  if (!personalDistributionDonut || !personalDistributionLegend || !personalDistributionTotal || !personalDistributionSubcopy) {
+    return;
+  }
+
+  personalDistributionLegend.innerHTML = "";
+
+  if (!rows.length || !totalMs) {
+    personalDistributionDonut.style.background = "conic-gradient(rgba(24, 56, 74, 0.08) 0deg 360deg)";
+    personalDistributionTotal.textContent = "0%";
+    personalDistributionSubcopy.textContent = "repartition";
+    personalDistributionLegend.append(createEmptyState(emptyMessage));
+    return;
+  }
+
+  const visibleRows = rows.slice(0, 5);
+  const remainderMs = rows.slice(5).reduce((sum, row) => sum + row.durationMs, 0);
+  const chartRows = remainderMs
+    ? [...visibleRows, { label: "Autres", durationMs: remainderMs, count: rows.slice(5).reduce((sum, row) => sum + row.count, 0) }]
+    : visibleRows;
+
+  let currentAngle = 0;
+  const segments = chartRows.map((row) => {
+    const degrees = totalMs ? (row.durationMs / totalMs) * 360 : 0;
+    const start = currentAngle;
+    const end = currentAngle + degrees;
+    currentAngle = end;
+    return {
+      ...row,
+      start,
+      end,
+      share: totalMs ? row.durationMs / totalMs : 0,
+      color: getDistributionColor(row.label, usesObjectives),
+    };
+  });
+
+  personalDistributionDonut.style.background = `conic-gradient(${segments
+    .map((segment) => `${segment.color} ${segment.start}deg ${segment.end}deg`)
+    .join(", ")})`;
+
+  const leadSegment = segments[0];
+  personalDistributionTotal.textContent = `${Math.round((leadSegment.share || 0) * 100)}%`;
+  personalDistributionSubcopy.textContent = leadSegment.label;
+
+  for (const segment of segments) {
+    const item = document.createElement("div");
+    item.className = "personal-legend-item";
+
+    const swatch = document.createElement("span");
+    swatch.className = "personal-legend-swatch";
+    swatch.style.background = segment.color;
+
+    const copy = document.createElement("div");
+    copy.className = "personal-legend-copy";
+
+    const top = document.createElement("div");
+    top.className = "personal-legend-top";
+
+    const label = document.createElement("strong");
+    label.textContent = segment.label;
+
+    const share = document.createElement("span");
+    share.textContent = `${Math.round((segment.share || 0) * 100)}%`;
+
+    const meta = document.createElement("p");
+    meta.textContent = `${formatDuration(segment.durationMs)}${segment.count ? ` · ${segment.count} entree${segment.count > 1 ? "s" : ""}` : ""}`;
+
+    top.append(label, share);
+    copy.append(top, meta);
+    item.append(swatch, copy);
+    personalDistributionLegend.append(item);
   }
 }
 

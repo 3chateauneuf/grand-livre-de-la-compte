@@ -1,4 +1,4 @@
--- Grand Livre de la Comté
+-- Mordologie
 -- V1.5 auth + roles + row level security
 --
 -- Applies a simple access model:

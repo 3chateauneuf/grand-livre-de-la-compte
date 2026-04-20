@@ -1,4 +1,4 @@
--- Grand Livre de la Comté
+-- Mordologie
 -- V1 dataset validation checks
 -- Run after loading db/schema.sql and db/seed.sql
 

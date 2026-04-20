@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Grand Livre de la Comté</title>
+    <title>Mordologie</title>
     <meta name="theme-color" content="#18384a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="Grand Livre de la Comté" />
+    <meta name="apple-mobile-web-app-title" content="Mordologie" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -41,7 +41,7 @@
           </section>
         </div>
         <nav class="topbar-nav">
-          <button type="button" data-view-target="cadre" class="active">Cadre</button>
+          <button type="button" data-view-target="cadre" class="active">Hobbit</button>
           <button type="button" data-view-target="manager">Manager</button>
           <button type="button" data-view-target="resources">Ressources</button>
           <button type="button" data-view-target="journal">Journal</button>
@@ -287,8 +287,15 @@
                 <h3 id="personal-stats-title">Categories en cours</h3>
                 <p id="personal-stats-copy">Lecture compacte de la semaine, par objectifs ou categories.</p>
               </div>
-              <div id="personal-distribution-bar" class="distribution-bar"></div>
-              <div id="personal-distribution-legend" class="distribution-legend"></div>
+              <div class="personal-distribution-shell">
+                <div id="personal-distribution-donut" class="personal-distribution-donut" aria-hidden="true">
+                  <div class="personal-distribution-donut-inner">
+                    <strong id="personal-distribution-total">0%</strong>
+                    <span id="personal-distribution-subcopy">repartition</span>
+                  </div>
+                </div>
+                <div id="personal-distribution-legend" class="personal-distribution-legend"></div>
+              </div>
             </article>
           </section>
         </section>
@@ -632,6 +639,31 @@
             </div>
             <p class="panel-copy">Lecture recente et correction rapide.</p>
           </div>
+          <div class="journal-filters">
+            <div class="journal-filter-row journal-filter-row-top">
+              <label class="field">
+                <span>Depuis</span>
+                <input id="journal-filter-from" class="select-input" type="date" />
+              </label>
+              <label class="field">
+                <span>Jusqu'a</span>
+                <input id="journal-filter-to" class="select-input" type="date" />
+              </label>
+            </div>
+            <div class="journal-filter-row journal-filter-row-bottom">
+              <label class="field">
+                <span>Categorie</span>
+                <input id="journal-filter-category" class="select-input" type="text" list="category-suggestions" placeholder="Toutes" />
+              </label>
+              <label class="field">
+                <span>Sujet</span>
+                <input id="journal-filter-subject" class="select-input" type="text" placeholder="Filtrer un sujet" />
+              </label>
+              <div class="journal-filter-actions">
+                <button id="journal-filter-reset" type="button" class="btn btn-secondary" aria-label="Reinitialiser les filtres" title="Reinitialiser les filtres">↺</button>
+              </div>
+            </div>
+          </div>
           <div id="session-list" class="session-list"></div>
         </section>
 
@@ -739,13 +771,43 @@
 
           <label class="field">
             <span>Debut</span>
-            <input id="manual-start-input" type="datetime-local" />
+            <input id="manual-start-input" type="text" inputmode="numeric" placeholder="17/04/2026 14:30" />
           </label>
 
           <label class="field">
             <span>Fin</span>
-            <input id="manual-end-input" type="datetime-local" />
+            <input id="manual-end-input" type="text" inputmode="numeric" placeholder="17/04/2026 16:00" />
           </label>
+
+          <label class="field field-full">
+            <span>Duree (h)</span>
+            <input
+              id="manual-duration-input"
+              type="text"
+              inputmode="decimal"
+              list="manual-duration-suggestions"
+              placeholder="Ex. 1,5"
+            />
+            <small class="hint">Pas rapides de 0,5 h. Si besoin, debut et fin acceptent aussi une saisie minute precise.</small>
+          </label>
+          <datalist id="manual-duration-suggestions">
+            <option value="0,5"></option>
+            <option value="1"></option>
+            <option value="1,5"></option>
+            <option value="2"></option>
+            <option value="2,5"></option>
+            <option value="3"></option>
+            <option value="3,5"></option>
+            <option value="4"></option>
+            <option value="4,5"></option>
+            <option value="5"></option>
+            <option value="5,5"></option>
+            <option value="6"></option>
+            <option value="6,5"></option>
+            <option value="7"></option>
+            <option value="7,5"></option>
+            <option value="8"></option>
+          </datalist>
 
           <label class="field field-full">
             <span>Note</span>
@@ -755,6 +817,7 @@
 
         <div class="dialog-actions">
           <button id="cancel-manual-button" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="delete-manual-button" type="button" class="btn btn-ghost-danger" hidden>Supprimer</button>
           <button id="save-manual-button" type="button" class="btn btn-primary">Enregistrer</button>
         </div>
       </form>
@@ -795,7 +858,7 @@
 
         <label class="field">
           <span>Debut</span>
-          <input id="active-start-dialog-input" type="datetime-local" />
+          <input id="active-start-dialog-input" type="text" inputmode="numeric" placeholder="17/04/2026 14:30" />
         </label>
 
         <div class="dialog-actions">
@@ -845,15 +908,28 @@
           <p class="session-task"></p>
           <p class="session-secondary"></p>
           <div class="session-meta-row">
-            <span class="session-categories"></span>
-            <span class="session-tags"></span>
+            <div class="session-categories"></div>
+            <div class="session-tags"></div>
           </div>
           <p class="session-notes"></p>
         </div>
         <div class="session-side">
           <p class="session-duration"></p>
           <p class="session-date"></p>
-          <button type="button" class="btn btn-secondary session-edit-button">Corriger</button>
+          <div class="session-actions">
+            <button
+              type="button"
+              class="session-edit-button"
+              aria-label="Modifier l'entree"
+              title="Modifier l'entree"
+            >🛠</button>
+            <button
+              type="button"
+              class="session-delete-button"
+              aria-label="Supprimer l'entree"
+              title="Supprimer l'entree"
+            >🗑</button>
+          </div>
         </div>
       </article>
     </template>
