@@ -4,6 +4,7 @@ const ACCESS_PROFILE_KEY = "mordologie-access-profile-v1";
 const CATEGORY_COLOR_KEY = "mordologie-category-colors-v1";
 const REPRISES_ORDER_KEY = "mordologie-reprises-order-v1";
 const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
+const DAY_THEMES_KEY = "mordologie-day-themes-v1";
 const LEGACY_STORAGE_KEYS = {
   [STORAGE_KEY]: "cadence-equipe-sessions-v3",
   [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
@@ -15,7 +16,7 @@ const LEGACY_STORAGE_KEYS = {
 const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
-const COLOR_PALETTE = ["#0f766e", "#c9802b", "#2563eb", "#dc2626", "#7c3aed", "#0891b2", "#15803d"];
+const COLOR_PALETTE = ["#069494", "#FF8243", "#FFC0CB", "#FCE883", "#057171", "#E96F49", "#E6A8B9", "#E2C85E"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
     user_id: "USR-001",
@@ -119,6 +120,9 @@ const objectivePoleSelected = document.querySelector("#objective-pole-selected")
 const objectiveOkrSelected = document.querySelector("#objective-okr-selected");
 const objectiveKrSelected = document.querySelector("#objective-kr-selected");
 const notesInput = document.querySelector("#notes-input");
+const dayThemesList = document.querySelector("#day-themes-list");
+const dayThemeInput = document.querySelector("#day-theme-input");
+const addDayThemeButton = document.querySelector("#add-day-theme-button");
 const quickProjects = document.querySelector("#quick-projects");
 const repriseActionsShell = document.querySelector("#reprise-actions");
 const repriseArchiveZone = document.querySelector("#reprise-archive-zone");
@@ -223,10 +227,14 @@ const manualObjectiveKrInput = document.querySelector("#manual-objective-kr-inpu
 const manualObjectivePoleSelected = document.querySelector("#manual-objective-pole-selected");
 const manualObjectiveOkrSelected = document.querySelector("#manual-objective-okr-selected");
 const manualObjectiveKrSelected = document.querySelector("#manual-objective-kr-selected");
-const manualStartInput = document.querySelector("#manual-start-input");
-const manualEndInput = document.querySelector("#manual-end-input");
+const manualStartDateInput = document.querySelector("#manual-start-date-input");
+const manualStartTimeInput = document.querySelector("#manual-start-time-input");
+const manualEndDateInput = document.querySelector("#manual-end-date-input");
+const manualEndTimeInput = document.querySelector("#manual-end-time-input");
+const manualDurationInput = document.querySelector("#manual-duration-input");
 const manualNotesInput = document.querySelector("#manual-notes-input");
 const cancelManualButton = document.querySelector("#cancel-manual-button");
+const deleteManualButton = document.querySelector("#delete-manual-button");
 const saveManualButton = document.querySelector("#save-manual-button");
 
 const conflictDialog = document.querySelector("#conflict-dialog");
@@ -236,7 +244,8 @@ const cancelConflictButton = document.querySelector("#cancel-conflict-button");
 const editConflictButton = document.querySelector("#edit-conflict-button");
 const adjustConflictButton = document.querySelector("#adjust-conflict-button");
 const activeStartDialog = document.querySelector("#active-start-dialog");
-const activeStartDialogInput = document.querySelector("#active-start-dialog-input");
+const activeStartDateInput = document.querySelector("#active-start-date-input");
+const activeStartTimeInput = document.querySelector("#active-start-time-input");
 const activeStartDialogCancelButton = document.querySelector("#active-start-dialog-cancel");
 const activeStartDialogSaveButton = document.querySelector("#active-start-dialog-save");
 const fieldManageDialog = document.querySelector("#field-manage-dialog");
@@ -770,6 +779,8 @@ let currentTags = [];
 let timerIntervalId = null;
 let reportPeriod = "week";
 let statsMode = "categories";
+let manualTimingSyncLocked = false;
+let dayThemes = loadDayThemes();
 let manualEditingSessionId = null;
 let pendingConflict = null;
 let currentView = getInitialView();
@@ -894,6 +905,62 @@ activeStartDialogCancelButton?.addEventListener("click", () => {
 
 activeStartDialogSaveButton?.addEventListener("click", () => {
   updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
+});
+
+for (const input of [manualStartDateInput, manualStartTimeInput, manualEndDateInput, manualEndTimeInput]) {
+  input?.addEventListener("input", () => {
+    syncManualDurationFromBounds();
+  });
+  input?.addEventListener("change", () => {
+    syncManualDurationFromBounds();
+  });
+}
+
+manualDurationInput?.addEventListener("input", () => {
+  syncManualEndFromDuration();
+});
+
+manualDurationInput?.addEventListener("blur", () => {
+  syncManualEndFromDuration();
+  syncManualDurationFromBounds();
+});
+
+addDayThemeButton?.addEventListener("click", () => {
+  const collaborator = getCurrentCollaborator();
+  const label = dayThemeInput?.value.trim();
+  if (!collaborator || !label) {
+    dayThemeInput?.focus();
+    return;
+  }
+
+  const scopedThemes = getScopedDayThemes(collaborator);
+  dayThemes.unshift({
+    id: createSessionId(),
+    collaborator,
+    label,
+    order: scopedThemes.length,
+  });
+  persistDayThemes();
+  dayThemeInput.value = "";
+  renderDayThemes();
+});
+
+dayThemeInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    addDayThemeButton?.click();
+  }
+});
+
+dayThemesList?.addEventListener("click", (event) => {
+  const chip = event.target.closest("[data-theme-id]");
+  if (!chip) {
+    return;
+  }
+
+  dayThemes = dayThemes.filter((item) => item.id !== chip.dataset.themeId);
+  persistDayThemes();
+  renderDayThemes();
 });
 
 projectInput.addEventListener("input", () => {
@@ -1042,7 +1109,7 @@ quickProjects.addEventListener("dragleave", (event) => {
   quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
 });
 
-quickProjects.addEventListener("dragend", () => {
+function resetQuickProjectsDragUi() {
   quickProjects.querySelectorAll(".chip--dragging").forEach((chip) => chip.classList.remove("chip--dragging"));
   quickProjects.querySelectorAll(".chip--drop-target").forEach((chip) => chip.classList.remove("chip--drop-target"));
   quickProjects.classList.remove("chip-row--sorting");
@@ -1050,6 +1117,10 @@ quickProjects.addEventListener("dragend", () => {
   repriseArchiveZone?.classList.remove("reprise-dropzone--active");
   repriseDoneZone?.classList.remove("reprise-dropzone--active");
   quickProjectsDragState = null;
+}
+
+quickProjects.addEventListener("dragend", () => {
+  resetQuickProjectsDragUi();
 });
 
 function setupRepriseDropzone(zone, actionKind) {
@@ -1084,14 +1155,12 @@ function setupRepriseDropzone(zone, actionKind) {
       (item) => item.key === quickProjectsDragState.key,
     );
     if (!memory) {
-      repriseActionsShell?.setAttribute("hidden", "");
-      quickProjectsDragState = null;
+      resetQuickProjectsDragUi();
       return;
     }
 
     await saveRepriseAction(memory, actionKind);
-    repriseActionsShell?.setAttribute("hidden", "");
-    quickProjectsDragState = null;
+    resetQuickProjectsDragUi();
     renderQuickProjects();
     renderProjectMemoryList();
   });
@@ -1099,6 +1168,23 @@ function setupRepriseDropzone(zone, actionKind) {
 
 setupRepriseDropzone(repriseArchiveZone, "archive");
 setupRepriseDropzone(repriseDoneZone, "done");
+
+document.addEventListener("drop", () => {
+  if (!quickProjectsDragState) {
+    return;
+  }
+  window.setTimeout(() => {
+    if (quickProjectsDragState) {
+      resetQuickProjectsDragUi();
+    }
+  }, 0);
+});
+
+document.addEventListener("dragend", () => {
+  if (quickProjectsDragState) {
+    resetQuickProjectsDragUi();
+  }
+});
 
 projectMemoryList.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-memory-key]");
@@ -1177,6 +1263,21 @@ journalFilterResetButton?.addEventListener("click", () => {
 });
 
 sessionList.addEventListener("click", (event) => {
+  const deleteButton = event.target.closest(".session-delete-button");
+  if (deleteButton) {
+    const sessionId = deleteButton.closest(".session-item")?.dataset.sessionId;
+    const session = findSessionById(sessionId);
+    if (!session) {
+      return;
+    }
+    const confirmed = window.confirm(`Supprimer "${session.project || session.task || "cette entree"}" ?`);
+    if (!confirmed) {
+      return;
+    }
+    void deleteSession(session);
+    return;
+  }
+
   const editButton = event.target.closest(".session-edit-button");
   if (!editButton) {
     return;
@@ -1244,7 +1345,25 @@ saveManualButton.addEventListener("click", () => {
 
 cancelManualButton.addEventListener("click", () => {
   manualEditingSessionId = null;
+  if (deleteManualButton) {
+    deleteManualButton.hidden = true;
+  }
   manualDialog.close();
+});
+
+deleteManualButton?.addEventListener("click", () => {
+  const session = manualEditingSessionId ? findSessionById(manualEditingSessionId) : null;
+  if (!session) {
+    return;
+  }
+  const confirmed = window.confirm(`Supprimer "${session.project || session.task || "cette entree"}" ?`);
+  if (!confirmed) {
+    return;
+  }
+  manualEditingSessionId = null;
+  deleteManualButton.hidden = true;
+  manualDialog.close();
+  void deleteSession(session);
 });
 
 cancelConflictButton.addEventListener("click", () => {
@@ -2459,6 +2578,18 @@ function renderViewChrome() {
   if (analysisCollaboratorFilterWrap) {
     analysisCollaboratorFilterWrap.hidden = currentView !== "manager";
   }
+}
+
+function loadDayThemes() {
+  try {
+    return JSON.parse(window.localStorage.getItem(DAY_THEMES_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+}
+
+function persistDayThemes() {
+  window.localStorage.setItem(DAY_THEMES_KEY, JSON.stringify(dayThemes));
 }
 
 function loadSessions() {
@@ -4058,7 +4189,6 @@ async function createTimeEntry(data, options = {}) {
       return false;
     }
 
-    console.log("Supabase insert success:", inserted);
     await loadServerBackedState({ silent: false });
     return true;
   } catch (e) {
@@ -4130,6 +4260,21 @@ async function removeActiveSessionFromSupabase(sessionId) {
   const { error } = await window.supabase.from("active_sessions").delete().eq("active_session_id", sessionId);
   if (error) {
     console.warn("active_sessions delete failed:", error);
+    return false;
+  }
+
+  await loadServerBackedState({ silent: false });
+  return true;
+}
+
+async function removeTimeEntryFromSupabase(timeEntryId) {
+  if (!window.supabase || !timeEntryId) {
+    return false;
+  }
+
+  const { error } = await window.supabase.from("time_entries").delete().eq("time_entry_id", timeEntryId);
+  if (error) {
+    console.warn("time_entries delete failed:", error);
     return false;
   }
 
@@ -4265,23 +4410,22 @@ function togglePauseSession() {
 }
 
 function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
-  if (!activeSession || !activeStartDialogInput?.value) {
+  const nextStart = readDateTimeFieldValue(activeStartDateInput, activeStartTimeInput);
+  if (!activeSession || !nextStart) {
     if (closeEditor) {
       hideActiveStartEditor();
     }
     return false;
   }
-
-  const nextStart = new Date(activeStartDialogInput.value);
   const effectiveEnd = getActiveSessionEffectiveEnd(activeSession);
   const nextDurationMs =
     effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
 
   if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
     if (reportValidity) {
-      activeStartDialogInput.setCustomValidity("Le debut doit rester anterieur a maintenant.");
-      activeStartDialogInput.reportValidity();
-      activeStartDialogInput.setCustomValidity("");
+      activeStartTimeInput?.setCustomValidity("Le debut doit rester anterieur a maintenant.");
+      activeStartTimeInput?.reportValidity();
+      activeStartTimeInput?.setCustomValidity("");
     }
     if (closeEditor) {
       hideActiveStartEditor();
@@ -4290,7 +4434,7 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
     return false;
   }
 
-  activeStartDialogInput.setCustomValidity("");
+  activeStartTimeInput?.setCustomValidity("");
 
   const previousSession = { ...activeSession };
   const candidate = {
@@ -4303,14 +4447,14 @@ function updateActiveSessionStart({ reportValidity = true, closeEditor = true, a
   const overlap = findOverlappingSession(candidate, activeSession.id);
   if (overlap) {
     if (reportValidity) {
-      activeStartDialogInput.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
-      activeStartDialogInput.reportValidity();
-      activeStartDialogInput.setCustomValidity("");
+      activeStartTimeInput?.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
+      activeStartTimeInput?.reportValidity();
+      activeStartTimeInput?.setCustomValidity("");
     }
     if (closeEditor) {
       hideActiveStartEditor();
     }
-    activeStartDialogInput.setCustomValidity("");
+    activeStartTimeInput?.setCustomValidity("");
     renderActiveSession();
     return false;
   }
@@ -4349,8 +4493,12 @@ function openManualDialog(session = null, preset = null) {
   manualObjectiveOkrInput.value = session?.objectiveOkr ?? preset?.objectiveOkr ?? objectiveOkrInput.value.trim();
   manualObjectiveKrInput.value = session?.objectiveKr ?? preset?.objectiveKr ?? objectiveKrInput.value.trim();
   manualNotesInput.value = session?.notes ?? preset?.notes ?? notesInput.value.trim();
-  manualStartInput.value = formatDateTimeLocal(session ? new Date(session.start) : start);
-  manualEndInput.value = formatDateTimeLocal(session ? new Date(session.end) : end);
+  setDateTimeFieldValue(manualStartDateInput, manualStartTimeInput, session ? new Date(session.start) : start);
+  setDateTimeFieldValue(manualEndDateInput, manualEndTimeInput, session ? new Date(session.end) : end);
+  syncManualDurationFromBounds();
+  if (deleteManualButton) {
+    deleteManualButton.hidden = !session;
+  }
   saveManualButton.textContent = session ? "Enregistrer les changements" : "Enregistrer";
   renderObjectiveSelections();
   manualDialog.showModal();
@@ -4359,8 +4507,8 @@ function openManualDialog(session = null, preset = null) {
 function saveManualEntry() {
   const collaborator = getEffectiveCollaboratorValue(manualCollaboratorInput.value);
   const project = manualProjectInput.value.trim();
-  const startValue = manualStartInput.value;
-  const endValue = manualEndInput.value;
+  const start = readDateTimeFieldValue(manualStartDateInput, manualStartTimeInput);
+  const end = readDateTimeFieldValue(manualEndDateInput, manualEndTimeInput);
 
   if (!collaborator) {
     showAuthRequiredMessage();
@@ -4370,15 +4518,12 @@ function saveManualEntry() {
     manualProjectInput.focus();
     return;
   }
-  if (!startValue || !endValue) {
+  if (!start || !end) {
     return;
   }
-
-  const start = new Date(startValue);
-  const end = new Date(endValue);
   const durationMs = end.getTime() - start.getTime();
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || durationMs <= 0) {
-    manualEndInput.focus();
+    manualEndTimeInput.focus();
     return;
   }
 
@@ -4439,6 +4584,44 @@ function saveManualEntry() {
       render();
     },
   });
+}
+
+async function deleteSession(session) {
+  if (!session) {
+    return false;
+  }
+
+  const isActiveLike =
+    Boolean(session.dbActiveSessionId || session.isServerActive) ||
+    getPersistedActiveSessions().some((item) => item.id === session.id);
+
+  if (isActiveLike) {
+    const removed = await removeActiveSessionFromSupabase(session.dbActiveSessionId ?? session.id);
+    if (!removed) {
+      return false;
+    }
+    if (activeSession?.id === session.id) {
+      activeSession = null;
+      hydrateFormFromSession(null);
+      persistActiveSession();
+      syncActiveTimerLoop();
+    }
+    remoteActiveSessions = remoteActiveSessions.filter((item) => item.id !== session.id);
+    render();
+    return true;
+  }
+
+  if (session.dbTimeEntryId) {
+    const removed = await removeTimeEntryFromSupabase(session.dbTimeEntryId);
+    if (!removed) {
+      return false;
+    }
+  }
+
+  sessions = sessions.filter((item) => item.id !== session.id);
+  persistSessions();
+  render();
+  return true;
 }
 
 function attemptSaveSession(session, options = {}) {
@@ -4530,6 +4713,100 @@ function getAdjustedSession(newSession, existingSession) {
     end: new Date(best.end).toISOString(),
     durationMs: best.durationMs,
   };
+}
+
+function setDateTimeFieldValue(dateInput, timeInput, date) {
+  if (!dateInput || !timeInput || !(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return;
+  }
+  dateInput.value = formatDateInput(date);
+  timeInput.value = `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function readDateTimeFieldValue(dateInput, timeInput) {
+  if (!dateInput?.value) {
+    return null;
+  }
+  const timeValue = timeInput?.value || "00:00";
+  const candidate = new Date(`${dateInput.value}T${timeValue.length === 5 ? timeValue : timeValue.slice(0, 5)}:00`);
+  return Number.isNaN(candidate.getTime()) ? null : candidate;
+}
+
+function formatDurationInputValue(durationMs) {
+  const hours = Math.max(Number(durationMs) || 0, 0) / 3600000;
+  if (!hours) {
+    return "";
+  }
+  if (Math.abs(hours - Math.round(hours)) < 0.001) {
+    return String(Math.round(hours));
+  }
+  if (Math.abs(hours * 2 - Math.round(hours * 2)) < 0.001) {
+    return String(Math.round(hours * 2) / 2).replace(".", ",");
+  }
+  return hours.toFixed(2).replace(".", ",");
+}
+
+function parseDurationInputHours(rawValue) {
+  const raw = (rawValue ?? "").trim().toLowerCase().replace(/\s+/g, "");
+  if (!raw) {
+    return null;
+  }
+
+  if (raw.includes("h")) {
+    const [hoursPart, minutesPart = "0"] = raw.split("h");
+    const hours = Number(hoursPart.replace(",", "."));
+    const minutes = Number(minutesPart.replace(",", "."));
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const total = hours + minutes / 60;
+      return total > 0 ? total : null;
+    }
+  }
+
+  if (raw.includes(":")) {
+    const [hoursPart, minutesPart = "0"] = raw.split(":");
+    const hours = Number(hoursPart.replace(",", "."));
+    const minutes = Number(minutesPart.replace(",", "."));
+    if (Number.isFinite(hours) && Number.isFinite(minutes)) {
+      const total = hours + minutes / 60;
+      return total > 0 ? total : null;
+    }
+  }
+
+  const decimal = Number(raw.replace(",", "."));
+  return Number.isFinite(decimal) && decimal > 0 ? decimal : null;
+}
+
+function syncManualDurationFromBounds() {
+  if (manualTimingSyncLocked || !manualDurationInput) {
+    return;
+  }
+
+  const start = readDateTimeFieldValue(manualStartDateInput, manualStartTimeInput);
+  const end = readDateTimeFieldValue(manualEndDateInput, manualEndTimeInput);
+  if (!start || !end || end <= start) {
+    return;
+  }
+
+  manualTimingSyncLocked = true;
+  manualDurationInput.value = formatDurationInputValue(end.getTime() - start.getTime());
+  manualTimingSyncLocked = false;
+}
+
+function syncManualEndFromDuration() {
+  if (manualTimingSyncLocked) {
+    return;
+  }
+
+  const start = readDateTimeFieldValue(manualStartDateInput, manualStartTimeInput);
+  const durationHours = parseDurationInputHours(manualDurationInput?.value);
+  if (!start || !durationHours) {
+    return;
+  }
+
+  const end = new Date(start.getTime() + durationHours * 3600000);
+  manualTimingSyncLocked = true;
+  setDateTimeFieldValue(manualEndDateInput, manualEndTimeInput, end);
+  manualTimingSyncLocked = false;
 }
 
 function startTimerLoopIfNeeded() {
@@ -4632,6 +4909,43 @@ function renderAuthPanel() {
   authStatus.textContent = "";
 }
 
+function getScopedDayThemes(collaborator) {
+  const key = normalizeText(collaborator || "");
+  return dayThemes
+    .filter((item) => normalizeText(item.collaborator || "") === key)
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+}
+
+function renderDayThemes() {
+  if (!dayThemesList) {
+    return;
+  }
+
+  dayThemesList.innerHTML = "";
+  const collaborator = getCurrentCollaborator();
+  if (!collaborator) {
+    dayThemesList.append(createEmptyState("Choisissez un nom pour organiser la journee."));
+    return;
+  }
+
+  const items = getScopedDayThemes(collaborator);
+  if (!items.length) {
+    dayThemesList.append(createEmptyState("Ajoutez 2 ou 3 themes pour cadrer la journee."));
+    return;
+  }
+
+  for (const item of items) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chip chip--theme";
+    chip.dataset.themeId = item.id;
+    chip.textContent = item.label;
+    chip.title = `Retirer ${item.label}`;
+    applyCategorySurface(chip, generateStableHexColor(item.label));
+    dayThemesList.append(chip);
+  }
+}
+
 function renderActiveSession() {
   if (!activeSession) {
     timerDisplay.textContent = "00:00:00";
@@ -4670,14 +4984,8 @@ function showActiveStartEditor() {
 
   openManualDialog(editableSession);
   window.setTimeout(() => {
-    manualStartInput.focus();
-    if (typeof manualStartInput.showPicker === "function") {
-      try {
-        manualStartInput.showPicker();
-      } catch (error) {
-        // Some browsers refuse showPicker outside strict user gesture timing.
-      }
-    }
+    manualStartTimeInput?.focus();
+    manualStartTimeInput?.select?.();
   }, 0);
 }
 
@@ -5013,6 +5321,7 @@ function renderSessionList() {
 }
 
 function renderCadreViews() {
+  renderDayThemes();
   renderPersonalStats();
   renderPersonalDistribution();
   renderAgenda();
@@ -5351,17 +5660,17 @@ function applyAgendaEventColor(element, session) {
 function getAgendaCategoryColor(label) {
   const normalized = normalizeText(label);
   const palette = [
-    ["delivery", "#9dc4f2"],
-    ["livraison", "#9dc4f2"],
-    ["support", "#efc1da"],
-    ["management", "#c8d2f2"],
-    ["pilotage", "#c8d2f2"],
-    ["interne", "#dce6b1"],
-    ["internal", "#dce6b1"],
-    ["learning", "#f6dfab"],
-    ["formation", "#f6dfab"],
-    ["business", "#bfe1c7"],
-    ["bizdev", "#bfe1c7"],
+    ["delivery", "#069494"],
+    ["livraison", "#069494"],
+    ["support", "#FFC0CB"],
+    ["management", "#FF8243"],
+    ["pilotage", "#FF8243"],
+    ["interne", "#FCE883"],
+    ["internal", "#FCE883"],
+    ["learning", "#FCE883"],
+    ["formation", "#FCE883"],
+    ["business", "#069494"],
+    ["bizdev", "#069494"],
   ];
   const matched = palette.find(([token]) => normalized.includes(token));
   return matched ? matched[1] : colorForLabel(label);
@@ -5791,7 +6100,7 @@ function createObjectiveReportCard(card) {
 
 function buildObjectiveDonutGradient(rows, totalMs) {
   if (!totalMs || !rows.length) {
-    return "conic-gradient(rgba(24, 56, 74, 0.08) 0deg 360deg)";
+    return "conic-gradient(rgba(255, 192, 203, 0.22) 0deg 360deg)";
   }
 
   let cursor = 0;
@@ -6086,7 +6395,7 @@ function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMes
   personalDistributionLegend.innerHTML = "";
 
   if (!rows.length || !totalMs) {
-    personalDistributionDonut.style.background = "conic-gradient(rgba(24, 56, 74, 0.08) 0deg 360deg)";
+    personalDistributionDonut.style.background = "conic-gradient(rgba(255, 192, 203, 0.22) 0deg 360deg)";
     personalDistributionTotal.textContent = "0%";
     personalDistributionSubcopy.textContent = "repartition";
     personalDistributionLegend.append(createEmptyState(emptyMessage));
@@ -6788,7 +7097,7 @@ function isSameDay(left, right) {
 }
 
 function normalizeText(value) {
-  return value.trim().toLowerCase();
+  return String(value ?? "").trim().toLowerCase();
 }
 
 function colorForLabel(label) {

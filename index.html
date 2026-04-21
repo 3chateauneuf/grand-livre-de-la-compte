@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mordologie</title>
-    <meta name="theme-color" content="#18384a" />
+    <meta name="theme-color" content="#069494" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="Mordologie" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -42,7 +42,7 @@
         </div>
         <nav class="topbar-nav">
           <button type="button" data-view-target="cadre" class="active">Hobbit</button>
-          <button type="button" data-view-target="manager">Manager</button>
+          <button type="button" data-view-target="manager">Gandalf</button>
           <button type="button" data-view-target="resources">Ressources</button>
           <button type="button" data-view-target="journal">Journal</button>
         </nav>
@@ -54,11 +54,21 @@
         <section class="panel composer-panel">
           <form id="time-form" class="time-form">
             <div class="capture-layout">
-              <section class="capture-quick-column">
-                <section class="memory-strip memory-strip-inline">
-                  <div class="section-minihead">
+              <section class="capture-quick-column focus-rail">
+                <section class="memory-strip day-themes-panel quick-strip">
+                  <div class="section-minihead section-minihead-compact">
+                    <h3>Themes du jour</h3>
+                  </div>
+                  <div id="day-themes-list" class="chip-row"></div>
+                  <div class="day-inline-form">
+                    <input id="day-theme-input" class="select-input" type="text" placeholder="Ajouter un theme" />
+                    <button id="add-day-theme-button" type="button" class="btn btn-secondary">Ajouter</button>
+                  </div>
+                </section>
+
+                <section class="memory-strip memory-strip-inline quick-strip">
+                  <div class="section-minihead section-minihead-compact">
                     <h3>Reprises probables</h3>
-                    <p>Les contextes les plus plausibles pour le cargonaute actif.</p>
                   </div>
                   <div id="quick-projects" class="chip-row"></div>
                   <div id="reprise-actions" class="reprise-actions" hidden>
@@ -74,9 +84,11 @@
                 </section>
 
                 <section class="timer-panel">
-                  <p class="timer-label">Session active</p>
+                  <div class="timer-head">
+                    <p class="timer-label">Session active</p>
+                    <p id="active-task-label" class="active-task-label">Pret a lancer une nouvelle session.</p>
+                  </div>
                   <p id="timer-display" class="timer-display">00:00:00</p>
-                  <p id="active-task-label" class="active-task-label">Pret a lancer une nouvelle session.</p>
                   <div class="start-inline">
                     <button id="active-start-display" type="button" class="start-display-button" disabled>
                       Le depart se regle si besoin
@@ -91,9 +103,8 @@
               </section>
 
               <section class="capture-form-panel">
-                <div class="section-minihead">
-                  <h3>Contexte (optionnel)</h3>
-                  <p>A ignorer completement si la reprise suffit.</p>
+                <div class="section-minihead section-minihead-compact">
+                  <h3>Contexte <span class="section-meta-chip">Optionnel</span></h3>
                 </div>
 
                 <div class="form-grid">
@@ -632,12 +643,10 @@
       <section class="app-view" id="journal" data-view-panel="journal">
       <section class="journal-grid">
         <section class="panel">
-          <div class="panel-head">
+          <div class="panel-head panel-head-compact">
             <div>
-              <p class="eyebrow">Journal</p>
               <h2>Entrees recentes</h2>
             </div>
-            <p class="panel-copy">Lecture recente et correction rapide.</p>
           </div>
           <div class="journal-filters">
             <div class="journal-filter-row journal-filter-row-top">
@@ -668,23 +677,19 @@
         </section>
 
         <section class="panel">
-          <div class="panel-head">
+          <div class="panel-head panel-head-compact">
             <div>
-              <p class="eyebrow">Memoire projet</p>
               <h2>Contextes memorises</h2>
             </div>
-            <p class="panel-copy">Les derniers contextes reutilisables reviennent ici.</p>
           </div>
           <div id="project-memory-list" class="memory-list"></div>
         </section>
 
         <section id="agenda-import-panel" class="panel" hidden>
-          <div class="panel-head">
+          <div class="panel-head panel-head-compact">
             <div>
-              <p class="eyebrow">Import agenda</p>
               <h2>Staging calendrier</h2>
             </div>
-            <p class="panel-copy">Lecture admin des imports d'agenda avant nettoyage vers la base principale.</p>
           </div>
           <div id="agenda-import-list" class="memory-list"></div>
         </section>
@@ -702,117 +707,157 @@
           <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
         </div>
 
-        <div class="dialog-grid">
+        <div class="dialog-body">
           <input id="manual-collaborator-input" type="hidden" list="collaborator-suggestions" />
 
-          <label class="field">
-            <span>Sujet</span>
-            <input id="manual-project-input" type="text" list="project-suggestions" placeholder="Ex. Reunion Boussole, audit ADEME, synthese compta" />
-          </label>
-
-          <label class="field field-full">
-            <span>Client</span>
-            <input id="manual-task-input" type="text" placeholder="Ex. Yumi" />
-          </label>
-
-          <label class="field">
-            <span>Categories</span>
-            <input id="manual-categories-input" type="text" placeholder="Conseil, delivery" />
-          </label>
-
-          <label class="field">
-            <span>Tags</span>
-            <input id="manual-tags-input" type="text" placeholder="Atelier, revue" />
-          </label>
-
-          <label class="field">
-            <span>Lien d'interet</span>
-            <input id="manual-notion-input" type="text" placeholder="Notion, Google Sheets ou autre lien utile" />
-          </label>
-
-          <div class="field field-full objective-shell">
-            <details id="manual-objective-disclosure" class="objective-disclosure">
-              <summary class="objective-summary">
-                <div class="objective-summary-copy">
-                  <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
-                  <span id="manual-objective-summary-text" class="objective-summary-text"></span>
-                </div>
-              </summary>
-
-              <div class="objective-block">
-                <div class="objective-grid">
-                  <label class="field objective-subfield">
-                    <span>Pole</span>
-                    <div class="single-select-field">
-                      <div class="single-select-token" id="manual-objective-pole-selected"></div>
-                      <input id="manual-objective-pole-input" type="text" placeholder="Pole principal" />
-                    </div>
-                  </label>
-
-                  <label class="field objective-subfield">
-                    <span>OKR</span>
-                    <div class="single-select-field">
-                      <div class="single-select-token" id="manual-objective-okr-selected"></div>
-                      <input id="manual-objective-okr-input" type="text" placeholder="Objectif principal" />
-                    </div>
-                  </label>
-
-                  <label class="field objective-subfield objective-subfield-wide">
-                    <span>KR</span>
-                    <div class="single-select-field">
-                      <div class="single-select-token" id="manual-objective-kr-selected"></div>
-                      <input id="manual-objective-kr-input" type="text" placeholder="Resultat cle si besoin" />
-                    </div>
-                  </label>
-                </div>
+          <section class="dialog-section">
+            <div class="dialog-section-head">
+              <div>
+                <h3>Contexte</h3>
+                <p>On garde l’essentiel visible et contrôlé pour corriger vite.</p>
               </div>
-            </details>
-          </div>
+            </div>
 
-          <label class="field">
-            <span>Debut</span>
-            <input id="manual-start-input" type="text" inputmode="numeric" placeholder="17/04/2026 14:30" />
-          </label>
+            <div class="dialog-grid">
+              <label class="field field-full">
+                <span>Sujet</span>
+                <input id="manual-project-input" type="text" list="project-suggestions" placeholder="Ex. Reunion Boussole, audit ADEME, synthese compta" />
+              </label>
 
-          <label class="field">
-            <span>Fin</span>
-            <input id="manual-end-input" type="text" inputmode="numeric" placeholder="17/04/2026 16:00" />
-          </label>
+              <label class="field field-full">
+                <span>Client</span>
+                <input id="manual-task-input" type="text" placeholder="Ex. Yumi" />
+              </label>
 
-          <label class="field field-full">
-            <span>Duree (h)</span>
-            <input
-              id="manual-duration-input"
-              type="text"
-              inputmode="decimal"
-              list="manual-duration-suggestions"
-              placeholder="Ex. 1,5"
-            />
-            <small class="hint">Pas rapides de 0,5 h. Si besoin, debut et fin acceptent aussi une saisie minute precise.</small>
-          </label>
-          <datalist id="manual-duration-suggestions">
-            <option value="0,5"></option>
-            <option value="1"></option>
-            <option value="1,5"></option>
-            <option value="2"></option>
-            <option value="2,5"></option>
-            <option value="3"></option>
-            <option value="3,5"></option>
-            <option value="4"></option>
-            <option value="4,5"></option>
-            <option value="5"></option>
-            <option value="5,5"></option>
-            <option value="6"></option>
-            <option value="6,5"></option>
-            <option value="7"></option>
-            <option value="7,5"></option>
-            <option value="8"></option>
-          </datalist>
+              <label class="field">
+                <span>Categorie</span>
+                <input id="manual-categories-input" type="text" list="category-suggestions" placeholder="Choisir une categorie" />
+              </label>
 
-          <label class="field field-full">
-            <span>Note</span>
-            <input id="manual-notes-input" type="text" placeholder="Precision ou correction" />
-          </label>
+              <label class="field">
+                <span>Tags</span>
+                <input id="manual-tags-input" type="text" placeholder="Atelier, revue" />
+              </label>
+
+              <label class="field">
+                <span>Lien d'interet</span>
+                <input id="manual-notion-input" type="text" placeholder="Notion, Google Sheets ou autre lien utile" />
+              </label>
+
+              <label class="field field-full">
+                <span>Note</span>
+                <input id="manual-notes-input" type="text" placeholder="Precision ou correction" />
+              </label>
+
+              <div class="field field-full objective-shell">
+                <details id="manual-objective-disclosure" class="objective-disclosure">
+                  <summary class="objective-summary">
+                    <div class="objective-summary-copy">
+                      <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
+                      <span id="manual-objective-summary-text" class="objective-summary-text"></span>
+                    </div>
+                  </summary>
+
+                  <div class="objective-block">
+                    <div class="objective-grid">
+                      <label class="field objective-subfield">
+                        <span>Pole</span>
+                        <div class="single-select-field">
+                          <div class="single-select-token" id="manual-objective-pole-selected"></div>
+                          <input id="manual-objective-pole-input" type="text" placeholder="Pole principal" />
+                        </div>
+                      </label>
+
+                      <label class="field objective-subfield">
+                        <span>OKR</span>
+                        <div class="single-select-field">
+                          <div class="single-select-token" id="manual-objective-okr-selected"></div>
+                          <input id="manual-objective-okr-input" type="text" placeholder="Objectif principal" />
+                        </div>
+                      </label>
+
+                      <label class="field objective-subfield objective-subfield-wide">
+                        <span>KR</span>
+                        <div class="single-select-field">
+                          <div class="single-select-token" id="manual-objective-kr-selected"></div>
+                          <input id="manual-objective-kr-input" type="text" placeholder="Resultat cle si besoin" />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </section>
+
+          <section class="dialog-section dialog-section--timing">
+            <div class="dialog-section-head">
+              <div>
+                <h3>Temps</h3>
+                <p>Date et heure sont séparées pour corriger vite, sans champ caché ni scroll piégeux.</p>
+              </div>
+            </div>
+
+            <div class="dialog-time-grid">
+              <section class="dialog-time-card">
+                <p class="dialog-time-card-title">Debut</p>
+                <div class="dialog-time-inputs">
+                  <label class="field">
+                    <span>Date</span>
+                    <input id="manual-start-date-input" type="date" />
+                  </label>
+                  <label class="field">
+                    <span>Heure</span>
+                    <input id="manual-start-time-input" type="time" step="300" />
+                  </label>
+                </div>
+              </section>
+
+              <section class="dialog-time-card">
+                <p class="dialog-time-card-title">Fin</p>
+                <div class="dialog-time-inputs">
+                  <label class="field">
+                    <span>Date</span>
+                    <input id="manual-end-date-input" type="date" />
+                  </label>
+                  <label class="field">
+                    <span>Heure</span>
+                    <input id="manual-end-time-input" type="time" step="300" />
+                  </label>
+                </div>
+              </section>
+            </div>
+
+            <label class="field field-full">
+              <span>Duree (h)</span>
+              <input
+                id="manual-duration-input"
+                type="text"
+                inputmode="decimal"
+                list="manual-duration-suggestions"
+                placeholder="Ex. 1,5"
+              />
+              <small class="hint">Les propositions vont par demi-heures, mais l’heure reste editable à la minute si besoin.</small>
+            </label>
+            <datalist id="manual-duration-suggestions">
+              <option value="0,5"></option>
+              <option value="1"></option>
+              <option value="1,5"></option>
+              <option value="2"></option>
+              <option value="2,5"></option>
+              <option value="3"></option>
+              <option value="3,5"></option>
+              <option value="4"></option>
+              <option value="4,5"></option>
+              <option value="5"></option>
+              <option value="5,5"></option>
+              <option value="6"></option>
+              <option value="6,5"></option>
+              <option value="7"></option>
+              <option value="7,5"></option>
+              <option value="8"></option>
+            </datalist>
+          </section>
         </div>
 
         <div class="dialog-actions">
@@ -833,9 +878,11 @@
           <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
         </div>
 
-        <div class="conflict-copy">
-          <p id="conflict-message"></p>
-          <p id="conflict-detail" class="muted-copy"></p>
+        <div class="dialog-body">
+          <div class="conflict-copy">
+            <p id="conflict-message"></p>
+            <p id="conflict-detail" class="muted-copy"></p>
+          </div>
         </div>
 
         <div class="dialog-actions">
@@ -856,10 +903,21 @@
           <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
         </div>
 
-        <label class="field">
-          <span>Debut</span>
-          <input id="active-start-dialog-input" type="text" inputmode="numeric" placeholder="17/04/2026 14:30" />
-        </label>
+        <div class="dialog-body">
+          <section class="dialog-time-card dialog-time-card-single">
+            <p class="dialog-time-card-title">Debut</p>
+            <div class="dialog-time-inputs">
+              <label class="field">
+                <span>Date</span>
+                <input id="active-start-date-input" type="date" />
+              </label>
+              <label class="field">
+                <span>Heure</span>
+                <input id="active-start-time-input" type="time" step="300" />
+              </label>
+            </div>
+          </section>
+        </div>
 
         <div class="dialog-actions">
           <button id="active-start-dialog-cancel" type="button" class="btn btn-secondary">Annuler</button>
@@ -878,19 +936,21 @@
           <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
         </div>
 
-        <div class="conflict-copy">
-          <p id="field-manage-copy"></p>
-          <p id="field-manage-detail" class="muted-copy"></p>
-        </div>
+        <div class="dialog-body">
+          <div class="conflict-copy">
+            <p id="field-manage-copy"></p>
+            <p id="field-manage-detail" class="muted-copy"></p>
+          </div>
 
-        <div id="field-manage-color-shell" class="field-manage-color-shell" hidden>
-          <label class="auth-field admin-favicon-field">
-            <span>Couleur</span>
-            <div class="admin-favicon-inline">
-              <input id="field-manage-color-input" type="color" value="#0f766e" />
-              <button id="field-manage-color-save" type="button" class="btn btn-secondary">Enregistrer la couleur</button>
-            </div>
-          </label>
+          <div id="field-manage-color-shell" class="field-manage-color-shell" hidden>
+            <label class="auth-field admin-favicon-field">
+              <span>Couleur</span>
+              <div class="admin-favicon-inline">
+                <input id="field-manage-color-input" type="color" value="#069494" />
+                <button id="field-manage-color-save" type="button" class="btn btn-secondary">Enregistrer la couleur</button>
+              </div>
+            </label>
+          </div>
         </div>
 
         <div class="dialog-actions">
