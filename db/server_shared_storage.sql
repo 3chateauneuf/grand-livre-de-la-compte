@@ -123,11 +123,8 @@ to anon
 using (status = 'active');
 
 drop policy if exists users_anon_insert_lightweight on public.users;
-create policy users_anon_insert_lightweight
-on public.users
-for insert
-to anon
-with check (true);
+-- Keep reference catalogs read-only for anonymous clients.
+-- Shared tracking remains available, but catalog mutations should move to authenticated/admin flows.
 
 drop policy if exists projects_anon_read_lightweight on public.projects;
 create policy projects_anon_read_lightweight
@@ -137,11 +134,6 @@ to anon
 using (true);
 
 drop policy if exists projects_anon_insert_lightweight on public.projects;
-create policy projects_anon_insert_lightweight
-on public.projects
-for insert
-to anon
-with check (true);
 
 drop policy if exists categories_anon_read_lightweight on public.categories;
 create policy categories_anon_read_lightweight
@@ -151,12 +143,6 @@ to anon
 using (true);
 
 drop policy if exists categories_anon_insert_lightweight on public.categories;
-create policy categories_anon_insert_lightweight
-on public.categories
-for insert
-to anon
-with check (true);
-
 drop policy if exists categories_anon_update_lightweight on public.categories;
 create policy categories_anon_update_lightweight
 on public.categories

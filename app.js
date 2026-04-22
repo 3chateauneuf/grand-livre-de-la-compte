@@ -16,6 +16,7 @@ const LEGACY_STORAGE_KEYS = {
 const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
+const DEMO_MODE_ENABLED = false;
 const COLOR_PALETTE = ["#069494", "#FF8243", "#FFC0CB", "#FCE883", "#057171", "#E96F49", "#E6A8B9", "#E2C85E"];
 const LOCAL_PROFILE_DIRECTORY = [
   {
@@ -185,8 +186,6 @@ const journalFilterCategoryInput = document.querySelector("#journal-filter-categ
 const journalFilterSubjectInput = document.querySelector("#journal-filter-subject");
 const journalFilterResetButton = document.querySelector("#journal-filter-reset");
 const projectMemoryList = document.querySelector("#project-memory-list");
-const agendaImportPanel = document.querySelector("#agenda-import-panel");
-const agendaImportList = document.querySelector("#agenda-import-list");
 const sessionItemTemplate = document.querySelector("#session-item-template");
 const resourceTotal = document.querySelector("#resource-total");
 const resourceRange = document.querySelector("#resource-range");
@@ -243,11 +242,6 @@ const conflictDetail = document.querySelector("#conflict-detail");
 const cancelConflictButton = document.querySelector("#cancel-conflict-button");
 const editConflictButton = document.querySelector("#edit-conflict-button");
 const adjustConflictButton = document.querySelector("#adjust-conflict-button");
-const activeStartDialog = document.querySelector("#active-start-dialog");
-const activeStartDateInput = document.querySelector("#active-start-date-input");
-const activeStartTimeInput = document.querySelector("#active-start-time-input");
-const activeStartDialogCancelButton = document.querySelector("#active-start-dialog-cancel");
-const activeStartDialogSaveButton = document.querySelector("#active-start-dialog-save");
 const fieldManageDialog = document.querySelector("#field-manage-dialog");
 const fieldManageTitle = document.querySelector("#field-manage-title");
 const fieldManageCopy = document.querySelector("#field-manage-copy");
@@ -772,6 +766,20 @@ const LOCAL_DEMO_SESSIONS = [
   },
 ];
 
+const DEMO_REFERENCE_USER = "Eduardo";
+const DEMO_LOOKBACK_DAYS = 14;
+const DEMO_WEEKDAY_SLOTS = [
+  { startHour: 8, startMinute: 0, durationMinutes: 120 },
+  { startHour: 10, startMinute: 30, durationMinutes: 120 },
+  { startHour: 13, startMinute: 30, durationMinutes: 120 },
+  { startHour: 15, startMinute: 45, durationMinutes: 120 },
+];
+const DEMO_WEEKEND_SLOTS = [
+  { startHour: 10, startMinute: 0, durationMinutes: 150 },
+  { startHour: 14, startMinute: 0, durationMinutes: 120 },
+];
+const ROLLING_DEMO_SESSIONS = buildRollingDemoSessions();
+
 let sessions = loadSessions();
 let activeSession = loadActiveSession();
 let currentCategories = [];
@@ -810,8 +818,6 @@ let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
 let auditTableAvailable = null;
-let agendaImportRows = [];
-let agendaImportLoaded = false;
 let remoteActiveSessions = [];
 let repriseActions = loadStoredRepriseActions();
 let remoteStateAvailable = false;
@@ -897,14 +903,6 @@ openManualButton.addEventListener("click", () => {
 
 activeStartDisplay.addEventListener("click", () => {
   showActiveStartEditor();
-});
-
-activeStartDialogCancelButton?.addEventListener("click", () => {
-  hideActiveStartEditor();
-});
-
-activeStartDialogSaveButton?.addEventListener("click", () => {
-  updateActiveSessionStart({ reportValidity: true, closeEditor: true, audit: true });
 });
 
 for (const input of [manualStartDateInput, manualStartTimeInput, manualEndDateInput, manualEndTimeInput]) {
@@ -1427,6 +1425,9 @@ fieldManageEditButton?.addEventListener("click", () => {
 });
 
 fieldManageDeleteButton?.addEventListener("click", () => {
+  if (!fieldManageState?.allowDelete) {
+    return;
+  }
   fieldManageConfirmMode = true;
   syncFieldManageDialogMode();
 });
@@ -1493,7 +1494,7 @@ function initializeAutocomplete() {
         projectInput.value = value;
         applyProjectMemoryFromInput();
       },
-      allowCreate: true,
+      allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouveau projet`,
       createValue: (value) => createProjectReference(value, currentCategories[0] ?? ""),
     },
@@ -1510,7 +1511,7 @@ function initializeAutocomplete() {
         referenceCatalog.loaded
           ? referenceCatalog.categories.map((item) => item.activity_category_label)
           : uniqueTokenValues("categories"),
-      allowCreate: true,
+      allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
       createValue: (value) =>
         createCategoryReference(value, {
@@ -1590,7 +1591,7 @@ function initializeAutocomplete() {
       applyValue: (value) => {
         manualProjectInput.value = value;
       },
-      allowCreate: true,
+      allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouveau projet`,
       createValue: (value) => createProjectReference(value, parseTokenString(manualCategoriesInput.value)[0] ?? ""),
     },
@@ -1607,7 +1608,7 @@ function initializeAutocomplete() {
         referenceCatalog.loaded
           ? referenceCatalog.categories.map((item) => item.activity_category_label)
           : uniqueTokenValues("categories"),
-      allowCreate: true,
+      allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
       createValue: (value) =>
         createCategoryReference(value, {
@@ -2588,30 +2589,98 @@ function loadDayThemes() {
   }
 }
 
+function isDemoSession(session) {
+  return String(session?.id ?? "").startsWith("DEMO-");
+}
+
+function getDemoSessions() {
+  return DEMO_MODE_ENABLED ? ROLLING_DEMO_SESSIONS.map(normalizeSession) : [];
+}
+
 function persistDayThemes() {
   window.localStorage.setItem(DAY_THEMES_KEY, JSON.stringify(dayThemes));
+}
+
+function buildRollingDemoSessions(referenceDate = new Date()) {
+  const baseDate = new Date(referenceDate);
+  baseDate.setHours(0, 0, 0, 0);
+
+  const seedSessions = LOCAL_DEMO_SESSIONS.filter(
+    (session) => normalizeText(session.collaborator) !== normalizeText(DEMO_REFERENCE_USER),
+  );
+  const templateByCollaborator = new Map();
+
+  for (const session of seedSessions) {
+    const key = normalizeText(session.collaborator);
+    const current = templateByCollaborator.get(key) ?? [];
+    current.push(session);
+    templateByCollaborator.set(key, current);
+  }
+
+  const fallbackTemplates = seedSessions.slice(0, 6);
+  const sessions = [];
+
+  for (const user of LOCAL_PROFILE_DIRECTORY) {
+    if (normalizeText(user.user_name) === normalizeText(DEMO_REFERENCE_USER)) {
+      continue;
+    }
+
+    const templates = templateByCollaborator.get(normalizeText(user.user_name)) ?? fallbackTemplates;
+    if (!templates.length) {
+      continue;
+    }
+
+    for (let offset = DEMO_LOOKBACK_DAYS - 1; offset >= 0; offset -= 1) {
+      const day = new Date(baseDate);
+      day.setDate(baseDate.getDate() - offset);
+      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+      const slots = isWeekend ? DEMO_WEEKEND_SLOTS : DEMO_WEEKDAY_SLOTS;
+
+      slots.forEach((slot, index) => {
+        const template = templates[(offset + index) % templates.length];
+        sessions.push(materializeDemoSession(template, user, day, slot, index));
+      });
+    }
+  }
+
+  return sessions;
+}
+
+function materializeDemoSession(template, user, day, slot, slotIndex) {
+  const start = new Date(day);
+  start.setHours(slot.startHour, slot.startMinute, 0, 0);
+  const end = new Date(start.getTime() + slot.durationMinutes * 60000);
+  const dayStamp = `${start.getFullYear()}${String(start.getMonth() + 1).padStart(2, "0")}${String(start.getDate()).padStart(2, "0")}`;
+  const userSlug = normalizeText(user.user_name).replace(/[^a-z0-9]+/g, "-");
+
+  return {
+    ...template,
+    id: `DEMO-${userSlug}-${dayStamp}-${slotIndex + 1}`,
+    collaborator: user.user_name,
+    dbTeamName: user.team_name ?? template.dbTeamName ?? "",
+    dbClientName: template.dbClientName ?? "Interne",
+    start: start.toISOString(),
+    end: end.toISOString(),
+    durationMs: slot.durationMinutes * 60000,
+    notes: template.notes || "Demo planning pour lecture visuelle.",
+  };
 }
 
 function loadSessions() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    const normalized = parsed.map(normalizeSession);
-    const demoSessions = LOCAL_DEMO_SESSIONS.map(normalizeSession);
+    const normalized = parsed
+      .map(normalizeSession)
+      .filter((session) => DEMO_MODE_ENABLED || !isDemoSession(session));
+    const demoSessions = getDemoSessions();
     if (!normalized.length) {
       return demoSessions;
     }
 
-    const demoCollaborators = new Set(
-      LOCAL_DEMO_SESSIONS.map((session) => normalizeText(session.collaborator)),
-    );
-    const hasVisibleDemoProfiles = normalized.some((session) =>
-      demoCollaborators.has(normalizeText(session.collaborator)),
-    );
-
-    return hasVisibleDemoProfiles ? normalized : [...demoSessions, ...normalized];
+    return [...demoSessions, ...normalized];
   } catch {
-    return LOCAL_DEMO_SESSIONS.map(normalizeSession);
+    return getDemoSessions();
   }
 }
 
@@ -2737,18 +2806,47 @@ function mapActiveSessionRowToSession(row) {
 }
 
 function hydrateRemoteState(historyRows, activeRows) {
-  sessions = historyRows
-    .map(mapTimeEntryRowToSession)
-    .sort((left, right) => new Date(right.start) - new Date(left.start));
+  const remoteSessions = historyRows.map(mapTimeEntryRowToSession);
+  const mergedSessions = new Map();
+
+  for (const session of remoteSessions) {
+    mergedSessions.set(normalizeText(session.id), session);
+  }
+
+  for (const session of sessions) {
+    if (!session || isDemoSession(session) || session.isServerBacked || session.dbTimeEntryId) {
+      continue;
+    }
+    const localKey = normalizeText(session.id);
+    if (!localKey || mergedSessions.has(localKey)) {
+      continue;
+    }
+    mergedSessions.set(localKey, normalizeSession(session));
+  }
+
+  sessions = Array.from(mergedSessions.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
 
   remoteActiveSessions = activeRows
     .map(mapActiveSessionRowToSession)
     .sort((left, right) => new Date(right.start) - new Date(left.start));
 
   const currentUserName = accessProfile.appUser?.user_name ?? "";
-  activeSession = currentUserName
+  const previousActiveSession = activeSession;
+  const remoteActiveSession = currentUserName
     ? remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(currentUserName)) ?? null
     : null;
+
+  if (remoteActiveSession) {
+    activeSession = remoteActiveSession;
+  } else if (
+    previousActiveSession &&
+    !previousActiveSession.isServerBacked &&
+    normalizeText(previousActiveSession.collaborator) === normalizeText(currentUserName)
+  ) {
+    activeSession = normalizeSession(previousActiveSession);
+  } else {
+    activeSession = null;
+  }
 
   persistSessions();
   persistActiveSession();
@@ -2768,7 +2866,8 @@ function hydrateRepriseActions(rows) {
 }
 
 function persistSessions() {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  const persistedRows = sessions.filter((session) => !isDemoSession(session));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedRows));
 }
 
 function persistActiveSession() {
@@ -3023,48 +3122,56 @@ function getFieldManagePayload(kind) {
       title: "Gerer le projet",
       copy: "Vous pouvez modifier le projet courant ou le supprimer du contexte.",
       detail: projectInput.value.trim(),
+      allowDelete: true,
     },
     client: {
       kind,
       title: "Gerer le client",
       copy: "Vous pouvez corriger le client courant ou l'effacer du contexte.",
       detail: taskInput.value.trim(),
+      allowDelete: true,
     },
     category: {
       kind,
       title: "Gerer la categorie",
       copy: "Vous pouvez modifier la categorie choisie ou la retirer.",
       detail: currentCategories.join(", "),
+      allowDelete: true,
     },
     tags: {
       kind,
       title: "Gerer les tags",
       copy: "Vous pouvez corriger les tags ou tous les retirer en une fois.",
       detail: currentTags.join(", "),
+      allowDelete: true,
     },
     link: {
       kind,
       title: "Gerer le lien d'interet",
       copy: "Vous pouvez modifier ce lien ou le supprimer du contexte.",
       detail: notionInput.value.trim(),
+      allowDelete: true,
     },
     pole: {
       kind,
       title: "Gerer le pole",
-      copy: "Vous pouvez corriger le pole ou vider toute l'association objectif.",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
       detail: objectivePoleInput.value.trim(),
+      allowDelete: false,
     },
     okr: {
       kind,
       title: "Gerer l'OKR",
-      copy: "Vous pouvez corriger l'OKR ou le retirer avec son KR.",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
       detail: objectiveOkrInput.value.trim(),
+      allowDelete: false,
     },
     kr: {
       kind,
       title: "Gerer le KR",
-      copy: "Vous pouvez corriger le KR ou le retirer.",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
       detail: objectiveKrInput.value.trim(),
+      allowDelete: false,
     },
   };
 
@@ -3281,6 +3388,10 @@ function animateChipReorder(container, previousPositions) {
 }
 
 async function saveCategoryColor(categoryLabel, color) {
+  if (!canManageSharedCategoryColors()) {
+    return false;
+  }
+
   const match = referenceCatalog.categories.find(
     (item) => normalizeText(item.activity_category_label ?? "") === normalizeText(categoryLabel),
   );
@@ -3302,6 +3413,7 @@ async function saveCategoryColor(categoryLabel, color) {
 
   renderSuggestions();
   render();
+  return true;
 }
 
 async function saveRepriseAction(memory, actionKind) {
@@ -3354,10 +3466,12 @@ function syncFieldManageDialogMode() {
     return;
   }
 
-  fieldManageDeleteButton.hidden = fieldManageConfirmMode;
-  fieldManageConfirmButton.hidden = !fieldManageConfirmMode;
+  const allowDelete = fieldManageState.allowDelete !== false;
+  const allowCategoryColorEdit = fieldManageState.kind === "category" && canManageSharedCategoryColors();
+  fieldManageDeleteButton.hidden = !allowDelete || fieldManageConfirmMode;
+  fieldManageConfirmButton.hidden = !allowDelete || !fieldManageConfirmMode;
   if (fieldManageColorShell) {
-    fieldManageColorShell.hidden = fieldManageState.kind !== "category" || fieldManageConfirmMode;
+    fieldManageColorShell.hidden = !allowCategoryColorEdit || fieldManageConfirmMode;
   }
 
   if (fieldManageConfirmMode) {
@@ -3473,9 +3587,6 @@ async function initializeReferenceCatalog() {
     await loadServerBackedState({ silent: true });
     startRemoteSyncLoop();
   }
-  if (loaded && getAccessRole() === "admin") {
-    await loadAgendaImportRows();
-  }
   if (loaded) {
     render();
   }
@@ -3566,15 +3677,6 @@ function applyLocalAccessProfile(rawName, options = {}) {
 
   if (options.persist !== false) {
     storeAccessName(appUser.user_name);
-  }
-
-  if (accessProfile.role === "admin") {
-    void loadAgendaImportRows().then(() => {
-      renderAgendaImportPanel();
-    });
-  } else {
-    agendaImportRows = [];
-    agendaImportLoaded = false;
   }
 
   void loadServerBackedState({ silent: false });
@@ -3685,8 +3787,16 @@ function getVisibleReferenceUsers() {
 }
 
 function canCreateCollaboratorReference() {
+  return false;
+}
+
+function canCreateSharedReferenceCatalog() {
+  return false;
+}
+
+function canManageSharedCategoryColors() {
   const role = getAccessRole();
-  return role === "admin";
+  return role === "manager" || role === "admin";
 }
 
 function getEffectiveCollaboratorValue(rawValue = "") {
@@ -3795,6 +3905,9 @@ async function createUserReference(rawName) {
   if (!userName) {
     return null;
   }
+  if (!canCreateCollaboratorReference()) {
+    return null;
+  }
   if (!window.supabase) {
     return userName;
   }
@@ -3841,6 +3954,9 @@ async function createUserReference(rawName) {
 async function createProjectReference(rawName, defaultCategoryLabel = "") {
   const projectName = rawName.trim();
   if (!projectName) {
+    return null;
+  }
+  if (!canCreateSharedReferenceCatalog()) {
     return null;
   }
   if (!window.supabase) {
@@ -3891,6 +4007,9 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
 async function createCategoryReference(rawLabel, options = {}) {
   const categoryLabel = rawLabel.trim();
   if (!categoryLabel) {
+    return null;
+  }
+  if (!canCreateSharedReferenceCatalog()) {
     return null;
   }
   if (!window.supabase) {
@@ -4082,11 +4201,10 @@ async function resolveSessionReferences(session) {
 }
 
 async function getNextTimeEntryId() {
-  const generated = await getNextPrefixedId("time_entries", "time_entry_id", "TE-", 6);
-  if (generated) {
-    return generated;
+  if (globalThis.crypto?.randomUUID) {
+    return `TE-${globalThis.crypto.randomUUID()}`;
   }
-  return `TE-${String(Math.floor(Math.random() * 1000000)).padStart(6, "0")}`;
+  return `TE-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 }
 
 async function getNextPrefixedId(tableName, columnName, prefix, padLength) {
@@ -4409,74 +4527,6 @@ function togglePauseSession() {
   scheduleActiveSessionServerSync({ immediate: true });
 }
 
-function updateActiveSessionStart({ reportValidity = true, closeEditor = true, audit = true } = {}) {
-  const nextStart = readDateTimeFieldValue(activeStartDateInput, activeStartTimeInput);
-  if (!activeSession || !nextStart) {
-    if (closeEditor) {
-      hideActiveStartEditor();
-    }
-    return false;
-  }
-  const effectiveEnd = getActiveSessionEffectiveEnd(activeSession);
-  const nextDurationMs =
-    effectiveEnd.getTime() - nextStart.getTime() - (Number(activeSession.pausedDurationMs) || 0);
-
-  if (Number.isNaN(nextStart.getTime()) || nextDurationMs <= 0 || nextStart > new Date()) {
-    if (reportValidity) {
-      activeStartTimeInput?.setCustomValidity("Le debut doit rester anterieur a maintenant.");
-      activeStartTimeInput?.reportValidity();
-      activeStartTimeInput?.setCustomValidity("");
-    }
-    if (closeEditor) {
-      hideActiveStartEditor();
-    }
-    renderActiveSession();
-    return false;
-  }
-
-  activeStartTimeInput?.setCustomValidity("");
-
-  const previousSession = { ...activeSession };
-  const candidate = {
-    ...activeSession,
-    start: nextStart.toISOString(),
-    end: effectiveEnd.toISOString(),
-    durationMs: nextDurationMs,
-  };
-
-  const overlap = findOverlappingSession(candidate, activeSession.id);
-  if (overlap) {
-    if (reportValidity) {
-      activeStartTimeInput?.setCustomValidity("Ce cargonaute a deja une autre session sur ce creneau.");
-      activeStartTimeInput?.reportValidity();
-      activeStartTimeInput?.setCustomValidity("");
-    }
-    if (closeEditor) {
-      hideActiveStartEditor();
-    }
-    activeStartTimeInput?.setCustomValidity("");
-    renderActiveSession();
-    return false;
-  }
-
-  activeSession = {
-    ...activeSession,
-    ...candidate,
-  };
-  persistActiveSession();
-  if (closeEditor) {
-    hideActiveStartEditor();
-  } else {
-    renderActiveSession();
-  }
-  hydrateFormFromActiveSession();
-  if (audit) {
-    void logSessionChange(previousSession, activeSession, "active-session-start");
-  }
-  scheduleActiveSessionServerSync({ immediate: true });
-  return true;
-}
-
 function openManualDialog(session = null, preset = null) {
   const end = preset?.end ? new Date(preset.end) : new Date();
   const start = preset?.start ? new Date(preset.start) : new Date(end.getTime() - 30 * 60 * 1000);
@@ -4652,6 +4702,45 @@ function upsertSession(session) {
   sessions.sort((a, b) => new Date(b.start) - new Date(a.start));
 }
 
+function areSessionsEffectivelySame(left, right) {
+  if (!left || !right) {
+    return false;
+  }
+
+  if (left.id && right.id && left.id === right.id) {
+    return true;
+  }
+
+  if (left.dbTimeEntryId && right.dbTimeEntryId && left.dbTimeEntryId === right.dbTimeEntryId) {
+    return true;
+  }
+
+  if (left.dbActiveSessionId && right.dbActiveSessionId && left.dbActiveSessionId === right.dbActiveSessionId) {
+    return true;
+  }
+
+  const leftStart = new Date(left.start).getTime();
+  const rightStart = new Date(right.start).getTime();
+  const leftEnd = new Date(left.end).getTime();
+  const rightEnd = new Date(right.end).getTime();
+
+  if (
+    Number.isNaN(leftStart) ||
+    Number.isNaN(rightStart) ||
+    Number.isNaN(leftEnd) ||
+    Number.isNaN(rightEnd)
+  ) {
+    return false;
+  }
+
+  const sameCollaborator = normalizeText(left.collaborator) === normalizeText(right.collaborator);
+  const sameProject = normalizeText(left.project) === normalizeText(right.project);
+  const sameTask = normalizeText(left.task) === normalizeText(right.task);
+  const sameBounds = Math.abs(leftStart - rightStart) < 60000 && Math.abs(leftEnd - rightEnd) < 60000;
+
+  return sameCollaborator && sameProject && sameTask && sameBounds;
+}
+
 function findOverlappingSession(session, excludeId = null) {
   const start = new Date(session.start).getTime();
   const end = new Date(session.end).getTime();
@@ -4660,6 +4749,9 @@ function findOverlappingSession(session, excludeId = null) {
   return (
     getAllSessionsWithActive().find((existing) => {
       if (existing.id === excludeId) {
+        return false;
+      }
+      if (areSessionsEffectivelySame(existing, session)) {
         return false;
       }
       if (normalizeText(existing.collaborator) !== collaboratorKey) {
@@ -4676,7 +4768,7 @@ function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "Le meme cargonaute a deja une session qui chevauche ce creneau.";
+    "Une autre session de ce cargonaute occupe deja une partie de ce creneau.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
@@ -4844,7 +4936,6 @@ function render() {
   renderSuggestions();
   renderQuickProjects();
   renderProjectMemoryList();
-  renderAgendaImportPanel();
   renderSessionList();
   renderCadreViews();
   renderManagerControls();
@@ -4987,11 +5078,6 @@ function showActiveStartEditor() {
     manualStartTimeInput?.focus();
     manualStartTimeInput?.select?.();
   }, 0);
-}
-
-function hideActiveStartEditor() {
-  activeStartDialog?.close();
-  renderActiveSession();
 }
 
 function renderSuggestions() {
@@ -5139,91 +5225,6 @@ function renderProjectMemoryList() {
 
     card.append(copy, action);
     projectMemoryList.append(card);
-  }
-}
-
-async function loadAgendaImportRows() {
-  if (!window.supabase) {
-    return false;
-  }
-
-  const { data, error } = await window.supabase
-    .from("agenda_import_staging")
-    .select("*")
-    .order("entry_date", { ascending: false })
-    .order("start_time", { ascending: false })
-    .limit(24);
-
-  if (error) {
-    console.warn("agenda_import_staging load failed:", error);
-    agendaImportRows = [];
-    agendaImportLoaded = false;
-    return false;
-  }
-
-  agendaImportRows = data ?? [];
-  agendaImportLoaded = true;
-  return true;
-}
-
-function renderAgendaImportPanel() {
-  if (!agendaImportPanel || !agendaImportList) {
-    return;
-  }
-
-  const visible = getAccessRole() === "admin";
-  agendaImportPanel.hidden = !visible;
-  if (!visible) {
-    return;
-  }
-
-  agendaImportList.innerHTML = "";
-
-  if (!agendaImportLoaded) {
-    agendaImportList.append(createEmptyState("Chargez ou rechargez la vue pour lire les imports agenda."));
-    return;
-  }
-
-  if (!agendaImportRows.length) {
-    agendaImportList.append(createEmptyState("Aucun import agenda en staging pour le moment."));
-    return;
-  }
-
-  for (const row of agendaImportRows) {
-    const card = document.createElement("article");
-    card.className = "memory-card";
-
-    const copy = document.createElement("div");
-    copy.className = "memory-copy";
-
-    const title = document.createElement("h3");
-    title.textContent = row.title || "Sans titre";
-
-    const meta = document.createElement("p");
-    meta.className = "muted-copy";
-    const timeLabel = row.end_time ? `${row.start_time.slice(0, 5)} - ${row.end_time.slice(0, 5)}` : `${row.start_time.slice(0, 5)} - ?`;
-    meta.textContent = [row.user_name, row.entry_date, timeLabel].filter(Boolean).join(" · ");
-
-    const detail = document.createElement("div");
-    detail.className = "memory-meta";
-    renderPills(
-      detail,
-      [
-        row.project_name ? `Projet · ${row.project_name}` : "",
-        row.client_name ? `Client · ${row.client_name}` : "",
-        row.category_label ? `Categorie · ${row.category_label}` : "Categorie a attribuer",
-        row.needs_review ? "A revoir" : "",
-      ].filter(Boolean),
-    );
-
-    const notes = document.createElement("p");
-    notes.className = "session-notes";
-    notes.textContent = row.review_reason || row.notes || "";
-    notes.hidden = !notes.textContent;
-
-    copy.append(title, meta, detail, notes);
-    card.append(copy);
-    agendaImportList.append(card);
   }
 }
 
