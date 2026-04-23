@@ -1,6 +1,5 @@
 const STORAGE_KEY = "mordologie-sessions-v1";
 const ACTIVE_SESSION_KEY = "mordologie-active-session-v1";
-const ACCESS_PROFILE_KEY = "mordologie-access-profile-v1";
 const CATEGORY_COLOR_KEY = "mordologie-category-colors-v1";
 const REPRISES_ORDER_KEY = "mordologie-reprises-order-v1";
 const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
@@ -8,7 +7,6 @@ const DAY_THEMES_KEY = "mordologie-day-themes-v1";
 const LEGACY_STORAGE_KEYS = {
   [STORAGE_KEY]: "cadence-equipe-sessions-v3",
   [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
-  [ACCESS_PROFILE_KEY]: "grand-livre-access-profile-v2",
   [CATEGORY_COLOR_KEY]: "grand-livre-category-colors-v1",
   [REPRISES_ORDER_KEY]: "grand-livre-reprises-order-v1",
   [REPRISES_ACTIONS_KEY]: "grand-livre-reprises-actions-v1",
@@ -89,7 +87,25 @@ const viewPanels = Array.from(document.querySelectorAll("[data-view-panel]"));
 const analysisToolbarPanel = document.querySelector("#analysis-toolbar-panel");
 const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
-const loginNameInput = document.querySelector("#login-name-input");
+const authGuestShell = document.querySelector("#auth-guest-shell");
+const authUserShell = document.querySelector("#auth-user-shell");
+const authModeSigninButton = document.querySelector("#auth-mode-signin");
+const authModeSignupButton = document.querySelector("#auth-mode-signup");
+const authNameField = document.querySelector("#auth-name-field");
+const authNameInput = document.querySelector("#auth-name-input");
+const authEmailInput = document.querySelector("#auth-email-input");
+const authPasswordInput = document.querySelector("#auth-password-input");
+const authPasswordConfirmField = document.querySelector("#auth-password-confirm-field");
+const authPasswordConfirmInput = document.querySelector("#auth-password-confirm-input");
+const authTrustedShell = document.querySelector("#auth-trusted-shell");
+const authTrustedDeviceInput = document.querySelector("#auth-trusted-device");
+const authSubmitButton = document.querySelector("#auth-submit-button");
+const authSecondaryButton = document.querySelector("#auth-secondary-button");
+const authUserName = document.querySelector("#auth-user-name");
+const authUserEmail = document.querySelector("#auth-user-email");
+const authRolePill = document.querySelector("#auth-role-pill");
+const authTrustedPill = document.querySelector("#auth-trusted-pill");
+const authSignoutButton = document.querySelector("#auth-signout-button");
 const authStatus = document.querySelector("#auth-status");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
@@ -179,6 +195,7 @@ const reportKrShell = document.querySelector("#report-kr-shell");
 const reportKrList = document.querySelector("#report-kr-list");
 const managerObjectivesPanel = document.querySelector("#manager-objectives-panel");
 const managerObjectivesGrid = document.querySelector("#manager-objectives-grid");
+const usersAdminShell = document.querySelector("#users-admin-shell");
 const sessionList = document.querySelector("#session-list");
 const journalFilterFromInput = document.querySelector("#journal-filter-from");
 const journalFilterToInput = document.querySelector("#journal-filter-to");
@@ -805,6 +822,8 @@ let accessProfile = {
   session: null,
   appUser: null,
 };
+let authUiMode = "sign-in";
+let authStateListenerBound = false;
 const autocompletePopover = createAutocompletePopover();
 let autocompleteState = {
   config: null,
@@ -854,8 +873,40 @@ setDefaultReportAnchor();
 startTimerLoopIfNeeded();
 render();
 registerServiceWorker();
-void initializeReferenceCatalog();
-void initializeAccessProfile();
+void initializeAuth();
+
+authModeSigninButton?.addEventListener("click", () => {
+  setAuthStatusMessage("");
+  setAuthMode("sign-in");
+  authEmailInput?.focus();
+});
+
+authModeSignupButton?.addEventListener("click", () => {
+  setAuthStatusMessage("");
+  setAuthMode("sign-up");
+  authNameInput?.focus();
+});
+
+authSubmitButton?.addEventListener("click", async () => {
+  await handleAuthSubmit();
+});
+
+authSecondaryButton?.addEventListener("click", async () => {
+  await handleAuthSecondaryAction();
+});
+
+authSignoutButton?.addEventListener("click", async () => {
+  await handleAuthSignOut();
+});
+
+for (const input of [authNameInput, authEmailInput, authPasswordInput, authPasswordConfirmInput]) {
+  input?.addEventListener("keydown", async (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      await handleAuthSubmit();
+    }
+  });
+}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2338,7 +2389,7 @@ function scheduleAutocompleteHide() {
 
 function getInitialView() {
   const hash = window.location.hash.replace("#", "");
-  return ["cadre", "manager", "resources", "journal"].includes(hash) ? hash : "cadre";
+  return ["cadre", "manager", "resources", "users", "journal"].includes(hash) ? hash : "cadre";
 }
 
 function initializeObjectiveSelections() {
@@ -2965,6 +3016,14 @@ function startRemoteSyncLoop() {
   }, REMOTE_SYNC_INTERVAL_MS);
 }
 
+function stopRemoteSyncLoop() {
+  if (!remoteSyncIntervalId) {
+    return;
+  }
+  window.clearInterval(remoteSyncIntervalId);
+  remoteSyncIntervalId = null;
+}
+
 function syncActiveSessionDraftFromForm({ audit = false, source = "active-session-context" } = {}) {
   if (!activeSession) {
     return;
@@ -3072,11 +3131,8 @@ function showFieldResolutionError(input, message) {
 }
 
 function showAuthRequiredMessage() {
-  if (authStatus) {
-    authStatus.hidden = false;
-    authStatus.textContent = "Choisissez un nom pour lancer une session.";
-  }
-  loginNameInput?.focus();
+  setAuthStatusMessage("Connectez-vous avec votre email pour lancer une session.", "warning");
+  authEmailInput?.focus();
 }
 
 function updateFieldManageButtons() {
@@ -3581,15 +3637,260 @@ function stopActiveSession() {
 }
 
 
-async function initializeReferenceCatalog() {
-  const loaded = await ensureReferenceCatalogLoaded();
-  if (loaded) {
-    await loadServerBackedState({ silent: true });
-    startRemoteSyncLoop();
-  }
-  if (loaded) {
+async function initializeAuth() {
+  bindAuthStateListener();
+  const { data, error } = await window.supabase.auth.getSession();
+  if (error) {
+    console.error("Supabase auth session error:", error);
     render();
+    return;
   }
+  await syncAuthenticatedAccess(data.session, { allowRecoveryMode: true });
+}
+
+function bindAuthStateListener() {
+  if (authStateListenerBound || !window.supabase) {
+    return;
+  }
+  authStateListenerBound = true;
+  window.supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      authUiMode = "reset-password";
+    }
+    void syncAuthenticatedAccess(session, { allowRecoveryMode: event === "PASSWORD_RECOVERY" });
+  });
+}
+
+function setCurrentAuthStorageMode(mode) {
+  window.mordologieAuthStorage?.setMode?.(mode);
+}
+
+function isTrustedDeviceEnabled() {
+  return window.mordologieAuthStorage?.isTrusted?.() ?? false;
+}
+
+function setAuthStatusMessage(message = "", tone = "neutral") {
+  if (!authStatus) {
+    return;
+  }
+  authStatus.textContent = message;
+  authStatus.hidden = !message;
+  authStatus.dataset.tone = message ? tone : "";
+}
+
+function setAuthMode(mode) {
+  authUiMode = mode;
+  if (mode !== "reset-password") {
+    authPasswordInput?.setCustomValidity("");
+    authPasswordConfirmInput?.setCustomValidity("");
+  }
+  renderAuthPanel();
+}
+
+function getAuthRedirectUrl() {
+  if (["http:", "https:"].includes(window.location.protocol)) {
+    return `${window.location.origin}${window.location.pathname}`;
+  }
+  return "https://mordologie.eduardodo.com/";
+}
+
+function clearAuthPasswordFields() {
+  if (authPasswordInput) {
+    authPasswordInput.value = "";
+    authPasswordInput.setCustomValidity("");
+  }
+  if (authPasswordConfirmInput) {
+    authPasswordConfirmInput.value = "";
+    authPasswordConfirmInput.setCustomValidity("");
+  }
+}
+
+function clearAuthIdentityFields({ keepEmail = false } = {}) {
+  if (authNameInput) {
+    authNameInput.value = "";
+  }
+  if (!keepEmail && authEmailInput) {
+    authEmailInput.value = "";
+  }
+  clearAuthPasswordFields();
+}
+
+function readAuthFormValues() {
+  return {
+    name: authNameInput?.value.trim() ?? "",
+    email: authEmailInput?.value.trim().toLowerCase() ?? "",
+    password: authPasswordInput?.value ?? "",
+    passwordConfirm: authPasswordConfirmInput?.value ?? "",
+    trustedDevice: Boolean(authTrustedDeviceInput?.checked),
+  };
+}
+
+function applyTrustedDevicePreference(isTrusted) {
+  setCurrentAuthStorageMode(isTrusted ? "local" : "session");
+}
+
+async function handleAuthSubmit() {
+  if (!window.supabase) {
+    setAuthStatusMessage("Connexion indisponible pour le moment.", "error");
+    return;
+  }
+
+  const { name, email, password, passwordConfirm, trustedDevice } = readAuthFormValues();
+  applyTrustedDevicePreference(trustedDevice);
+
+  if (authUiMode === "sign-up") {
+    if (!email) {
+      setAuthStatusMessage("Ajoutez votre email pour continuer.", "warning");
+      authEmailInput?.focus();
+      return;
+    }
+    if (!name) {
+      setAuthStatusMessage("Ajoutez votre nom pour creer le profil Mordologie.", "warning");
+      authNameInput?.focus();
+      return;
+    }
+    if (!password) {
+      setAuthStatusMessage("Choisissez un mot de passe.", "warning");
+      authPasswordInput?.focus();
+      return;
+    }
+    if (password.length < 8) {
+      setAuthStatusMessage("Le mot de passe doit contenir au moins 8 caracteres.", "warning");
+      authPasswordInput?.focus();
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setAuthStatusMessage("La confirmation du mot de passe ne correspond pas.", "warning");
+      authPasswordConfirmInput?.focus();
+      return;
+    }
+
+    setAuthStatusMessage("Creation du compte en cours...", "neutral");
+    const { data, error } = await window.supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: getAuthRedirectUrl(),
+        data: {
+          full_name: name,
+        },
+      },
+    });
+
+    if (error) {
+      setAuthStatusMessage(error.message, "error");
+      return;
+    }
+
+    clearAuthIdentityFields({ keepEmail: true });
+    if (!data.session) {
+      setAuthStatusMessage("Un email vient d'etre envoye pour activer le compte.", "success");
+      setAuthMode("sign-in");
+      return;
+    }
+
+    setAuthStatusMessage("Compte cree. Mordologie prepare maintenant le profil.", "success");
+    return;
+  }
+
+  if (authUiMode === "forgot-password") {
+    if (!email) {
+      setAuthStatusMessage("Ajoutez votre email pour recevoir le lien.", "warning");
+      authEmailInput?.focus();
+      return;
+    }
+    setAuthStatusMessage("Envoi du lien de reinitialisation...", "neutral");
+    const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: getAuthRedirectUrl(),
+    });
+
+    if (error) {
+      setAuthStatusMessage(error.message, "error");
+      return;
+    }
+
+    clearAuthPasswordFields();
+    setAuthStatusMessage("Lien envoye. Verifiez votre boite mail.", "success");
+    return;
+  }
+
+  if (authUiMode === "reset-password") {
+    if (!password) {
+      setAuthStatusMessage("Ajoutez un nouveau mot de passe.", "warning");
+      authPasswordInput?.focus();
+      return;
+    }
+    if (password.length < 8) {
+      setAuthStatusMessage("Le mot de passe doit contenir au moins 8 caracteres.", "warning");
+      authPasswordInput?.focus();
+      return;
+    }
+    if (password !== passwordConfirm) {
+      setAuthStatusMessage("La confirmation du mot de passe ne correspond pas.", "warning");
+      authPasswordConfirmInput?.focus();
+      return;
+    }
+
+    setAuthStatusMessage("Mise a jour du mot de passe...", "neutral");
+    const { error } = await window.supabase.auth.updateUser({ password });
+    if (error) {
+      setAuthStatusMessage(error.message, "error");
+      return;
+    }
+
+    clearAuthPasswordFields();
+    setAuthStatusMessage("Mot de passe mis a jour.", "success");
+    setAuthMode("sign-in");
+    return;
+  }
+
+  if (!email) {
+    setAuthStatusMessage("Ajoutez votre email pour continuer.", "warning");
+    authEmailInput?.focus();
+    return;
+  }
+
+  if (!password) {
+    setAuthStatusMessage("Ajoutez votre mot de passe pour vous connecter.", "warning");
+    authPasswordInput?.focus();
+    return;
+  }
+
+  setAuthStatusMessage("Connexion en cours...", "neutral");
+  const { error } = await window.supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    setAuthStatusMessage(error.message, "error");
+    return;
+  }
+
+  clearAuthPasswordFields();
+}
+
+async function handleAuthSecondaryAction() {
+  if (authUiMode === "sign-up" || authUiMode === "forgot-password" || authUiMode === "reset-password") {
+    clearAuthPasswordFields();
+    setAuthMode("sign-in");
+    setAuthStatusMessage("");
+    authEmailInput?.focus();
+    return;
+  }
+
+  setAuthMode("forgot-password");
+  setAuthStatusMessage("");
+  authEmailInput?.focus();
+}
+
+async function handleAuthSignOut() {
+  if (!window.supabase) {
+    return;
+  }
+  setAuthStatusMessage("");
+  await window.supabase.auth.signOut();
+  clearAuthIdentityFields();
 }
 
 async function ensureReferenceCatalogLoaded(force = false) {
@@ -3639,17 +3940,8 @@ async function ensureReferenceCatalogLoaded(force = false) {
   return result;
 }
 
-async function initializeAccessProfile() {
-  await ensureReferenceCatalogLoaded();
-  const savedName = loadStoredAccessName();
-  applyLocalAccessProfile(savedName, { persist: false });
-}
-
-function applyLocalAccessProfile(rawName, options = {}) {
-  const name = String(rawName ?? "").trim();
-  const appUser = name ? findAppUserByName(name) : null;
-
-  if (!name || !appUser) {
+async function syncAuthenticatedAccess(session, options = {}) {
+  if (!session?.user) {
     accessProfile = {
       mode: "open",
       role: "open",
@@ -3658,63 +3950,66 @@ function applyLocalAccessProfile(rawName, options = {}) {
     };
     activeSession = null;
     persistActiveSession();
-    if (options.persist !== false) {
-      clearStoredAccessName();
+    stopTimerLoop();
+    stopRemoteSyncLoop();
+    if (options.allowRecoveryMode !== true) {
+      authUiMode = "sign-in";
     }
     render();
-    return Boolean(appUser);
+    return false;
+  }
+
+  const appUser = await resolveAuthAppUser(session.user);
+  if (!appUser) {
+    accessProfile = {
+      mode: "pending",
+      role: "open",
+      session,
+      appUser: null,
+    };
+    activeSession = null;
+    persistActiveSession();
+    setAuthStatusMessage("Compte reconnu, mais le profil Mordologie n'est pas encore pret.", "warning");
+    render();
+    return false;
   }
 
   accessProfile = {
-    mode: "named",
+    mode: "authenticated",
     role: appUser.role ?? "cadre",
-    session: null,
+    session,
     appUser,
   };
+  await loadServerBackedState({ silent: true });
   activeSession =
-    remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(appUser.user_name)) ?? null;
+    remoteActiveSessions.find((active) => normalizeText(active.collaborator) === normalizeText(appUser.user_name)) ?? null;
   persistActiveSession();
-
-  if (options.persist !== false) {
-    storeAccessName(appUser.user_name);
+  startRemoteSyncLoop();
+  if (authUiMode !== "reset-password") {
+    authUiMode = "sign-in";
   }
-
-  void loadServerBackedState({ silent: false });
   render();
   return true;
 }
 
-function findAppUserByName(rawName) {
-  const normalizedName = normalizeText(rawName);
-  if (!normalizedName) {
-    return null;
+async function resolveAuthAppUser(authUser, attempts = 3) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const loaded = await ensureReferenceCatalogLoaded(attempt > 0);
+    if (!loaded) {
+      return null;
+    }
+
+    const matched =
+      referenceCatalog.users.find((item) => item.auth_user_id === authUser.id) ??
+      referenceCatalog.users.find((item) => normalizeText(item.email ?? "") === normalizeText(authUser.email ?? ""));
+    if (matched) {
+      return matched;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, 300));
   }
 
-  return getKnownUsers().find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
-}
-
-function loadStoredAccessName() {
-  try {
-    return window.localStorage.getItem(ACCESS_PROFILE_KEY) ?? "";
-  } catch (error) {
-    return "";
-  }
-}
-
-function storeAccessName(name) {
-  try {
-    window.localStorage.setItem(ACCESS_PROFILE_KEY, name);
-  } catch (error) {
-    // ignore storage errors in local mode
-  }
-}
-
-function clearStoredAccessName() {
-  try {
-    window.localStorage.removeItem(ACCESS_PROFILE_KEY);
-  } catch (error) {
-    // ignore storage errors in local mode
-  }
+  return null;
 }
 
 function getAccessRole() {
@@ -3722,22 +4017,18 @@ function getAccessRole() {
 }
 
 function getKnownUsers() {
-  const merged = new Map();
-
-  for (const user of LOCAL_PROFILE_DIRECTORY) {
-    merged.set(normalizeText(user.user_name ?? ""), user);
+  if (referenceCatalog.users.length) {
+    return [...referenceCatalog.users];
   }
-
-  for (const user of referenceCatalog.users) {
-    merged.set(normalizeText(user.user_name ?? ""), user);
-  }
-
-  return Array.from(merged.values()).filter(Boolean);
+  return [...LOCAL_PROFILE_DIRECTORY];
 }
 
 function getAllowedViewsForRole(role = getAccessRole()) {
   if (role === "cadre") {
     return ["cadre", "journal"];
+  }
+  if (role === "admin") {
+    return ["cadre", "manager", "resources", "users", "journal"];
   }
   if (role === "manager" || role === "admin") {
     return ["cadre", "manager", "resources", "journal"];
@@ -4941,10 +5232,11 @@ function render() {
   renderManagerControls();
   renderManagerViews();
   renderResourcesViews();
+  renderUsersAdmin();
 }
 
 function renderCurrentUserContext() {
-  // The active identity is now handled directly by the dropdown in the topbar.
+  // The active identity is handled by the auth shell in the topbar.
 }
 
 function renderAccessControlledInputs() {
@@ -4976,28 +5268,83 @@ function formatRoleLabel(role) {
 }
 
 function renderAuthPanel() {
-  if (!loginNameInput) {
+  if (!authGuestShell || !authUserShell || !authSubmitButton || !authSecondaryButton) {
     return;
   }
 
-  const authenticated = Boolean(accessProfile.appUser?.user_name);
-  const visibleUsers = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"));
-  renderLoginNameOptions(visibleUsers);
+  const authenticated = Boolean(accessProfile.appUser?.user_name) && authUiMode !== "reset-password";
+  authGuestShell.hidden = authenticated;
+  authUserShell.hidden = !authenticated;
 
-  loginNameInput.value = authenticated ? accessProfile.appUser.user_name : "";
-
-  if (!authStatus) {
+  if (authenticated) {
+    if (authUserName) {
+      authUserName.textContent = accessProfile.appUser.user_name ?? "Utilisateur";
+    }
+    if (authUserEmail) {
+      authUserEmail.textContent = accessProfile.appUser.email ?? accessProfile.session?.user?.email ?? "";
+    }
+    if (authRolePill) {
+      authRolePill.textContent = formatRoleLabel(accessProfile.role);
+    }
+    if (authTrustedPill) {
+      authTrustedPill.hidden = !isTrustedDeviceEnabled();
+    }
+    setAuthStatusMessage("");
     return;
   }
 
-  if (!visibleUsers.length) {
-    authStatus.hidden = false;
-    authStatus.textContent = "Aucun nom disponible pour le moment.";
-    return;
+  if (authTrustedDeviceInput) {
+    authTrustedDeviceInput.checked = isTrustedDeviceEnabled();
   }
 
-  authStatus.hidden = true;
-  authStatus.textContent = "";
+  const isSignUp = authUiMode === "sign-up";
+  const isForgot = authUiMode === "forgot-password";
+  const isReset = authUiMode === "reset-password";
+
+  if (authModeSigninButton) {
+    authModeSigninButton.classList.toggle("active", !isSignUp);
+    authModeSigninButton.hidden = isReset;
+  }
+  if (authModeSignupButton) {
+    authModeSignupButton.classList.toggle("active", isSignUp);
+    authModeSignupButton.hidden = isForgot || isReset;
+  }
+
+  if (authNameField) {
+    authNameField.hidden = !isSignUp;
+  }
+  if (authPasswordConfirmField) {
+    authPasswordConfirmField.hidden = !(isSignUp || isReset);
+  }
+  if (authTrustedShell) {
+    authTrustedShell.hidden = isForgot || isReset;
+  }
+
+  if (authEmailInput) {
+    authEmailInput.disabled = isReset;
+    authEmailInput.placeholder = isForgot ? "Recevoir le lien de reinitialisation" : "vous@domaine.com";
+  }
+  if (authPasswordInput) {
+    authPasswordInput.autocomplete = isSignUp || isReset ? "new-password" : "current-password";
+    authPasswordInput.placeholder = isReset ? "Nouveau mot de passe" : "Mot de passe";
+  }
+  if (authPasswordConfirmInput) {
+    authPasswordConfirmInput.placeholder = isReset ? "Confirmer le nouveau mot de passe" : "Confirmer le mot de passe";
+  }
+
+  if (isSignUp) {
+    authSubmitButton.textContent = "Creer mon acces";
+    authSecondaryButton.textContent = "J'ai deja un acces";
+  } else if (isForgot) {
+    authSubmitButton.textContent = "Envoyer le lien";
+    authSecondaryButton.textContent = "Retour connexion";
+  } else if (isReset) {
+    authSubmitButton.textContent = "Enregistrer le mot de passe";
+    authSecondaryButton.textContent = "Retour connexion";
+  } else {
+    authSubmitButton.textContent = "Se connecter";
+    authSecondaryButton.textContent = "Mot de passe oublie ?";
+  }
 }
 
 function getScopedDayThemes(collaborator) {
@@ -5015,7 +5362,7 @@ function renderDayThemes() {
   dayThemesList.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    dayThemesList.append(createEmptyState("Choisissez un nom pour organiser la journee."));
+    dayThemesList.append(createEmptyState("Connectez-vous pour cadrer vos themes du jour."));
     return;
   }
 
@@ -5124,29 +5471,6 @@ function renderSuggestions() {
   managerCollaboratorFilter.value = collaborators.includes(currentValue) ? currentValue : "all";
 }
 
-function renderLoginNameOptions(users = [...getKnownUsers()].sort((a, b) => a.user_name.localeCompare(b.user_name, "fr"))) {
-  if (!loginNameInput) {
-    return;
-  }
-
-  const currentValue = accessProfile.appUser?.user_name || loginNameInput.value || "";
-  loginNameInput.innerHTML = "";
-
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Choisir un nom";
-  loginNameInput.append(placeholder);
-
-  for (const user of users) {
-    const option = document.createElement("option");
-    option.value = user.user_name;
-    option.textContent = user.user_name;
-    loginNameInput.append(option);
-  }
-
-  loginNameInput.value = users.some((user) => user.user_name === currentValue) ? currentValue : "";
-}
-
 function renderQuickProjects() {
   quickProjects.innerHTML = "";
   const collaborator = getCurrentCollaborator();
@@ -5155,7 +5479,7 @@ function renderQuickProjects() {
   if (!memories.length) {
     const message = collaborator
       ? "Les reprises probables apparaitront ici."
-      : "Choisissez un nom pour retrouver vos reprises probables.";
+      : "Connectez-vous pour retrouver vos reprises probables.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -5180,7 +5504,7 @@ function renderProjectMemoryList() {
   if (!memories.length) {
     const message = collaborator
       ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Choisissez un cargonaute pour afficher ses contextes memorises.";
+      : "Connectez-vous pour afficher les contextes memorises.";
     projectMemoryList.append(createEmptyState(message));
     return;
   }
@@ -5333,7 +5657,7 @@ function renderPersonalStats() {
   if (!collaborator) {
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-  todayPanelCopy.textContent = "Choisissez un nom pour charger votre semaine.";
+  todayPanelCopy.textContent = "Connectez-vous pour charger votre semaine.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
@@ -5378,7 +5702,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderPersonalDistributionDonut([], 0, usesObjectives, "Choisissez un cargonaute pour voir sa semaine.");
+    renderPersonalDistributionDonut([], 0, usesObjectives, "Connectez-vous pour voir votre semaine.");
     return;
   }
 
@@ -5403,7 +5727,7 @@ function renderAgenda() {
   agendaBoard.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    agendaBoard.append(createEmptyState("Choisissez un nom pour afficher et deplacer vos creneaux."));
+    agendaBoard.append(createEmptyState("Connectez-vous pour afficher et deplacer vos creneaux."));
     if (agendaWeekLabel) {
       agendaWeekLabel.textContent = "";
     }
@@ -5876,6 +6200,132 @@ function renderResourcesViews() {
   } else {
     resourceKrList.innerHTML = "";
   }
+}
+
+function renderUsersAdmin() {
+  if (!usersAdminShell) {
+    return;
+  }
+
+  usersAdminShell.innerHTML = "";
+
+  if (getAccessRole() !== "admin") {
+    usersAdminShell.append(createEmptyState("Cette vue est reservee a l'administration."));
+    return;
+  }
+
+  const rows = [...referenceCatalog.users].sort((left, right) => left.user_name.localeCompare(right.user_name, "fr"));
+  if (!rows.length) {
+    usersAdminShell.append(createEmptyState("Les utilisateurs apparaitront ici apres connexion."));
+    return;
+  }
+
+  const shell = document.createElement("div");
+  shell.className = "table-shell users-table-shell";
+
+  const table = document.createElement("table");
+  table.className = "report-table compact-table users-table";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr>
+      <th>Personne</th>
+      <th>Email</th>
+      <th>Role</th>
+      <th>Action</th>
+    </tr>
+  `;
+  table.append(thead);
+
+  const tbody = document.createElement("tbody");
+  for (const user of rows) {
+    const tr = document.createElement("tr");
+
+    const nameCell = document.createElement("td");
+    const nameWrap = document.createElement("div");
+    nameWrap.className = "users-cell-copy";
+    const name = document.createElement("strong");
+    name.textContent = user.user_name ?? "Sans nom";
+    const meta = document.createElement("span");
+    meta.className = "muted-copy";
+    meta.textContent = user.status === "active" ? "Actif" : "Inactif";
+    nameWrap.append(name, meta);
+    nameCell.append(nameWrap);
+
+    const emailCell = document.createElement("td");
+    emailCell.textContent = user.email || "Aucun email";
+
+    const roleCell = document.createElement("td");
+    const roleSelect = document.createElement("select");
+    roleSelect.className = "select-input users-role-select";
+    [
+      ["cadre", "Utilisateur normal"],
+      ["manager", "Manager"],
+      ["admin", "Admin"],
+    ].forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      roleSelect.append(option);
+    });
+    roleSelect.value = user.role ?? "cadre";
+    roleCell.append(roleSelect);
+
+    const actionCell = document.createElement("td");
+    const saveButton = document.createElement("button");
+    saveButton.type = "button";
+    saveButton.className = "btn btn-secondary users-save-button";
+    saveButton.textContent = "Enregistrer";
+    saveButton.disabled = true;
+    roleSelect.addEventListener("change", () => {
+      saveButton.disabled = roleSelect.value === (user.role ?? "cadre");
+    });
+    saveButton.addEventListener("click", async () => {
+      saveButton.disabled = true;
+      await updateUserRole(user, roleSelect.value);
+    });
+    actionCell.append(saveButton);
+
+    tr.append(nameCell, emailCell, roleCell, actionCell);
+    tbody.append(tr);
+  }
+
+  table.append(tbody);
+  shell.append(table);
+  usersAdminShell.append(shell);
+}
+
+async function updateUserRole(user, nextRole) {
+  if (!window.supabase || !user?.user_id || !nextRole) {
+    return false;
+  }
+
+  const { error } = await window.supabase
+    .from("users")
+    .update({ role: nextRole, updated_at: new Date().toISOString() })
+    .eq("user_id", user.user_id)
+    .select("user_id, user_name, email, role, team_name, managed_team_name, status, auth_user_id");
+
+  if (error) {
+    console.error("Users role update failed:", error);
+    setAuthStatusMessage("Impossible d'enregistrer ce role pour le moment.", "error");
+    renderUsersAdmin();
+    return false;
+  }
+
+  await ensureReferenceCatalogLoaded(true);
+  if (accessProfile.appUser?.user_id === user.user_id) {
+    accessProfile = {
+      ...accessProfile,
+      role: nextRole,
+      appUser:
+        referenceCatalog.users.find((item) => item.user_id === user.user_id) ??
+        { ...accessProfile.appUser, role: nextRole },
+    };
+  }
+  setAuthStatusMessage("Role mis a jour.", "success");
+  render();
+  return true;
 }
 
 function getAnalysisExportRows() {
@@ -7134,62 +7584,4 @@ function registerServiceWorker() {
 
     navigator.serviceWorker.register("./service-worker.js").catch(() => {});
   });
-}
-loginNameInput?.addEventListener("change", async () => {
-  if (!loginNameInput.value) {
-    await logoutCurrentUser();
-    return;
-  }
-
-  await loginWithName();
-});
-
-async function loginWithName() {
-  const name = loginNameInput?.value.trim() ?? "";
-
-  if (!name) {
-    if (authStatus) {
-      authStatus.hidden = false;
-      authStatus.textContent = "Choisissez un nom pour continuer.";
-    }
-    return;
-  }
-
-  if (!referenceCatalog.loaded) {
-    await ensureReferenceCatalogLoaded();
-  }
-
-  const success = applyLocalAccessProfile(name);
-  if (!success) {
-    if (authStatus) {
-      authStatus.hidden = false;
-      authStatus.textContent = "Nom inconnu.";
-    }
-    return;
-  }
-
-  if (authStatus) {
-    authStatus.hidden = true;
-    authStatus.textContent = "";
-  }
-}
-
-async function logoutCurrentUser() {
-  clearStoredAccessName();
-  accessProfile = {
-    mode: "open",
-    role: "open",
-    session: null,
-    appUser: null,
-  };
-  activeSession = null;
-  persistActiveSession();
-  if (loginNameInput) {
-    loginNameInput.value = "";
-  }
-  if (authStatus) {
-    authStatus.hidden = true;
-    authStatus.textContent = "";
-  }
-  render();
 }

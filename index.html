@@ -19,10 +19,56 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
       const { createClient } = window.supabase;
+      const AUTH_STORAGE_MODE_KEY = "mordologie-auth-storage-mode-v1";
+      const AUTH_TRUSTED_DEVICE_KEY = "mordologie-auth-trusted-device-v1";
+
+      const authStorage = {
+        getMode() {
+          return window.localStorage.getItem(AUTH_STORAGE_MODE_KEY) === "local" ? "local" : "session";
+        },
+        setMode(mode) {
+          if (mode === "local") {
+            window.localStorage.setItem(AUTH_STORAGE_MODE_KEY, "local");
+            window.localStorage.setItem(AUTH_TRUSTED_DEVICE_KEY, "true");
+            return;
+          }
+          window.localStorage.setItem(AUTH_STORAGE_MODE_KEY, "session");
+          window.localStorage.removeItem(AUTH_TRUSTED_DEVICE_KEY);
+        },
+        isTrusted() {
+          return window.localStorage.getItem(AUTH_TRUSTED_DEVICE_KEY) === "true";
+        },
+        getItem(key) {
+          return window.localStorage.getItem(key) ?? window.sessionStorage.getItem(key);
+        },
+        setItem(key, value) {
+          if (this.getMode() === "local") {
+            window.localStorage.setItem(key, value);
+            window.sessionStorage.removeItem(key);
+            return;
+          }
+          window.sessionStorage.setItem(key, value);
+          window.localStorage.removeItem(key);
+        },
+        removeItem(key) {
+          window.localStorage.removeItem(key);
+          window.sessionStorage.removeItem(key);
+        },
+      };
+
+      window.mordologieAuthStorage = authStorage;
 
       window.supabase = createClient(
         "https://mubyqnuajybakibzkxau.supabase.co",
         "sb_publishable_FCIUSQCUz8f0bPA8lzdUWg_7bsrvsTV",
+        {
+          auth: {
+            storage: authStorage,
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+          },
+        },
       );
     </script>
   </head>
@@ -31,12 +77,59 @@
       <header class="topbar">
         <div class="topbar-context">
           <section id="auth-panel" class="auth-panel">
-            <label class="auth-field auth-name-field">
-              <span>Nom</span>
-              <select id="login-name-input">
-                <option value="">Choisir un nom</option>
-              </select>
-            </label>
+            <div id="auth-guest-shell" class="auth-shell auth-shell-guest">
+              <div class="auth-mode-switch">
+                <button id="auth-mode-signin" type="button" class="auth-mode-button active">Connexion</button>
+                <button id="auth-mode-signup" type="button" class="auth-mode-button">Premier acces</button>
+              </div>
+
+              <div class="auth-form-grid">
+                <label id="auth-name-field" class="auth-field auth-inline-field" hidden>
+                  <span>Nom</span>
+                  <input id="auth-name-input" type="text" placeholder="Prenom Nom" autocomplete="name" />
+                </label>
+
+                <label class="auth-field auth-inline-field">
+                  <span>Email</span>
+                  <input id="auth-email-input" type="email" placeholder="vous@domaine.com" autocomplete="email" />
+                </label>
+
+                <label class="auth-field auth-inline-field">
+                  <span>Mot de passe</span>
+                  <input id="auth-password-input" type="password" placeholder="Mot de passe" autocomplete="current-password" />
+                </label>
+
+                <label id="auth-password-confirm-field" class="auth-field auth-inline-field" hidden>
+                  <span>Confirmation</span>
+                  <input id="auth-password-confirm-input" type="password" placeholder="Confirmer le mot de passe" autocomplete="new-password" />
+                </label>
+
+                <label id="auth-trusted-shell" class="auth-trust-toggle">
+                  <input id="auth-trusted-device" type="checkbox" />
+                  <span>Ordi de confiance</span>
+                </label>
+
+                <div class="auth-actions">
+                  <button id="auth-submit-button" type="button" class="btn btn-primary">Se connecter</button>
+                  <button id="auth-secondary-button" type="button" class="btn btn-secondary">Mot de passe oublie ?</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="auth-user-shell" class="auth-shell auth-shell-user" hidden>
+              <div class="auth-user-copy">
+                <p class="eyebrow">Connecte</p>
+                <div class="auth-user-summary">
+                  <strong id="auth-user-name">Utilisateur</strong>
+                  <span id="auth-user-email" class="muted-copy auth-user-email"></span>
+                </div>
+              </div>
+              <div class="auth-user-meta">
+                <span id="auth-role-pill" class="pill auth-role-pill">Cargonaute</span>
+                <span id="auth-trusted-pill" class="pill auth-trusted-pill" hidden>Ordi de confiance</span>
+                <button id="auth-signout-button" type="button" class="btn btn-secondary">Se deconnecter</button>
+              </div>
+            </div>
             <p id="auth-status" class="muted-copy" hidden></p>
           </section>
         </div>
@@ -44,6 +137,7 @@
           <button type="button" data-view-target="cadre" class="active">Hobbit</button>
           <button type="button" data-view-target="manager">Gandalf</button>
           <button type="button" data-view-target="resources">Ressources</button>
+          <button type="button" data-view-target="users">Utilisateurs</button>
           <button type="button" data-view-target="journal">Journal</button>
         </nav>
       </header>
@@ -686,6 +780,21 @@
         </section>
 
       </section>
+      </section>
+
+      <section class="app-view" id="users" data-view-panel="users">
+        <section class="panel users-panel">
+          <div class="panel-head panel-head-compact">
+            <div>
+              <p class="eyebrow">Administration</p>
+              <h2>Utilisateurs</h2>
+            </div>
+            <p class="panel-copy">
+              Roles et acces de l'equipe. Chaque personne gere ensuite son mot de passe via son email et le lien de reinitialisation.
+            </p>
+          </div>
+          <div id="users-admin-shell" class="users-admin-shell"></div>
+        </section>
       </section>
     </main>
 
