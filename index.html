@@ -78,40 +78,14 @@
         <div class="topbar-context">
           <section id="auth-panel" class="auth-panel">
             <div id="auth-guest-shell" class="auth-shell auth-shell-guest">
-              <div class="auth-mode-switch">
-                <button id="auth-mode-signin" type="button" class="auth-mode-button active">Connexion</button>
-                <button id="auth-mode-signup" type="button" class="auth-mode-button">Premier acces</button>
-              </div>
-
-              <div class="auth-form-grid">
-                <label id="auth-name-field" class="auth-field auth-inline-field" hidden>
-                  <span>Nom</span>
-                  <input id="auth-name-input" type="text" placeholder="Prenom Nom" autocomplete="name" />
-                </label>
-
-                <label class="auth-field auth-inline-field">
-                  <span>Email</span>
-                  <input id="auth-email-input" type="email" placeholder="vous@domaine.com" autocomplete="email" />
-                </label>
-
-                <label class="auth-field auth-inline-field">
-                  <span>Mot de passe</span>
-                  <input id="auth-password-input" type="password" placeholder="Mot de passe" autocomplete="current-password" />
-                </label>
-
-                <label id="auth-password-confirm-field" class="auth-field auth-inline-field" hidden>
-                  <span>Confirmation</span>
-                  <input id="auth-password-confirm-input" type="password" placeholder="Confirmer le mot de passe" autocomplete="new-password" />
-                </label>
-
-                <label id="auth-trusted-shell" class="auth-trust-toggle">
-                  <input id="auth-trusted-device" type="checkbox" />
-                  <span>Ordi de confiance</span>
-                </label>
-
-                <div class="auth-actions">
-                  <button id="auth-submit-button" type="button" class="btn btn-primary">Se connecter</button>
-                  <button id="auth-secondary-button" type="button" class="btn btn-secondary">Mot de passe oublie ?</button>
+              <div class="auth-rescue-shell">
+                <p class="muted-copy auth-rescue-copy">Entrez simplement avec votre nom pour utiliser Mordologie tout de suite.</p>
+                <div class="auth-rescue-row">
+                  <label class="auth-field auth-inline-field auth-rescue-field">
+                    <span>Nom</span>
+                    <select id="auth-rescue-select" class="select-input"></select>
+                  </label>
+                  <button id="auth-rescue-button" type="button" class="btn btn-primary">Entrer</button>
                 </div>
               </div>
             </div>

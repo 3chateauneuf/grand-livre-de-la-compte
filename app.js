@@ -4,6 +4,7 @@ const CATEGORY_COLOR_KEY = "mordologie-category-colors-v1";
 const REPRISES_ORDER_KEY = "mordologie-reprises-order-v1";
 const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
 const DAY_THEMES_KEY = "mordologie-day-themes-v1";
+const LOCAL_RESCUE_ACCESS_KEY = "mordologie-local-rescue-access-v1";
 const LEGACY_STORAGE_KEYS = {
   [STORAGE_KEY]: "cadence-equipe-sessions-v3",
   [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
@@ -16,6 +17,13 @@ const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
 const DEMO_MODE_ENABLED = false;
 const COLOR_PALETTE = ["#069494", "#FF8243", "#FFC0CB", "#FCE883", "#057171", "#E96F49", "#E6A8B9", "#E2C85E"];
+const CATEGORY_REWRITE_RULES = [
+  {
+    matches: ["certification bio", "certificacion bio"],
+    category: "Certification",
+    impliedTags: ["Bio"],
+  },
+];
 const LOCAL_PROFILE_DIRECTORY = [
   {
     user_id: "USR-001",
@@ -101,6 +109,8 @@ const authTrustedShell = document.querySelector("#auth-trusted-shell");
 const authTrustedDeviceInput = document.querySelector("#auth-trusted-device");
 const authSubmitButton = document.querySelector("#auth-submit-button");
 const authSecondaryButton = document.querySelector("#auth-secondary-button");
+const authRescueSelect = document.querySelector("#auth-rescue-select");
+const authRescueButton = document.querySelector("#auth-rescue-button");
 const authUserName = document.querySelector("#auth-user-name");
 const authUserEmail = document.querySelector("#auth-user-email");
 const authRolePill = document.querySelector("#auth-role-pill");
@@ -847,8 +857,11 @@ let activeDraftSyncTimeoutId = null;
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
   setValues: (values) => {
-    currentCategories = values;
+    const normalized = normalizeCategoryAndTags(values, currentTags);
+    currentCategories = normalized.categories;
+    currentTags = normalized.tags;
     renderCategoryTokens();
+    renderTagTokens();
     syncActiveSessionDraftFromForm({ audit: true, source: "active-session-category" });
   },
   singleValue: true,
@@ -897,6 +910,10 @@ authSecondaryButton?.addEventListener("click", async () => {
 
 authSignoutButton?.addEventListener("click", async () => {
   await handleAuthSignOut();
+});
+
+authRescueButton?.addEventListener("click", () => {
+  applyLocalRescueAccess(authRescueSelect?.value ?? "");
 });
 
 for (const input of [authNameInput, authEmailInput, authPasswordInput, authPasswordConfirmInput]) {
@@ -1558,10 +1575,7 @@ function initializeAutocomplete() {
     },
     {
       input: categoriesInput,
-      getOptions: () =>
-        referenceCatalog.loaded
-          ? referenceCatalog.categories.map((item) => item.activity_category_label)
-          : uniqueTokenValues("categories"),
+      getOptions: () => getCategorySuggestionLabels(),
       allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
       createValue: (value) =>
@@ -1570,8 +1584,11 @@ function initializeAutocomplete() {
           projectName: projectInput.value.trim(),
         }),
       applyValue: (value) => {
-        currentCategories = [value];
+        const normalized = normalizeCategoryAndTags([value], currentTags);
+        currentCategories = normalized.categories;
+        currentTags = normalized.tags;
         renderCategoryTokens();
+        renderTagTokens();
         categoriesInput.value = "";
       },
     },
@@ -1655,10 +1672,7 @@ function initializeAutocomplete() {
     },
     {
       input: manualCategoriesInput,
-      getOptions: () =>
-        referenceCatalog.loaded
-          ? referenceCatalog.categories.map((item) => item.activity_category_label)
-          : uniqueTokenValues("categories"),
+      getOptions: () => getCategorySuggestionLabels(),
       allowCreate: () => canCreateSharedReferenceCatalog(),
       createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
       createValue: (value) =>
@@ -1667,7 +1681,9 @@ function initializeAutocomplete() {
           projectName: manualProjectInput.value.trim(),
         }),
       applyValue: (value) => {
-        manualCategoriesInput.value = value;
+        const normalized = normalizeCategoryAndTags([value], parseTokenString(manualTagsInput.value));
+        manualCategoriesInput.value = normalized.categories.join(", ");
+        manualTagsInput.value = normalized.tags.join(", ");
       },
     },
     {
@@ -2746,14 +2762,18 @@ function loadActiveSession() {
 }
 
 function normalizeSession(session) {
+  const normalizedMeta = normalizeCategoryAndTags(
+    Array.isArray(session.categories) ? session.categories.filter(Boolean) : [],
+    Array.isArray(session.tags) ? session.tags.filter(Boolean) : [],
+  );
   return {
     ...session,
     id: session.id ?? session.time_entry_id ?? session.active_session_id ?? createSessionId(),
     collaborator: session.collaborator ?? "",
     project: session.project ?? "",
     task: session.task ?? "",
-    categories: Array.isArray(session.categories) ? session.categories.filter(Boolean) : [],
-    tags: Array.isArray(session.tags) ? session.tags.filter(Boolean) : [],
+    categories: normalizedMeta.categories,
+    tags: normalizedMeta.tags,
     notionRef: session.notionRef ?? "",
     objectivePole: session.objectivePole ?? "",
     objectiveOkr: session.objectiveOkr ?? "",
@@ -3064,12 +3084,13 @@ function setDefaultReportAnchor() {
 }
 
 function readFormValues() {
+  const normalized = normalizeCategoryAndTags(currentCategories, currentTags);
   return {
     collaborator: getEffectiveCollaboratorValue(collaboratorInput.value),
     project: projectInput.value.trim(),
     task: taskInput.value.trim(),
-    categories: [...currentCategories],
-    tags: [...currentTags],
+    categories: normalized.categories,
+    tags: normalized.tags,
     notionRef: notionInput.value.trim(),
     objectivePole: objectivePoleInput.value.trim(),
     objectiveOkr: objectiveOkrInput.value.trim(),
@@ -3131,8 +3152,8 @@ function showFieldResolutionError(input, message) {
 }
 
 function showAuthRequiredMessage() {
-  setAuthStatusMessage("Connectez-vous avec votre email pour lancer une session.", "warning");
-  authEmailInput?.focus();
+  setAuthStatusMessage("Choisissez votre nom pour lancer une session.", "warning");
+  authRescueSelect?.focus();
 }
 
 function updateFieldManageButtons() {
@@ -3318,13 +3339,13 @@ function hslToHex(h, s, l) {
 }
 
 function getCategoryColor(label, fallbackSeed = "") {
-  const normalized = normalizeText(label ?? "");
+  const normalized = normalizeComparableText(label ?? "");
   if (!normalized) {
     return generateStableHexColor(fallbackSeed || label || "sans-categorie");
   }
 
   const catalogColor = referenceCatalog.categories.find(
-    (item) => normalizeText(item.activity_category_label ?? "") === normalized,
+    (item) => normalizeComparableText(item.activity_category_label ?? "") === normalized,
   )?.color_hex;
   if (catalogColor) {
     storeCategoryColor(label, catalogColor);
@@ -3638,14 +3659,12 @@ function stopActiveSession() {
 
 
 async function initializeAuth() {
-  bindAuthStateListener();
-  const { data, error } = await window.supabase.auth.getSession();
-  if (error) {
-    console.error("Supabase auth session error:", error);
-    render();
+  const rescueName = loadStoredLocalRescueName();
+  if (rescueName) {
+    applyLocalRescueAccess(rescueName, { silent: true });
     return;
   }
-  await syncAuthenticatedAccess(data.session, { allowRecoveryMode: true });
+  render();
 }
 
 function bindAuthStateListener() {
@@ -3713,6 +3732,63 @@ function clearAuthIdentityFields({ keepEmail = false } = {}) {
     authEmailInput.value = "";
   }
   clearAuthPasswordFields();
+}
+
+function loadStoredLocalRescueName() {
+  try {
+    return window.localStorage.getItem(LOCAL_RESCUE_ACCESS_KEY) ?? "";
+  } catch (error) {
+    return "";
+  }
+}
+
+function storeLocalRescueName(name) {
+  try {
+    window.localStorage.setItem(LOCAL_RESCUE_ACCESS_KEY, name);
+  } catch (error) {
+    // ignore storage issues
+  }
+}
+
+function clearStoredLocalRescueName() {
+  try {
+    window.localStorage.removeItem(LOCAL_RESCUE_ACCESS_KEY);
+  } catch (error) {
+    // ignore storage issues
+  }
+}
+
+function findKnownUserByName(rawName) {
+  const normalizedName = normalizeText(rawName);
+  if (!normalizedName) {
+    return null;
+  }
+  return getKnownUsers().find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
+}
+
+function applyLocalRescueAccess(rawName, { silent = false } = {}) {
+  const appUser = findKnownUserByName(rawName);
+  if (!appUser) {
+    if (!silent) {
+      setAuthStatusMessage("Profil local introuvable.", "error");
+    }
+    return false;
+  }
+
+  accessProfile = {
+    mode: "local-rescue",
+    role: appUser.role ?? "cadre",
+    session: null,
+    appUser,
+  };
+  activeSession = null;
+  persistActiveSession();
+  stopTimerLoop();
+  stopRemoteSyncLoop();
+  storeLocalRescueName(appUser.user_name);
+  setAuthStatusMessage("Acces local de secours active.", "success");
+  render();
+  return true;
 }
 
 function readAuthFormValues() {
@@ -3885,12 +3961,19 @@ async function handleAuthSecondaryAction() {
 }
 
 async function handleAuthSignOut() {
-  if (!window.supabase) {
-    return;
-  }
+  clearStoredLocalRescueName();
   setAuthStatusMessage("");
-  await window.supabase.auth.signOut();
-  clearAuthIdentityFields();
+  accessProfile = {
+    mode: "open",
+    role: "open",
+    session: null,
+    appUser: null,
+  };
+  activeSession = null;
+  persistActiveSession();
+  stopTimerLoop();
+  stopRemoteSyncLoop();
+  render();
 }
 
 async function ensureReferenceCatalogLoaded(force = false) {
@@ -3942,6 +4025,11 @@ async function ensureReferenceCatalogLoaded(force = false) {
 
 async function syncAuthenticatedAccess(session, options = {}) {
   if (!session?.user) {
+    const rescueName = loadStoredLocalRescueName();
+    if (rescueName) {
+      applyLocalRescueAccess(rescueName, { silent: true });
+      return true;
+    }
     accessProfile = {
       mode: "open",
       role: "open",
@@ -4169,7 +4257,9 @@ async function resolveDraftReferences(sessionDraft, options = {}) {
       : null;
   }
 
-  let selectedCategoryLabel = sessionDraft.categories?.[0] || project?.default_activity_category_label || "";
+  let selectedCategoryLabel = normalizeCategorySelection(
+    sessionDraft.categories?.[0] || project?.default_activity_category_label || "",
+  ).category;
   let category = findReferenceMatch(referenceCatalog.categories, "activity_category_label", selectedCategoryLabel);
   if (!category && options.allowCreate && selectedCategoryLabel?.trim()) {
     const createdCategoryLabel = await createCategoryReference(selectedCategoryLabel.trim(), {
@@ -4269,7 +4359,7 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
   const defaultCategory = findReferenceMatch(
     referenceCatalog.categories,
     "activity_category_label",
-    defaultCategoryLabel,
+    normalizeCategorySelection(defaultCategoryLabel).category,
   );
 
   const payload = {
@@ -4278,7 +4368,7 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
     client_name: "A renseigner",
     status: "active",
     default_activity_category_id: defaultCategory?.activity_category_id ?? null,
-    default_activity_category_label: defaultCategory?.activity_category_label ?? null,
+    default_activity_category_label: normalizeCategorySelection(defaultCategory?.activity_category_label ?? "").category || null,
   };
 
   const { data, error } = await window.supabase.from("projects").insert([payload]).select();
@@ -4296,7 +4386,7 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
 }
 
 async function createCategoryReference(rawLabel, options = {}) {
-  const categoryLabel = rawLabel.trim();
+  const categoryLabel = normalizeCategorySelection(rawLabel).category;
   if (!categoryLabel) {
     return null;
   }
@@ -4363,32 +4453,35 @@ async function createCategoryReference(rawLabel, options = {}) {
 }
 
 function findReferenceMatch(rows, labelField, rawValue) {
-  const normalized = normalizeText(rawValue ?? "");
+  const normalizer = labelField === "activity_category_label" ? normalizeComparableText : normalizeText;
+  const normalized = normalizer(rawValue ?? "");
   if (!normalized) {
     return null;
   }
 
-  const exact = rows.find((row) => normalizeText(row[labelField] ?? "") === normalized);
+  const exact = rows.find((row) => normalizer(row[labelField] ?? "") === normalized);
   if (exact) {
     return exact;
   }
 
-  const startsWithMatches = rows.filter((row) => normalizeText(row[labelField] ?? "").startsWith(normalized));
+  const startsWithMatches = rows.filter((row) => normalizer(row[labelField] ?? "").startsWith(normalized));
   return startsWithMatches.length === 1 ? startsWithMatches[0] : null;
 }
 
 function buildCanonicalSessionDraft(sessionDraft, resolved) {
   const normalizedCategories = resolved.category
-    ? [resolved.category.activity_category_label]
+    ? [normalizeCategorySelection(resolved.category.activity_category_label).category]
     : resolved.selectedCategoryLabel
       ? [resolved.selectedCategoryLabel]
       : sessionDraft.categories.slice(0, 1);
+  const normalizedMeta = normalizeCategoryAndTags(normalizedCategories, sessionDraft.tags ?? []);
 
   return {
     ...sessionDraft,
     collaborator: resolved.user?.user_name ?? sessionDraft.collaborator,
     project: resolved.project?.project_name ?? sessionDraft.project,
-    categories: normalizedCategories,
+    categories: normalizedMeta.categories,
+    tags: normalizedMeta.tags,
     dbUserId: resolved.user?.user_id ?? null,
     dbProjectId: resolved.project?.project_id ?? null,
     dbActivityCategoryId: resolved.category?.activity_category_id ?? null,
@@ -4402,7 +4495,9 @@ function applyCanonicalDraftToMainForm(sessionDraft) {
   collaboratorInput.value = sessionDraft.collaborator ?? "";
   projectInput.value = sessionDraft.project ?? "";
   currentCategories = [...(sessionDraft.categories ?? []).slice(0, 1)];
+  currentTags = [...(sessionDraft.tags ?? [])];
   renderCategoryTokens();
+  renderTagTokens();
   renderObjectiveSelections();
 }
 
@@ -4437,7 +4532,7 @@ async function canonicalizeProjectInput() {
     projectInput.value = resolved.project.project_name;
   }
   if (!currentCategories.length && resolved.project?.default_activity_category_label) {
-    currentCategories = [resolved.project.default_activity_category_label];
+    currentCategories = [normalizeCategorySelection(resolved.project.default_activity_category_label).category];
     renderCategoryTokens();
   }
 }
@@ -4450,7 +4545,7 @@ async function canonicalizeCategorySelection() {
       categories: [],
     });
     if (resolved.category) {
-      currentCategories = [resolved.category.activity_category_label];
+      currentCategories = [normalizeCategorySelection(resolved.category.activity_category_label).category];
       renderCategoryTokens();
     }
     return;
@@ -4462,8 +4557,11 @@ async function canonicalizeCategorySelection() {
     categories: [...currentCategories],
   });
   if (resolved.category) {
-    currentCategories = [resolved.category.activity_category_label];
+    const normalized = normalizeCategoryAndTags([resolved.category.activity_category_label], currentTags);
+    currentCategories = normalized.categories;
+    currentTags = normalized.tags;
     renderCategoryTokens();
+    renderTagTokens();
   }
 }
 
@@ -4479,6 +4577,8 @@ async function resolveSessionReferences(session) {
     findReferenceMatch(referenceCatalog.categories, "activity_category_label", session.categories?.[0] ?? "") ??
     null;
 
+  const normalizedCategory = normalizeCategorySelection(resolved.selectedCategoryLabel ?? session.categories?.[0] ?? "");
+
   if (!resolved.loaded && !fallbackUser) {
     return null;
   }
@@ -4487,7 +4587,7 @@ async function resolveSessionReferences(session) {
     user: resolved.user ?? fallbackUser,
     project,
     category,
-    selectedCategoryLabel: resolved.selectedCategoryLabel ?? session.categories?.[0] ?? "",
+    selectedCategoryLabel: normalizedCategory.category,
   };
 }
 
@@ -4549,7 +4649,8 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
     project_name: references.project?.project_name ?? session.project ?? "",
     client_name: references.project?.client_name ?? session.dbClientName ?? "",
     activity_category_id: references.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
-    activity_category_label: references.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    activity_category_label:
+      normalizeCategorySelection(references.category?.activity_category_label ?? session.categories?.[0] ?? "").category || null,
     kpi_category_label: references.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
     duration_minutes: Math.max(1, Math.round(durationMs / 60000)),
     duration_hours: Number((durationMs / 3600000).toFixed(2)),
@@ -4625,7 +4726,8 @@ async function buildActiveSessionPayload(session) {
     project_name: references?.project?.project_name ?? session.project ?? "",
     client_name: references?.project?.client_name ?? session.dbClientName ?? "",
     activity_category_id: references?.category?.activity_category_id ?? session.dbActivityCategoryId ?? null,
-    activity_category_label: references?.category?.activity_category_label ?? session.categories?.[0] ?? null,
+    activity_category_label:
+      normalizeCategorySelection(references?.category?.activity_category_label ?? session.categories?.[0] ?? "").category || null,
     kpi_category_label: references?.category?.kpi_category_label ?? session.dbKpiCategoryLabel ?? null,
     task_label: session.task || "",
     tags_text: (session.tags ?? []).join(", "),
@@ -4873,8 +4975,7 @@ function saveManualEntry() {
     collaborator,
     project,
     task: manualTaskInput.value.trim(),
-    categories: parseTokenString(manualCategoriesInput.value),
-    tags: parseTokenString(manualTagsInput.value),
+    ...normalizeCategoryAndTags(parseTokenString(manualCategoriesInput.value), parseTokenString(manualTagsInput.value)),
     notionRef: manualNotionInput.value.trim(),
     objectivePole: manualObjectivePoleInput.value.trim(),
     objectiveOkr: manualObjectiveOkrInput.value.trim(),
@@ -5268,11 +5369,11 @@ function formatRoleLabel(role) {
 }
 
 function renderAuthPanel() {
-  if (!authGuestShell || !authUserShell || !authSubmitButton || !authSecondaryButton) {
+  if (!authGuestShell || !authUserShell) {
     return;
   }
 
-  const authenticated = Boolean(accessProfile.appUser?.user_name) && authUiMode !== "reset-password";
+  const authenticated = Boolean(accessProfile.appUser?.user_name);
   authGuestShell.hidden = authenticated;
   authUserShell.hidden = !authenticated;
 
@@ -5287,63 +5388,29 @@ function renderAuthPanel() {
       authRolePill.textContent = formatRoleLabel(accessProfile.role);
     }
     if (authTrustedPill) {
-      authTrustedPill.hidden = !isTrustedDeviceEnabled();
+      authTrustedPill.hidden = true;
     }
     setAuthStatusMessage("");
     return;
   }
 
-  if (authTrustedDeviceInput) {
-    authTrustedDeviceInput.checked = isTrustedDeviceEnabled();
-  }
+  if (authRescueSelect) {
+    const knownUsers = [...getKnownUsers()].sort((left, right) => left.user_name.localeCompare(right.user_name, "fr"));
+    const currentValue = loadStoredLocalRescueName() || authRescueSelect.value || "";
+    authRescueSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Choisir un profil";
+    authRescueSelect.append(placeholder);
 
-  const isSignUp = authUiMode === "sign-up";
-  const isForgot = authUiMode === "forgot-password";
-  const isReset = authUiMode === "reset-password";
+    for (const user of knownUsers) {
+      const option = document.createElement("option");
+      option.value = user.user_name;
+      option.textContent = user.user_name;
+      authRescueSelect.append(option);
+    }
 
-  if (authModeSigninButton) {
-    authModeSigninButton.classList.toggle("active", !isSignUp);
-    authModeSigninButton.hidden = isReset;
-  }
-  if (authModeSignupButton) {
-    authModeSignupButton.classList.toggle("active", isSignUp);
-    authModeSignupButton.hidden = isForgot || isReset;
-  }
-
-  if (authNameField) {
-    authNameField.hidden = !isSignUp;
-  }
-  if (authPasswordConfirmField) {
-    authPasswordConfirmField.hidden = !(isSignUp || isReset);
-  }
-  if (authTrustedShell) {
-    authTrustedShell.hidden = isForgot || isReset;
-  }
-
-  if (authEmailInput) {
-    authEmailInput.disabled = isReset;
-    authEmailInput.placeholder = isForgot ? "Recevoir le lien de reinitialisation" : "vous@domaine.com";
-  }
-  if (authPasswordInput) {
-    authPasswordInput.autocomplete = isSignUp || isReset ? "new-password" : "current-password";
-    authPasswordInput.placeholder = isReset ? "Nouveau mot de passe" : "Mot de passe";
-  }
-  if (authPasswordConfirmInput) {
-    authPasswordConfirmInput.placeholder = isReset ? "Confirmer le nouveau mot de passe" : "Confirmer le mot de passe";
-  }
-
-  if (isSignUp) {
-    authSubmitButton.textContent = "Creer mon acces";
-    authSecondaryButton.textContent = "J'ai deja un acces";
-  } else if (isForgot) {
-    authSubmitButton.textContent = "Envoyer le lien";
-    authSecondaryButton.textContent = "Retour connexion";
-  } else if (isReset) {
-    authSubmitButton.textContent = "Enregistrer le mot de passe";
-    authSecondaryButton.textContent = "Retour connexion";
-  } else {
-    authSubmitButton.textContent = "Se connecter";
-    authSecondaryButton.textContent = "Mot de passe oublie ?";
+    authRescueSelect.value = knownUsers.some((user) => user.user_name === currentValue) ? currentValue : "";
   }
 }
 
@@ -5442,11 +5509,7 @@ function renderSuggestions() {
   );
   fillDatalist(
     categorySuggestions,
-    referenceCatalog.loaded
-      ? referenceCatalog.categories
-          .map((item) => item.activity_category_label)
-          .sort((a, b) => a.localeCompare(b, "fr"))
-      : uniqueTokenValues("categories"),
+    getCategorySuggestionLabels(),
   );
   fillDatalist(tagSuggestions, uniqueTokenValues("tags"));
 
@@ -7297,7 +7360,7 @@ function renderCategoryTokens() {
   renderTokenList(categoriesList, currentCategories, (index) => {
     currentCategories = currentCategories.filter((_, itemIndex) => itemIndex !== index);
     renderCategoryTokens();
-  });
+  }, { kind: "category" });
   updateFieldManageButtons();
 }
 
@@ -7309,14 +7372,26 @@ function renderTagTokens() {
   updateFieldManageButtons();
 }
 
-function renderTokenList(container, values, onRemove) {
+function renderTokenList(container, values, onRemove, options = {}) {
   container.innerHTML = "";
   for (const [index, value] of values.entries()) {
     const chip = document.createElement("span");
     chip.className = "token-chip";
+    if (options.kind === "category") {
+      chip.classList.add("token-chip--category");
+      applyCategorySurface(chip, getCategoryColor(value));
+    }
 
     const label = document.createElement("span");
+    label.className = "token-chip-label";
     label.textContent = value;
+
+    let separator = null;
+    if (options.kind === "category") {
+      separator = document.createElement("span");
+      separator.className = "token-chip-separator";
+      separator.textContent = "|";
+    }
 
     const remove = document.createElement("button");
     remove.type = "button";
@@ -7324,7 +7399,11 @@ function renderTokenList(container, values, onRemove) {
     remove.textContent = "x";
     remove.addEventListener("click", () => onRemove(index));
 
-    chip.append(label, remove);
+    chip.append(label);
+    if (separator) {
+      chip.append(separator);
+    }
+    chip.append(remove);
     container.append(chip);
   }
 }
@@ -7399,10 +7478,12 @@ function createCell(value) {
 }
 
 function parseTokenString(rawValue) {
-  return rawValue
-    .split(",")
-    .map((token) => token.trim())
-    .filter(Boolean);
+  return dedupePreservingOrder(
+    rawValue
+      .split(",")
+      .map((token) => token.trim())
+      .filter(Boolean),
+  );
 }
 
 function formatClock(durationMs) {
@@ -7549,6 +7630,91 @@ function isSameDay(left, right) {
 
 function normalizeText(value) {
   return String(value ?? "").trim().toLowerCase();
+}
+
+function normalizeComparableText(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[|/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function dedupePreservingOrder(values, normalizer = normalizeComparableText) {
+  const seen = new Set();
+  const unique = [];
+
+  for (const value of values) {
+    const cleaned = String(value ?? "").trim();
+    if (!cleaned) {
+      continue;
+    }
+    const key = normalizer(cleaned);
+    if (!key || seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(cleaned);
+  }
+
+  return unique;
+}
+
+function normalizeCategorySelection(rawLabel) {
+  const cleaned = String(rawLabel ?? "").trim();
+  if (!cleaned) {
+    return { category: "", impliedTags: [] };
+  }
+
+  const comparable = normalizeComparableText(cleaned);
+  const matchedRule = CATEGORY_REWRITE_RULES.find((rule) => rule.matches.includes(comparable));
+  if (matchedRule) {
+    return {
+      category: matchedRule.category,
+      impliedTags: [...matchedRule.impliedTags],
+    };
+  }
+
+  return {
+    category: cleaned,
+    impliedTags: [],
+  };
+}
+
+function normalizeCategoryAndTags(categories = [], tags = []) {
+  const normalizedTags = [];
+  const normalizedCategories = [];
+
+  for (const tag of tags) {
+    const cleanedTag = String(tag ?? "").trim();
+    if (cleanedTag) {
+      normalizedTags.push(cleanedTag);
+    }
+  }
+
+  for (const category of categories) {
+    const normalized = normalizeCategorySelection(category);
+    if (normalized.category) {
+      normalizedCategories.push(normalized.category);
+    }
+    normalizedTags.push(...normalized.impliedTags);
+  }
+
+  return {
+    categories: dedupePreservingOrder(normalizedCategories).slice(0, 1),
+    tags: dedupePreservingOrder(normalizedTags),
+  };
+}
+
+function getCategorySuggestionLabels() {
+  const sourceLabels = referenceCatalog.loaded
+    ? referenceCatalog.categories.map((item) => item.activity_category_label)
+    : uniqueTokenValues("categories");
+
+  const normalizedLabels = sourceLabels.map((label) => normalizeCategorySelection(label).category).filter(Boolean);
+  return dedupePreservingOrder(normalizedLabels).sort((left, right) => left.localeCompare(right, "fr"));
 }
 
 function colorForLabel(label) {
