@@ -97,24 +97,11 @@ const analysisToolbarTitle = document.querySelector("#analysis-toolbar-title");
 const analysisCollaboratorFilterWrap = document.querySelector("#analysis-collaborator-filter-wrap");
 const authGuestShell = document.querySelector("#auth-guest-shell");
 const authUserShell = document.querySelector("#auth-user-shell");
-const authModeSigninButton = document.querySelector("#auth-mode-signin");
-const authModeSignupButton = document.querySelector("#auth-mode-signup");
-const authNameField = document.querySelector("#auth-name-field");
-const authNameInput = document.querySelector("#auth-name-input");
-const authEmailInput = document.querySelector("#auth-email-input");
-const authPasswordInput = document.querySelector("#auth-password-input");
-const authPasswordConfirmField = document.querySelector("#auth-password-confirm-field");
-const authPasswordConfirmInput = document.querySelector("#auth-password-confirm-input");
-const authTrustedShell = document.querySelector("#auth-trusted-shell");
-const authTrustedDeviceInput = document.querySelector("#auth-trusted-device");
-const authSubmitButton = document.querySelector("#auth-submit-button");
-const authSecondaryButton = document.querySelector("#auth-secondary-button");
 const authRescueSelect = document.querySelector("#auth-rescue-select");
 const authRescueButton = document.querySelector("#auth-rescue-button");
 const authUserName = document.querySelector("#auth-user-name");
 const authUserEmail = document.querySelector("#auth-user-email");
 const authRolePill = document.querySelector("#auth-role-pill");
-const authTrustedPill = document.querySelector("#auth-trusted-pill");
 const authSignoutButton = document.querySelector("#auth-signout-button");
 const authStatus = document.querySelector("#auth-status");
 const collaboratorInput = document.querySelector("#collaborator-input");
@@ -832,8 +819,6 @@ let accessProfile = {
   session: null,
   appUser: null,
 };
-let authUiMode = "sign-in";
-let authStateListenerBound = false;
 const autocompletePopover = createAutocompletePopover();
 let autocompleteState = {
   config: null,
@@ -853,6 +838,8 @@ let remoteStateAvailable = false;
 let remoteStateLoadingPromise = null;
 let remoteSyncIntervalId = null;
 let activeDraftSyncTimeoutId = null;
+let authStatusClearTimeoutId = null;
+let authRescueOptionsSignature = "";
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -888,42 +875,13 @@ render();
 registerServiceWorker();
 void initializeAuth();
 
-authModeSigninButton?.addEventListener("click", () => {
-  setAuthStatusMessage("");
-  setAuthMode("sign-in");
-  authEmailInput?.focus();
-});
-
-authModeSignupButton?.addEventListener("click", () => {
-  setAuthStatusMessage("");
-  setAuthMode("sign-up");
-  authNameInput?.focus();
-});
-
-authSubmitButton?.addEventListener("click", async () => {
-  await handleAuthSubmit();
-});
-
-authSecondaryButton?.addEventListener("click", async () => {
-  await handleAuthSecondaryAction();
-});
-
 authSignoutButton?.addEventListener("click", async () => {
   await handleAuthSignOut();
 });
 
-authRescueButton?.addEventListener("click", () => {
-  applyLocalRescueAccess(authRescueSelect?.value ?? "");
+authRescueButton?.addEventListener("click", async () => {
+  await applyLocalRescueAccess(authRescueSelect?.value ?? "");
 });
-
-for (const input of [authNameInput, authEmailInput, authPasswordInput, authPasswordConfirmInput]) {
-  input?.addEventListener("keydown", async (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      await handleAuthSubmit();
-    }
-  });
-}
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -1019,12 +977,12 @@ dayThemeInput?.addEventListener("keydown", (event) => {
 });
 
 dayThemesList?.addEventListener("click", (event) => {
-  const chip = event.target.closest("[data-theme-id]");
-  if (!chip) {
+  const removeButton = event.target.closest("[data-remove-theme-id]");
+  if (!removeButton) {
     return;
   }
 
-  dayThemes = dayThemes.filter((item) => item.id !== chip.dataset.themeId);
+  dayThemes = dayThemes.filter((item) => item.id !== removeButton.dataset.removeThemeId);
   persistDayThemes();
   renderDayThemes();
 });
@@ -2921,6 +2879,11 @@ function hydrateRemoteState(historyRows, activeRows) {
 
   persistSessions();
   persistActiveSession();
+  if (activeSession) {
+    startTimerLoopIfNeeded();
+  } else {
+    stopTimerLoop();
+  }
 }
 
 function hydrateRepriseActions(rows) {
@@ -2960,6 +2923,7 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
+    const wasRemoteStateAvailable = remoteStateAvailable;
     const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
@@ -2985,12 +2949,17 @@ async function loadServerBackedState({ silent = false } = {}) {
       if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
         console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
       }
+      remoteStateAvailable = false;
+      setAuthStatusMessage("Synchronisation indisponible. Les donnees affichees peuvent etre partielles.", "warning");
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
     remoteStateAvailable = true;
+    if (!wasRemoteStateAvailable) {
+      setAuthStatusMessage("Synchronisation retablie.", "success", { persistMs: 2600 });
+    }
 
     if (!silent) {
       render();
@@ -3077,6 +3046,27 @@ function hydrateFormFromActiveSession() {
   renderCategoryTokens();
   renderTagTokens();
   renderObjectiveSelections();
+}
+
+function resetComposerForm({ collaborator = "", hint = "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles." } = {}) {
+  form.reset();
+  collaboratorInput.value = collaborator;
+  manualCollaboratorInput.value = collaborator;
+  currentCategories = [];
+  currentTags = [];
+  projectInput.value = "";
+  taskInput.value = "";
+  notionInput.value = "";
+  objectivePoleInput.value = "";
+  objectiveOkrInput.value = "";
+  objectiveKrInput.value = "";
+  notesInput.value = "";
+  delete projectInput.dataset.lastHydratedKey;
+  projectMemoryHint.textContent = hint;
+  renderCategoryTokens();
+  renderTagTokens();
+  renderObjectiveSelections();
+  updateFieldManageButtons();
 }
 
 function setDefaultReportAnchor() {
@@ -3661,77 +3651,31 @@ function stopActiveSession() {
 async function initializeAuth() {
   const rescueName = loadStoredLocalRescueName();
   if (rescueName) {
-    applyLocalRescueAccess(rescueName, { silent: true });
+    await applyLocalRescueAccess(rescueName, { silent: true });
     return;
   }
   render();
 }
 
-function bindAuthStateListener() {
-  if (authStateListenerBound || !window.supabase) {
-    return;
-  }
-  authStateListenerBound = true;
-  window.supabase.auth.onAuthStateChange((event, session) => {
-    if (event === "PASSWORD_RECOVERY") {
-      authUiMode = "reset-password";
-    }
-    void syncAuthenticatedAccess(session, { allowRecoveryMode: event === "PASSWORD_RECOVERY" });
-  });
-}
-
-function setCurrentAuthStorageMode(mode) {
-  window.mordologieAuthStorage?.setMode?.(mode);
-}
-
-function isTrustedDeviceEnabled() {
-  return window.mordologieAuthStorage?.isTrusted?.() ?? false;
-}
-
-function setAuthStatusMessage(message = "", tone = "neutral") {
+function setAuthStatusMessage(message = "", tone = "neutral", options = {}) {
   if (!authStatus) {
     return;
+  }
+  if (authStatusClearTimeoutId) {
+    window.clearTimeout(authStatusClearTimeoutId);
+    authStatusClearTimeoutId = null;
   }
   authStatus.textContent = message;
   authStatus.hidden = !message;
   authStatus.dataset.tone = message ? tone : "";
-}
-
-function setAuthMode(mode) {
-  authUiMode = mode;
-  if (mode !== "reset-password") {
-    authPasswordInput?.setCustomValidity("");
-    authPasswordConfirmInput?.setCustomValidity("");
+  if (message && options.persistMs) {
+    const expectedMessage = message;
+    authStatusClearTimeoutId = window.setTimeout(() => {
+      if (authStatus.textContent === expectedMessage) {
+        setAuthStatusMessage("");
+      }
+    }, options.persistMs);
   }
-  renderAuthPanel();
-}
-
-function getAuthRedirectUrl() {
-  if (["http:", "https:"].includes(window.location.protocol)) {
-    return `${window.location.origin}${window.location.pathname}`;
-  }
-  return "https://mordologie.eduardodo.com/";
-}
-
-function clearAuthPasswordFields() {
-  if (authPasswordInput) {
-    authPasswordInput.value = "";
-    authPasswordInput.setCustomValidity("");
-  }
-  if (authPasswordConfirmInput) {
-    authPasswordConfirmInput.value = "";
-    authPasswordConfirmInput.setCustomValidity("");
-  }
-}
-
-function clearAuthIdentityFields({ keepEmail = false } = {}) {
-  if (authNameInput) {
-    authNameInput.value = "";
-  }
-  if (!keepEmail && authEmailInput) {
-    authEmailInput.value = "";
-  }
-  clearAuthPasswordFields();
 }
 
 function loadStoredLocalRescueName() {
@@ -3766,7 +3710,39 @@ function findKnownUserByName(rawName) {
   return getKnownUsers().find((item) => normalizeText(item.user_name ?? "") === normalizedName) ?? null;
 }
 
-function applyLocalRescueAccess(rawName, { silent = false } = {}) {
+async function protectActiveSessionBeforeAccessChange(nextUserName = "") {
+  const currentUserName = accessProfile.appUser?.user_name ?? "";
+  const hasRunningSession =
+    Boolean(activeSession) &&
+    Boolean(currentUserName) &&
+    normalizeText(activeSession?.collaborator ?? "") === normalizeText(currentUserName);
+
+  if (!hasRunningSession || normalizeText(currentUserName) === normalizeText(nextUserName)) {
+    return true;
+  }
+
+  setAuthStatusMessage("Synchronisation de la session en cours...", "neutral");
+  const synced = await upsertActiveSessionToSupabase(activeSession);
+  if (synced) {
+    setAuthStatusMessage("Session en cours gardee et synchronisee.", "success", { persistMs: 3200 });
+    return true;
+  }
+
+  const confirmed = window.confirm(
+    "La session en cours n'a pas pu etre synchronisee. Quitter maintenant risque de masquer cette session. Voulez-vous continuer ?",
+  );
+  if (!confirmed) {
+    setAuthStatusMessage("Changement de profil annule.", "warning", { persistMs: 3200 });
+  }
+  return confirmed;
+}
+
+async function applyLocalRescueAccess(rawName, { silent = false } = {}) {
+  const transitionAllowed = await protectActiveSessionBeforeAccessChange(rawName);
+  if (!transitionAllowed) {
+    return false;
+  }
+
   const appUser = findKnownUserByName(rawName);
   if (!appUser) {
     if (!silent) {
@@ -3774,6 +3750,13 @@ function applyLocalRescueAccess(rawName, { silent = false } = {}) {
     }
     return false;
   }
+
+  const preservedLocalActiveSession =
+    activeSession &&
+    !activeSession.isServerBacked &&
+    normalizeText(activeSession.collaborator ?? "") === normalizeText(appUser.user_name)
+      ? normalizeSession(activeSession)
+      : null;
 
   accessProfile = {
     mode: "local-rescue",
@@ -3785,182 +3768,43 @@ function applyLocalRescueAccess(rawName, { silent = false } = {}) {
   persistActiveSession();
   stopTimerLoop();
   stopRemoteSyncLoop();
+  resetComposerForm({ collaborator: appUser.user_name });
   storeLocalRescueName(appUser.user_name);
-  setAuthStatusMessage("Acces local de secours active.", "success");
+  referenceCatalog.loaded = false;
+  const catalogLoaded = await ensureReferenceCatalogLoaded(true);
+  if (catalogLoaded) {
+    const refreshedUser = findKnownUserByName(appUser.user_name) ?? appUser;
+    accessProfile = {
+      ...accessProfile,
+      role: refreshedUser.role ?? accessProfile.role,
+      appUser: refreshedUser,
+    };
+  }
+
+  const remoteLoaded = await loadServerBackedState({ silent: true });
+  if (window.supabase) {
+    startRemoteSyncLoop();
+  }
+  if (!activeSession && preservedLocalActiveSession) {
+    activeSession = preservedLocalActiveSession;
+    persistActiveSession();
+    startTimerLoopIfNeeded();
+  }
+  setAuthStatusMessage(
+    remoteLoaded ? "Profil charge et synchronise." : "Profil charge en local. Synchronisation indisponible pour le moment.",
+    remoteLoaded ? "success" : "warning",
+    { persistMs: remoteLoaded ? 2600 : undefined },
+  );
   render();
   return true;
 }
 
-function readAuthFormValues() {
-  return {
-    name: authNameInput?.value.trim() ?? "",
-    email: authEmailInput?.value.trim().toLowerCase() ?? "",
-    password: authPasswordInput?.value ?? "",
-    passwordConfirm: authPasswordConfirmInput?.value ?? "",
-    trustedDevice: Boolean(authTrustedDeviceInput?.checked),
-  };
-}
-
-function applyTrustedDevicePreference(isTrusted) {
-  setCurrentAuthStorageMode(isTrusted ? "local" : "session");
-}
-
-async function handleAuthSubmit() {
-  if (!window.supabase) {
-    setAuthStatusMessage("Connexion indisponible pour le moment.", "error");
-    return;
-  }
-
-  const { name, email, password, passwordConfirm, trustedDevice } = readAuthFormValues();
-  applyTrustedDevicePreference(trustedDevice);
-
-  if (authUiMode === "sign-up") {
-    if (!email) {
-      setAuthStatusMessage("Ajoutez votre email pour continuer.", "warning");
-      authEmailInput?.focus();
-      return;
-    }
-    if (!name) {
-      setAuthStatusMessage("Ajoutez votre nom pour creer le profil Mordologie.", "warning");
-      authNameInput?.focus();
-      return;
-    }
-    if (!password) {
-      setAuthStatusMessage("Choisissez un mot de passe.", "warning");
-      authPasswordInput?.focus();
-      return;
-    }
-    if (password.length < 8) {
-      setAuthStatusMessage("Le mot de passe doit contenir au moins 8 caracteres.", "warning");
-      authPasswordInput?.focus();
-      return;
-    }
-    if (password !== passwordConfirm) {
-      setAuthStatusMessage("La confirmation du mot de passe ne correspond pas.", "warning");
-      authPasswordConfirmInput?.focus();
-      return;
-    }
-
-    setAuthStatusMessage("Creation du compte en cours...", "neutral");
-    const { data, error } = await window.supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: getAuthRedirectUrl(),
-        data: {
-          full_name: name,
-        },
-      },
-    });
-
-    if (error) {
-      setAuthStatusMessage(error.message, "error");
-      return;
-    }
-
-    clearAuthIdentityFields({ keepEmail: true });
-    if (!data.session) {
-      setAuthStatusMessage("Un email vient d'etre envoye pour activer le compte.", "success");
-      setAuthMode("sign-in");
-      return;
-    }
-
-    setAuthStatusMessage("Compte cree. Mordologie prepare maintenant le profil.", "success");
-    return;
-  }
-
-  if (authUiMode === "forgot-password") {
-    if (!email) {
-      setAuthStatusMessage("Ajoutez votre email pour recevoir le lien.", "warning");
-      authEmailInput?.focus();
-      return;
-    }
-    setAuthStatusMessage("Envoi du lien de reinitialisation...", "neutral");
-    const { error } = await window.supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: getAuthRedirectUrl(),
-    });
-
-    if (error) {
-      setAuthStatusMessage(error.message, "error");
-      return;
-    }
-
-    clearAuthPasswordFields();
-    setAuthStatusMessage("Lien envoye. Verifiez votre boite mail.", "success");
-    return;
-  }
-
-  if (authUiMode === "reset-password") {
-    if (!password) {
-      setAuthStatusMessage("Ajoutez un nouveau mot de passe.", "warning");
-      authPasswordInput?.focus();
-      return;
-    }
-    if (password.length < 8) {
-      setAuthStatusMessage("Le mot de passe doit contenir au moins 8 caracteres.", "warning");
-      authPasswordInput?.focus();
-      return;
-    }
-    if (password !== passwordConfirm) {
-      setAuthStatusMessage("La confirmation du mot de passe ne correspond pas.", "warning");
-      authPasswordConfirmInput?.focus();
-      return;
-    }
-
-    setAuthStatusMessage("Mise a jour du mot de passe...", "neutral");
-    const { error } = await window.supabase.auth.updateUser({ password });
-    if (error) {
-      setAuthStatusMessage(error.message, "error");
-      return;
-    }
-
-    clearAuthPasswordFields();
-    setAuthStatusMessage("Mot de passe mis a jour.", "success");
-    setAuthMode("sign-in");
-    return;
-  }
-
-  if (!email) {
-    setAuthStatusMessage("Ajoutez votre email pour continuer.", "warning");
-    authEmailInput?.focus();
-    return;
-  }
-
-  if (!password) {
-    setAuthStatusMessage("Ajoutez votre mot de passe pour vous connecter.", "warning");
-    authPasswordInput?.focus();
-    return;
-  }
-
-  setAuthStatusMessage("Connexion en cours...", "neutral");
-  const { error } = await window.supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
-
-  if (error) {
-    setAuthStatusMessage(error.message, "error");
-    return;
-  }
-
-  clearAuthPasswordFields();
-}
-
-async function handleAuthSecondaryAction() {
-  if (authUiMode === "sign-up" || authUiMode === "forgot-password" || authUiMode === "reset-password") {
-    clearAuthPasswordFields();
-    setAuthMode("sign-in");
-    setAuthStatusMessage("");
-    authEmailInput?.focus();
-    return;
-  }
-
-  setAuthMode("forgot-password");
-  setAuthStatusMessage("");
-  authEmailInput?.focus();
-}
-
 async function handleAuthSignOut() {
+  const transitionAllowed = await protectActiveSessionBeforeAccessChange("");
+  if (!transitionAllowed) {
+    return;
+  }
+
   clearStoredLocalRescueName();
   setAuthStatusMessage("");
   accessProfile = {
@@ -3973,6 +3817,7 @@ async function handleAuthSignOut() {
   persistActiveSession();
   stopTimerLoop();
   stopRemoteSyncLoop();
+  resetComposerForm();
   render();
 }
 
@@ -4021,83 +3866,6 @@ async function ensureReferenceCatalogLoaded(force = false) {
   const result = await referenceCatalog.loadingPromise;
   referenceCatalog.loadingPromise = null;
   return result;
-}
-
-async function syncAuthenticatedAccess(session, options = {}) {
-  if (!session?.user) {
-    const rescueName = loadStoredLocalRescueName();
-    if (rescueName) {
-      applyLocalRescueAccess(rescueName, { silent: true });
-      return true;
-    }
-    accessProfile = {
-      mode: "open",
-      role: "open",
-      session: null,
-      appUser: null,
-    };
-    activeSession = null;
-    persistActiveSession();
-    stopTimerLoop();
-    stopRemoteSyncLoop();
-    if (options.allowRecoveryMode !== true) {
-      authUiMode = "sign-in";
-    }
-    render();
-    return false;
-  }
-
-  const appUser = await resolveAuthAppUser(session.user);
-  if (!appUser) {
-    accessProfile = {
-      mode: "pending",
-      role: "open",
-      session,
-      appUser: null,
-    };
-    activeSession = null;
-    persistActiveSession();
-    setAuthStatusMessage("Compte reconnu, mais le profil Mordologie n'est pas encore pret.", "warning");
-    render();
-    return false;
-  }
-
-  accessProfile = {
-    mode: "authenticated",
-    role: appUser.role ?? "cadre",
-    session,
-    appUser,
-  };
-  await loadServerBackedState({ silent: true });
-  activeSession =
-    remoteActiveSessions.find((active) => normalizeText(active.collaborator) === normalizeText(appUser.user_name)) ?? null;
-  persistActiveSession();
-  startRemoteSyncLoop();
-  if (authUiMode !== "reset-password") {
-    authUiMode = "sign-in";
-  }
-  render();
-  return true;
-}
-
-async function resolveAuthAppUser(authUser, attempts = 3) {
-  for (let attempt = 0; attempt < attempts; attempt += 1) {
-    const loaded = await ensureReferenceCatalogLoaded(attempt > 0);
-    if (!loaded) {
-      return null;
-    }
-
-    const matched =
-      referenceCatalog.users.find((item) => item.auth_user_id === authUser.id) ??
-      referenceCatalog.users.find((item) => normalizeText(item.email ?? "") === normalizeText(authUser.email ?? ""));
-    if (matched) {
-      return matched;
-    }
-
-    await new Promise((resolve) => window.setTimeout(resolve, 300));
-  }
-
-  return null;
 }
 
 function getAccessRole() {
@@ -4669,6 +4437,7 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
 async function syncSessionToSupabase(session, source = "manual") {
   const payload = await buildTimeEntryPayloadFromSession(session, source);
   if (!payload) {
+    setAuthStatusMessage("Impossible de preparer l'enregistrement serveur pour cette session.", "error");
     return false;
   }
 
@@ -4696,6 +4465,7 @@ async function createTimeEntry(data, options = {}) {
 
     if (error) {
       console.error("Supabase insert error:", error);
+      setAuthStatusMessage("Enregistrement serveur impossible pour le moment.", "error");
       return false;
     }
 
@@ -4703,6 +4473,7 @@ async function createTimeEntry(data, options = {}) {
     return true;
   } catch (e) {
     console.error("Unexpected Supabase error:", e);
+    setAuthStatusMessage("Erreur inattendue pendant l'enregistrement serveur.", "error");
     return false;
   }
 }
@@ -4742,11 +4513,15 @@ async function buildActiveSessionPayload(session) {
 
 async function upsertActiveSessionToSupabase(session) {
   if (!window.supabase || !session) {
+    if (session) {
+      setAuthStatusMessage("Synchronisation indisponible pour cette session en cours.", "warning");
+    }
     return false;
   }
 
   const payload = await buildActiveSessionPayload(session);
   if (!payload) {
+    setAuthStatusMessage("Impossible de synchroniser cette session en cours.", "error");
     return false;
   }
 
@@ -4756,6 +4531,7 @@ async function upsertActiveSessionToSupabase(session) {
 
   if (error) {
     console.warn("active_sessions upsert failed:", error);
+    setAuthStatusMessage("Synchronisation de la session en cours impossible.", "error");
     return false;
   }
 
@@ -4771,6 +4547,7 @@ async function removeActiveSessionFromSupabase(sessionId) {
   const { error } = await window.supabase.from("active_sessions").delete().eq("active_session_id", sessionId);
   if (error) {
     console.warn("active_sessions delete failed:", error);
+    setAuthStatusMessage("Impossible de nettoyer la session active sur le serveur.", "error");
     return false;
   }
 
@@ -4786,6 +4563,7 @@ async function removeTimeEntryFromSupabase(timeEntryId) {
   const { error } = await window.supabase.from("time_entries").delete().eq("time_entry_id", timeEntryId);
   if (error) {
     console.warn("time_entries delete failed:", error);
+    setAuthStatusMessage("Suppression serveur impossible pour cette entree.", "error");
     return false;
   }
 
@@ -4882,21 +4660,10 @@ async function logSessionChange(previousSession, nextSession, source = "manual")
 
 function resetFormAfterStop() {
   const lastCollaborator = collaboratorInput.value.trim();
-  form.reset();
-  collaboratorInput.value = lastCollaborator;
-  currentCategories = [];
-  currentTags = [];
-  renderCategoryTokens();
-  renderTagTokens();
-  notionInput.value = "";
-  objectivePoleInput.value = "";
-  objectiveOkrInput.value = "";
-  objectiveKrInput.value = "";
-  notesInput.value = "";
-  renderObjectiveSelections();
-  projectMemoryHint.textContent =
-    "Commencez a taper: un projet deja connu recharge automatiquement ses informations utiles.";
-  delete projectInput.dataset.lastHydratedKey;
+  resetComposerForm({
+    collaborator: lastCollaborator,
+    hint: "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.",
+  });
 }
 
 function togglePauseSession() {
@@ -5044,9 +4811,10 @@ async function deleteSession(session) {
     }
     if (activeSession?.id === session.id) {
       activeSession = null;
-      hydrateFormFromSession(null);
+      resetComposerForm({ collaborator: getCurrentCollaborator() });
       persistActiveSession();
-      syncActiveTimerLoop();
+      stopTimerLoop();
+      renderActiveSession();
     }
     remoteActiveSessions = remoteActiveSessions.filter((item) => item.id !== session.id);
     render();
@@ -5300,8 +5068,7 @@ function startTimerLoopIfNeeded() {
 
   timerIntervalId = window.setInterval(() => {
     updateLiveTimer();
-    renderCadreViews();
-    renderManagerViews();
+    renderVisibleLiveViews();
   }, 1000);
 }
 
@@ -5316,6 +5083,20 @@ function stopTimerLoop() {
 
 function updateLiveTimer() {
   timerDisplay.textContent = activeSession ? formatClock(getActiveSessionDurationMs(activeSession)) : "00:00:00";
+}
+
+function renderVisibleLiveViews() {
+  if (currentView === "cadre") {
+    renderCadreViews();
+    return;
+  }
+  if (currentView === "manager") {
+    renderManagerViews();
+    return;
+  }
+  if (currentView === "resources") {
+    renderResourcesViews();
+  }
 }
 
 function render() {
@@ -5387,27 +5168,27 @@ function renderAuthPanel() {
     if (authRolePill) {
       authRolePill.textContent = formatRoleLabel(accessProfile.role);
     }
-    if (authTrustedPill) {
-      authTrustedPill.hidden = true;
-    }
-    setAuthStatusMessage("");
     return;
   }
 
   if (authRescueSelect) {
     const knownUsers = [...getKnownUsers()].sort((left, right) => left.user_name.localeCompare(right.user_name, "fr"));
     const currentValue = loadStoredLocalRescueName() || authRescueSelect.value || "";
-    authRescueSelect.innerHTML = "";
-    const placeholder = document.createElement("option");
-    placeholder.value = "";
-    placeholder.textContent = "Choisir un profil";
-    authRescueSelect.append(placeholder);
+    const nextSignature = knownUsers.map((user) => `${user.user_id}:${user.user_name}`).join("|");
+    if (authRescueOptionsSignature !== nextSignature) {
+      authRescueOptionsSignature = nextSignature;
+      authRescueSelect.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Choisir un profil";
+      authRescueSelect.append(placeholder);
 
-    for (const user of knownUsers) {
-      const option = document.createElement("option");
-      option.value = user.user_name;
-      option.textContent = user.user_name;
-      authRescueSelect.append(option);
+      for (const user of knownUsers) {
+        const option = document.createElement("option");
+        option.value = user.user_name;
+        option.textContent = user.user_name;
+        authRescueSelect.append(option);
+      }
     }
 
     authRescueSelect.value = knownUsers.some((user) => user.user_name === currentValue) ? currentValue : "";
@@ -5429,7 +5210,7 @@ function renderDayThemes() {
   dayThemesList.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    dayThemesList.append(createEmptyState("Connectez-vous pour cadrer vos themes du jour."));
+    dayThemesList.append(createEmptyState("Choisissez votre nom pour cadrer vos themes du jour."));
     return;
   }
 
@@ -5444,9 +5225,21 @@ function renderDayThemes() {
     chip.type = "button";
     chip.className = "chip chip--theme";
     chip.dataset.themeId = item.id;
-    chip.textContent = item.label;
-    chip.title = `Retirer ${item.label}`;
+    chip.setAttribute("aria-label", `Theme du jour ${item.label}`);
     applyCategorySurface(chip, generateStableHexColor(item.label));
+
+    const label = document.createElement("span");
+    label.className = "chip-theme-label";
+    label.textContent = item.label;
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "chip-theme-remove";
+    remove.dataset.removeThemeId = item.id;
+    remove.setAttribute("aria-label", `Retirer ${item.label}`);
+    remove.textContent = "×";
+
+    chip.append(label, remove);
     dayThemesList.append(chip);
   }
 }
@@ -5542,7 +5335,7 @@ function renderQuickProjects() {
   if (!memories.length) {
     const message = collaborator
       ? "Les reprises probables apparaitront ici."
-      : "Connectez-vous pour retrouver vos reprises probables.";
+      : "Choisissez votre nom pour retrouver vos reprises probables.";
     quickProjects.append(createEmptyState(message));
     return;
   }
@@ -5567,7 +5360,7 @@ function renderProjectMemoryList() {
   if (!memories.length) {
     const message = collaborator
       ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Connectez-vous pour afficher les contextes memorises.";
+      : "Choisissez votre nom pour afficher les contextes memorises.";
     projectMemoryList.append(createEmptyState(message));
     return;
   }
@@ -5720,7 +5513,7 @@ function renderPersonalStats() {
   if (!collaborator) {
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-  todayPanelCopy.textContent = "Connectez-vous pour charger votre semaine.";
+    todayPanelCopy.textContent = "Choisissez votre nom pour charger votre semaine.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
@@ -5765,7 +5558,7 @@ function renderPersonalDistribution() {
     : "Lecture compacte par type de travail sur la semaine.";
 
   if (!collaborator) {
-    renderPersonalDistributionDonut([], 0, usesObjectives, "Connectez-vous pour voir votre semaine.");
+    renderPersonalDistributionDonut([], 0, usesObjectives, "Choisissez votre nom pour voir votre semaine.");
     return;
   }
 
@@ -5790,7 +5583,7 @@ function renderAgenda() {
   agendaBoard.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    agendaBoard.append(createEmptyState("Connectez-vous pour afficher et deplacer vos creneaux."));
+    agendaBoard.append(createEmptyState("Choisissez votre nom pour afficher et deplacer vos creneaux."));
     if (agendaWeekLabel) {
       agendaWeekLabel.textContent = "";
     }
@@ -6386,7 +6179,7 @@ async function updateUserRole(user, nextRole) {
         { ...accessProfile.appUser, role: nextRole },
     };
   }
-  setAuthStatusMessage("Role mis a jour.", "success");
+  setAuthStatusMessage("Role mis a jour.", "success", { persistMs: 2400 });
   render();
   return true;
 }
@@ -6871,16 +6664,18 @@ function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyM
 
   for (const row of rows) {
     const color = colorForLabel(row.label);
+    const categoryTooltip = formatCategoryTagTooltip(row);
 
     const segment = document.createElement("div");
     segment.className = "distribution-segment";
     segment.style.width = `${Math.max((row.durationMs / totalMs) * 100, 2)}%`;
     segment.style.background = color;
-    segment.title = `${row.label} · ${formatShare(row.durationMs, totalMs)}`;
+    attachHoverTooltip(segment, categoryTooltip || `${row.label} · ${formatShare(row.durationMs, totalMs)}`);
     barContainer.append(segment);
 
     const legend = document.createElement("span");
     legend.className = "legend-item";
+    attachHoverTooltip(legend, categoryTooltip || `${row.label} · ${formatDuration(row.durationMs)} · ${formatShare(row.durationMs, totalMs)}`);
 
     const swatch = document.createElement("span");
     swatch.className = "legend-swatch";
@@ -6946,8 +6741,13 @@ function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMes
   personalDistributionSubcopy.textContent = leadSegment.label;
 
   for (const segment of segments) {
+    const categoryTooltip = usesObjectives ? "" : formatCategoryTagTooltip(segment);
     const item = document.createElement("div");
     item.className = "personal-legend-item";
+    attachHoverTooltip(
+      item,
+      categoryTooltip || `${segment.label} · ${formatDuration(segment.durationMs)} · ${Math.round((segment.share || 0) * 100)}%`,
+    );
 
     const swatch = document.createElement("span");
     swatch.className = "personal-legend-swatch";
@@ -6973,6 +6773,115 @@ function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMes
     item.append(swatch, copy);
     personalDistributionLegend.append(item);
   }
+}
+
+function formatCategoryTagTooltip(row) {
+  const label = String(row?.label ?? "").trim();
+  if (!label || normalizeComparableText(label) === "autres") {
+    return "";
+  }
+
+  const tagSummary = Array.isArray(row?.tagSummary) ? row.tagSummary.filter(([tag]) => String(tag ?? "").trim()) : [];
+  const lines = [label];
+  if (!tagSummary.length) {
+    lines.push("Etiquettes : aucune");
+    return lines.join("\n");
+  }
+
+  const visibleTags = tagSummary.slice(0, 8).map(([tag, count]) => `${tag}${count > 1 ? ` (${count})` : ""}`);
+  const hiddenCount = tagSummary.length - visibleTags.length;
+  lines.push(`Etiquettes : ${visibleTags.join(" · ")}`);
+  if (hiddenCount > 0) {
+    lines.push(`+ ${hiddenCount} autre${hiddenCount > 1 ? "s" : ""}`);
+  }
+  return lines.join("\n");
+}
+
+let hoverTooltipNode = null;
+
+function ensureHoverTooltipNode() {
+  if (hoverTooltipNode?.isConnected) {
+    return hoverTooltipNode;
+  }
+
+  hoverTooltipNode = document.createElement("div");
+  hoverTooltipNode.className = "hover-detail-tooltip";
+  hoverTooltipNode.hidden = true;
+  document.body.append(hoverTooltipNode);
+  return hoverTooltipNode;
+}
+
+function showHoverTooltip(content) {
+  if (!content) {
+    return;
+  }
+  const tooltip = ensureHoverTooltipNode();
+  tooltip.textContent = content;
+  tooltip.hidden = false;
+}
+
+function hideHoverTooltip() {
+  if (!hoverTooltipNode) {
+    return;
+  }
+  hoverTooltipNode.hidden = true;
+}
+
+function positionHoverTooltip(event, target) {
+  const tooltip = ensureHoverTooltipNode();
+  if (tooltip.hidden) {
+    return;
+  }
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 14;
+  const fallbackRect = target?.getBoundingClientRect?.();
+  const cursorX = event?.clientX ?? (fallbackRect ? fallbackRect.left + fallbackRect.width / 2 : window.innerWidth / 2);
+  const cursorY = event?.clientY ?? (fallbackRect ? fallbackRect.top : window.innerHeight / 2);
+  let left = cursorX + 16;
+  let top = cursorY + 18;
+
+  if (left + tooltipRect.width > window.innerWidth - margin) {
+    left = cursorX - tooltipRect.width - 16;
+  }
+  if (left < margin) {
+    left = margin;
+  }
+  if (top + tooltipRect.height > window.innerHeight - margin) {
+    top = cursorY - tooltipRect.height - 18;
+  }
+  if (top < margin) {
+    top = margin;
+  }
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+}
+
+function attachHoverTooltip(target, content) {
+  if (!target || !content) {
+    return;
+  }
+
+  target.removeAttribute("title");
+
+  target.addEventListener("mouseenter", (event) => {
+    showHoverTooltip(content);
+    positionHoverTooltip(event, target);
+  });
+  target.addEventListener("mousemove", (event) => {
+    positionHoverTooltip(event, target);
+  });
+  target.addEventListener("mouseleave", () => {
+    hideHoverTooltip();
+  });
+  target.addEventListener("focus", () => {
+    showHoverTooltip(content);
+    positionHoverTooltip(null, target);
+  });
+  target.addEventListener("blur", () => {
+    hideHoverTooltip();
+  });
 }
 
 function getProjectMemories(collaboratorName = "") {
@@ -7274,9 +7183,16 @@ function buildReportRows(rows, key) {
     if (key === "categories") {
       const labels = row.categories.length ? row.categories : ["Sans categorie"];
       for (const label of labels) {
-        const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+        const current = grouped.get(label) ?? { label, durationMs: 0, count: 0, tagCounts: new Map() };
         current.durationMs += Number(row.durationMs) || 0;
         current.count += 1;
+        for (const tag of row.tags ?? []) {
+          const cleanedTag = String(tag ?? "").trim();
+          if (!cleanedTag) {
+            continue;
+          }
+          current.tagCounts.set(cleanedTag, (current.tagCounts.get(cleanedTag) ?? 0) + 1);
+        }
         grouped.set(label, current);
       }
       continue;
@@ -7289,7 +7205,15 @@ function buildReportRows(rows, key) {
     grouped.set(label, current);
   }
 
-  return Array.from(grouped.values()).sort((a, b) => b.durationMs - a.durationMs);
+  return Array.from(grouped.values())
+    .map((row) => ({
+      ...row,
+      tagSummary:
+        row.tagCounts instanceof Map
+          ? Array.from(row.tagCounts.entries()).sort((left, right) => right[1] - left[1])
+          : [],
+    }))
+    .sort((a, b) => b.durationMs - a.durationMs);
 }
 
 function getFallbackLabel(key) {
@@ -7386,23 +7310,13 @@ function renderTokenList(container, values, onRemove, options = {}) {
     label.className = "token-chip-label";
     label.textContent = value;
 
-    let separator = null;
-    if (options.kind === "category") {
-      separator = document.createElement("span");
-      separator.className = "token-chip-separator";
-      separator.textContent = "|";
-    }
-
     const remove = document.createElement("button");
     remove.type = "button";
     remove.setAttribute("aria-label", `Retirer ${value}`);
-    remove.textContent = "x";
+    remove.textContent = "×";
     remove.addEventListener("click", () => onRemove(index));
 
     chip.append(label);
-    if (separator) {
-      chip.append(separator);
-    }
     chip.append(remove);
     container.append(chip);
   }
