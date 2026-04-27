@@ -35,7 +35,7 @@ La version la plus simple de Mordologie en ligne est:
    - Output directory: vide
 3. Deployer
 
-Le fichier [vercel.json](/Users/ed/Documents/grand-livre-de-la-compte/vercel.json) suffit pour cette app statique.
+Le fichier [vercel.json](/Users/ed/Documents/Mordologie/vercel.json) suffit pour cette app statique.
 
 ### Domaine
 
@@ -53,7 +53,7 @@ En general:
 
 ### Supabase
 
-Le front pointe deja vers le projet Supabase configure dans [index.html](/Users/ed/Documents/grand-livre-de-la-compte/index.html).
+Le front pointe deja vers le projet Supabase configure dans [index.html](/Users/ed/Documents/Mordologie/index.html).
 
 Avant usage en production, verifier que la base contient bien:
 
@@ -64,7 +64,7 @@ Avant usage en production, verifier que la base contient bien:
 - `active_sessions`
 - `reprise_actions`
 
-Et que [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql) a bien ete execute si tu veux le stockage partage serveur complet.
+Et que [db/server_shared_storage.sql](/Users/ed/Documents/Mordologie/db/server_shared_storage.sql) a bien ete execute si tu veux le stockage partage serveur complet.
 
 ## Ce que contient cette version
 
@@ -76,15 +76,15 @@ Et que [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-comp
 
 ## Base V1
 
-- schema SQL: [db/schema.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/schema.sql)
-- seed SQL: [db/seed.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/seed.sql)
-- checks SQL: [db/checks.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/checks.sql)
-- regles d'ecriture: [db/WRITE_RULES.md](/Users/ed/Documents/grand-livre-de-la-compte/db/WRITE_RULES.md)
-- auth + roles + RLS: [db/auth_rls.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_rls.sql)
-- sync auth profiles: [db/auth_profile_sync.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_profile_sync.sql)
-- stockage partage serveur: [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql)
-- staging import agenda: [db/agenda_import_staging.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/agenda_import_staging.sql)
-- exemple import Paulo: [db/import_paulo_week_2026_04_06.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/import_paulo_week_2026_04_06.sql)
+- schema SQL: [db/schema.sql](/Users/ed/Documents/Mordologie/db/schema.sql)
+- seed SQL: [db/seed.sql](/Users/ed/Documents/Mordologie/db/seed.sql)
+- checks SQL: [db/checks.sql](/Users/ed/Documents/Mordologie/db/checks.sql)
+- regles d'ecriture: [db/WRITE_RULES.md](/Users/ed/Documents/Mordologie/db/WRITE_RULES.md)
+- auth + roles + RLS: [db/auth_rls.sql](/Users/ed/Documents/Mordologie/db/auth_rls.sql)
+- sync auth profiles: [db/auth_profile_sync.sql](/Users/ed/Documents/Mordologie/db/auth_profile_sync.sql)
+- stockage partage serveur: [db/server_shared_storage.sql](/Users/ed/Documents/Mordologie/db/server_shared_storage.sql)
+- staging import agenda: [db/agenda_import_staging.sql](/Users/ed/Documents/Mordologie/db/agenda_import_staging.sql)
+- exemple import Paulo: [db/import_paulo_week_2026_04_06.sql](/Users/ed/Documents/Mordologie/db/import_paulo_week_2026_04_06.sql)
 
 ## Stockage
 
@@ -94,7 +94,7 @@ La version actuelle garde un cache local dans `localStorage`, mais peut maintena
 - `active_sessions` comme verite serveur pour les chronos en cours ou en pause
 - `session_audit_log` pour tracer les modifications quand la table existe
 
-Pour activer ce mode partage, execute [db/server_shared_storage.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/server_shared_storage.sql) dans Supabase.
+Pour activer ce mode partage, execute [db/server_shared_storage.sql](/Users/ed/Documents/Mordologie/db/server_shared_storage.sql) dans Supabase.
 Ce script ajoute aussi `session_audit_log` pour tracer les editions.
 
 ## Acces actuel
@@ -113,4 +113,4 @@ La base reste preparee pour un mode plus strict `cadre / manager / admin` avec a
 - `manager` : son equipe
 - `admin` : tout
 
-Les scripts [db/auth_rls.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_rls.sql) et [db/auth_profile_sync.sql](/Users/ed/Documents/grand-livre-de-la-compte/db/auth_profile_sync.sql) servent a cette future version plus verrouillee.
+Les scripts [db/auth_rls.sql](/Users/ed/Documents/Mordologie/db/auth_rls.sql) et [db/auth_profile_sync.sql](/Users/ed/Documents/Mordologie/db/auth_profile_sync.sql) servent a cette future version plus verrouillee.

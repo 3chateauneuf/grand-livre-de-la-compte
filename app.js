@@ -3,8 +3,13 @@ const ACTIVE_SESSION_KEY = "mordologie-active-session-v1";
 const CATEGORY_COLOR_KEY = "mordologie-category-colors-v1";
 const REPRISES_ORDER_KEY = "mordologie-reprises-order-v1";
 const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
+const PLANNED_EVENTS_OVERRIDES_KEY = "mordologie-planned-events-v1";
+const PLANNED_CALENDAR_SNAPSHOTS_KEY = "mordologie-planned-calendar-snapshots-v1";
 const DAY_THEMES_KEY = "mordologie-day-themes-v1";
 const LOCAL_RESCUE_ACCESS_KEY = "mordologie-local-rescue-access-v1";
+const PENDING_STOP_STATE_KEY = "mordologie-pending-stop-v1";
+const RECENTLY_STOPPED_SESSIONS_KEY = "mordologie-recently-stopped-sessions-v1";
+const RECENTLY_STOPPED_SESSION_TTL_MS = 15 * 60 * 1000;
 const LEGACY_STORAGE_KEYS = {
   [STORAGE_KEY]: "cadence-equipe-sessions-v3",
   [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
@@ -16,7 +21,8 @@ const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
 const DEMO_MODE_ENABLED = false;
-const COLOR_PALETTE = ["#069494", "#FF8243", "#FFC0CB", "#FCE883", "#057171", "#E96F49", "#E6A8B9", "#E2C85E"];
+const COLOR_PALETTE = ["#6FC7C0", "#F3A47D", "#EFB8C8", "#E8D98A", "#9ADAD3", "#F6BE95", "#F5D2DB", "#CDE6B4", "#BFD9E8", "#D8C6E7"];
+const RESOURCE_PASTEL_PALETTE = [...COLOR_PALETTE];
 const CATEGORY_REWRITE_RULES = [
   {
     matches: ["certification bio", "certificacion bio"],
@@ -24,6 +30,67 @@ const CATEGORY_REWRITE_RULES = [
     impliedTags: ["Bio"],
   },
 ];
+const SEEDED_PLANNED_CALENDAR_SNAPSHOTS = [
+  {
+    collaborator: "Eduardo",
+    source: "google_calendar",
+    source_calendar_id: "eduardo@cargonautes.fr",
+    week_start: "2026-04-27",
+    imported_at: "2026-04-26T15:45:00+02:00",
+    events: [
+      {
+        source_event_id: "2q6e8j9crgnv4vqjr95j5o4c7u_20260427T073000Z",
+        title: "Vérifier l'espace de stockage sur le fichier",
+        description: "",
+        start_at: "2026-04-27T00:00:00+02:00",
+        end_at: "2026-04-27T00:15:00+02:00",
+      },
+      {
+        source_event_id: "2q6e8j9crgnv4vqjr95j5o4c7u_20260427T073000Z-shift",
+        title: "Point entrepôt",
+        description: "",
+        start_at: "2026-04-27T09:30:00+02:00",
+        end_at: "2026-04-27T10:30:00+02:00",
+      },
+      {
+        source_event_id: "30mhlh6h4322kuk9f0icsa04c0_20260427T100000Z",
+        title: "Indisponible",
+        description: "",
+        start_at: "2026-04-27T12:00:00+02:00",
+        end_at: "2026-04-27T14:30:00+02:00",
+      },
+      {
+        source_event_id: "3h81cv9jt98158auc5dvg15ghn",
+        title: "Shift Entrepôt",
+        description: "",
+        start_at: "2026-04-29T09:00:00+02:00",
+        end_at: "2026-04-29T13:00:00+02:00",
+      },
+      {
+        source_event_id: "1ft1jkr1nkhadikm9kq1b65h80_20260429T103000Z",
+        title: "Point opérationnel Cargonautes",
+        description: "",
+        start_at: "2026-04-29T12:30:00+02:00",
+        end_at: "2026-04-29T13:00:00+02:00",
+      },
+      {
+        source_event_id: "62na35r1kc017plnlhe4o6tklv",
+        title: "Réunion entrepôt",
+        description: "",
+        start_at: "2026-04-30T13:00:00+02:00",
+        end_at: "2026-04-30T14:00:00+02:00",
+      },
+      {
+        source_event_id: "1f5ud34r4478k6lmhuugb07m2t",
+        title: "Shift coursier",
+        description: "",
+        start_at: "2026-05-02T07:00:00+02:00",
+        end_at: "2026-05-02T12:00:00+02:00",
+      },
+    ],
+  },
+];
+
 const LOCAL_PROFILE_DIRECTORY = [
   {
     user_id: "USR-001",
@@ -146,6 +213,9 @@ const pauseButton = document.querySelector("#pause-button");
 const openManualButton = document.querySelector("#open-manual-button");
 const activeStartDisplay = document.querySelector("#active-start-display");
 const timerDisplay = document.querySelector("#timer-display");
+const activeSessionStatusCopy = document.querySelector("#active-session-status-copy");
+const activeSessionStatusActions = document.querySelector("#active-session-status-actions");
+const retryPendingStopButton = document.querySelector("#retry-pending-stop-button");
 const activeTaskLabel = document.querySelector("#active-task-label");
 const todayTotal = document.querySelector("#today-total");
 const weekTotal = document.querySelector("#week-total");
@@ -164,6 +234,7 @@ const agendaPrevWeekButton = document.querySelector("#agenda-prev-week");
 const agendaCurrentWeekButton = document.querySelector("#agenda-current-week");
 const agendaNextWeekButton = document.querySelector("#agenda-next-week");
 const agendaWeekLabel = document.querySelector("#agenda-week-label");
+const plannedSummary = document.querySelector("#planned-summary");
 const periodSwitch = document.querySelector("#period-switch");
 const analysisStatsSwitch = document.querySelector("#analysis-stats-switch");
 const reportAnchorInput = document.querySelector("#report-anchor");
@@ -197,6 +268,7 @@ const sessionList = document.querySelector("#session-list");
 const journalFilterFromInput = document.querySelector("#journal-filter-from");
 const journalFilterToInput = document.querySelector("#journal-filter-to");
 const journalFilterCategoryInput = document.querySelector("#journal-filter-category");
+const journalFilterTagsInput = document.querySelector("#journal-filter-tags");
 const journalFilterSubjectInput = document.querySelector("#journal-filter-subject");
 const journalFilterResetButton = document.querySelector("#journal-filter-reset");
 const projectMemoryList = document.querySelector("#project-memory-list");
@@ -226,10 +298,25 @@ const resourceObjectivesPanel = document.querySelector("#resource-objectives-pan
 const resourceObjectivesGrid = document.querySelector("#resource-objectives-grid");
 
 const manualDialog = document.querySelector("#manual-dialog");
+const plannedDialog = document.querySelector("#planned-dialog");
+const plannedDialogSubtitle = document.querySelector("#planned-dialog-subtitle");
+const plannedDialogSuggestion = document.querySelector("#planned-dialog-suggestion");
+const plannedDialogSuggestionCategory = document.querySelector("#planned-dialog-suggestion-category");
+const plannedDialogSuggestionDetail = document.querySelector("#planned-dialog-suggestion-detail");
+const plannedApplySuggestionButton = document.querySelector("#planned-apply-suggestion-button");
+const plannedSubjectInput = document.querySelector("#planned-subject-input");
+const plannedCategoryInput = document.querySelector("#planned-category-input");
+const plannedTagsList = document.querySelector("#planned-tags-list");
+const plannedTagsInput = document.querySelector("#planned-tags-input");
+const plannedIgnoreButton = document.querySelector("#planned-ignore-button");
+const plannedCancelButton = document.querySelector("#planned-cancel-button");
+const plannedSaveButton = document.querySelector("#planned-save-button");
+const manualDialogStatus = document.querySelector("#manual-dialog-status");
 const manualCollaboratorInput = document.querySelector("#manual-collaborator-input");
 const manualProjectInput = document.querySelector("#manual-project-input");
 const manualTaskInput = document.querySelector("#manual-task-input");
 const manualCategoriesInput = document.querySelector("#manual-categories-input");
+const manualTagsList = document.querySelector("#manual-tags-list");
 const manualTagsInput = document.querySelector("#manual-tags-input");
 const manualNotionInput = document.querySelector("#manual-notion-input");
 const manualObjectiveDisclosure = document.querySelector("#manual-objective-disclosure");
@@ -256,6 +343,13 @@ const conflictDetail = document.querySelector("#conflict-detail");
 const cancelConflictButton = document.querySelector("#cancel-conflict-button");
 const editConflictButton = document.querySelector("#edit-conflict-button");
 const adjustConflictButton = document.querySelector("#adjust-conflict-button");
+const decisionDialog = document.querySelector("#decision-dialog");
+const decisionDialogEyebrow = document.querySelector("#decision-dialog-eyebrow");
+const decisionDialogTitle = document.querySelector("#decision-dialog-title");
+const decisionDialogCopy = document.querySelector("#decision-dialog-copy");
+const decisionDialogDetail = document.querySelector("#decision-dialog-detail");
+const decisionDialogCancelButton = document.querySelector("#decision-dialog-cancel");
+const decisionDialogConfirmButton = document.querySelector("#decision-dialog-confirm");
 const fieldManageDialog = document.querySelector("#field-manage-dialog");
 const fieldManageTitle = document.querySelector("#field-manage-title");
 const fieldManageCopy = document.querySelector("#field-manage-copy");
@@ -803,6 +897,7 @@ let reportPeriod = "week";
 let statsMode = "categories";
 let manualTimingSyncLocked = false;
 let dayThemes = loadDayThemes();
+let manualCurrentTags = [];
 let manualEditingSessionId = null;
 let pendingConflict = null;
 let currentView = getInitialView();
@@ -828,6 +923,7 @@ let autocompleteState = {
 let autocompleteHideTimeoutId = null;
 let fieldManageState = null;
 let fieldManageConfirmMode = false;
+let pendingDecisionResolver = null;
 let quickProjectsDragState = null;
 let agendaDragState = null;
 let suppressNextAgendaClick = false;
@@ -835,11 +931,30 @@ let auditTableAvailable = null;
 let remoteActiveSessions = [];
 let repriseActions = loadStoredRepriseActions();
 let remoteStateAvailable = false;
+let remoteSyncHealth = {
+  history: "unknown",
+  active: "unknown",
+  reprise: "unknown",
+};
+let remoteSyncStatusSignature = "";
 let remoteStateLoadingPromise = null;
 let remoteSyncIntervalId = null;
 let activeDraftSyncTimeoutId = null;
 let authStatusClearTimeoutId = null;
+const PLANNED_WORK_DAYS = new Set([1, 2, 3, 4, 5]);
+const PLANNED_WORK_START_HOUR = 9;
+const PLANNED_WORK_END_HOUR = 18;
 let authRescueOptionsSignature = "";
+let usersAdminEditingId = null;
+let usersAdminDraft = null;
+let pendingStoppedSessionState = loadPendingStoppedSessionState();
+let recentlyStoppedSessionGuards = loadRecentlyStoppedSessionGuards();
+let plannedEventOverrides = loadStoredPlannedEventOverrides();
+let plannedCalendarSnapshots = loadStoredPlannedCalendarSnapshots();
+let plannedEditingEventId = null;
+let plannedEditingEvent = null;
+let plannedCurrentTags = [];
+let visiblePlannedEvents = [];
 
 setupTokenInput(categoriesInput, {
   getValues: () => currentCategories,
@@ -863,6 +978,22 @@ setupTokenInput(tagsInput, {
   },
 });
 
+setupTokenInput(manualTagsInput, {
+  getValues: () => manualCurrentTags,
+  setValues: (values) => {
+    manualCurrentTags = dedupePreservingOrder(values);
+    renderManualTagTokens();
+  },
+});
+
+setupTokenInput(plannedTagsInput, {
+  getValues: () => plannedCurrentTags,
+  setValues: (values) => {
+    plannedCurrentTags = dedupePreservingOrder(values);
+    renderPlannedTagTokens();
+  },
+});
+
 initializeAutocomplete();
 applyBookFavicon();
 initializeObjectiveSelections();
@@ -883,9 +1014,69 @@ authRescueButton?.addEventListener("click", async () => {
   await applyLocalRescueAccess(authRescueSelect?.value ?? "");
 });
 
-form.addEventListener("submit", async (event) => {
+authRescueSelect?.addEventListener("keydown", async (event) => {
+  if (event.key !== "Enter") {
+    return;
+  }
   event.preventDefault();
+  await applyLocalRescueAccess(authRescueSelect?.value ?? "");
+});
 
+function resolveDecisionDialog(result) {
+  const resolver = pendingDecisionResolver;
+  pendingDecisionResolver = null;
+  decisionDialog?.close();
+  resolver?.(result);
+}
+
+function requestDecision({
+  eyebrow = "Confirmation",
+  title = "Verifier cette action",
+  copy = "",
+  detail = "",
+  confirmLabel = "Confirmer",
+  tone = "primary",
+} = {}) {
+  if (!decisionDialog || !decisionDialogConfirmButton || !decisionDialogCancelButton) {
+    return Promise.resolve(window.confirm(copy || title));
+  }
+
+  decisionDialogEyebrow.textContent = eyebrow;
+  decisionDialogTitle.textContent = title;
+  decisionDialogCopy.textContent = copy;
+  decisionDialogDetail.textContent = detail;
+  decisionDialogDetail.hidden = !detail;
+  decisionDialogConfirmButton.textContent = confirmLabel;
+  decisionDialogConfirmButton.className = tone === "danger" ? "btn btn-ghost-danger" : "btn btn-primary";
+
+  if (pendingDecisionResolver) {
+    pendingDecisionResolver(false);
+    pendingDecisionResolver = null;
+  }
+
+  return new Promise((resolve) => {
+    pendingDecisionResolver = resolve;
+    decisionDialog.showModal();
+  });
+}
+
+decisionDialogCancelButton?.addEventListener("click", () => {
+  resolveDecisionDialog(false);
+});
+
+decisionDialogConfirmButton?.addEventListener("click", () => {
+  resolveDecisionDialog(true);
+});
+
+decisionDialog?.addEventListener("close", () => {
+  if (pendingDecisionResolver) {
+    const resolver = pendingDecisionResolver;
+    pendingDecisionResolver = null;
+    resolver(false);
+  }
+});
+
+async function handlePrimaryTimerAction() {
   if (activeSession) {
     stopActiveSession();
     return;
@@ -909,6 +1100,11 @@ form.addEventListener("submit", async (event) => {
   startTimerLoopIfNeeded();
   render();
   void upsertActiveSessionToSupabase(activeSession);
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  await handlePrimaryTimerAction();
 });
 
 function createSessionId() {
@@ -919,8 +1115,63 @@ function createSessionId() {
   return `loc-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
 }
 
+function shouldIgnoreGlobalShortcut(event) {
+  if (
+    event.defaultPrevented ||
+    event.repeat ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.altKey
+  ) {
+    return true;
+  }
+
+  const target = event.target;
+  if (target instanceof HTMLElement) {
+    if (target.isContentEditable) {
+      return true;
+    }
+    if (target.closest("input, textarea, select, [contenteditable='true'], [contenteditable=''], .token-field")) {
+      return true;
+    }
+  }
+
+  return Boolean(document.querySelector("dialog[open]"));
+}
+
+toggleButton.addEventListener("click", async () => {
+  await handlePrimaryTimerAction();
+});
+
 pauseButton.addEventListener("click", () => {
   togglePauseSession();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (shouldIgnoreGlobalShortcut(event)) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  if (key === "d" && !activeSession) {
+    event.preventDefault();
+    void handlePrimaryTimerAction();
+    return;
+  }
+  if (key === "s") {
+    event.preventDefault();
+    openManualDialog();
+    return;
+  }
+  if (key === "p" && activeSession) {
+    event.preventDefault();
+    togglePauseSession();
+    return;
+  }
+  if (key === "a" && activeSession) {
+    event.preventDefault();
+    stopActiveSession();
+  }
 });
 
 openManualButton.addEventListener("click", () => {
@@ -1269,7 +1520,7 @@ exportCsvButton?.addEventListener("click", () => {
   exportCurrentAnalysisCsv();
 });
 
-[journalFilterFromInput, journalFilterToInput, journalFilterCategoryInput, journalFilterSubjectInput].forEach((input) => {
+[journalFilterFromInput, journalFilterToInput, journalFilterCategoryInput, journalFilterTagsInput, journalFilterSubjectInput].forEach((input) => {
   input?.addEventListener("input", () => {
     renderSessionList();
   });
@@ -1282,6 +1533,7 @@ journalFilterResetButton?.addEventListener("click", () => {
   if (journalFilterFromInput) journalFilterFromInput.value = "";
   if (journalFilterToInput) journalFilterToInput.value = "";
   if (journalFilterCategoryInput) journalFilterCategoryInput.value = "";
+  if (journalFilterTagsInput) journalFilterTagsInput.value = "";
   if (journalFilterSubjectInput) journalFilterSubjectInput.value = "";
   renderSessionList();
 });
@@ -1294,11 +1546,20 @@ sessionList.addEventListener("click", (event) => {
     if (!session) {
       return;
     }
-    const confirmed = window.confirm(`Supprimer "${session.project || session.task || "cette entree"}" ?`);
-    if (!confirmed) {
-      return;
-    }
-    void deleteSession(session);
+    void (async () => {
+      const confirmed = await requestDecision({
+        eyebrow: "Suppression",
+        title: "Supprimer cette entree",
+        copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entree"}" ?`,
+        detail: "Cette action efface l'entree du journal et de l'agenda.",
+        confirmLabel: "Supprimer",
+        tone: "danger",
+      });
+      if (!confirmed) {
+        return;
+      }
+      await deleteSession(session);
+    })();
     return;
   }
 
@@ -1341,6 +1602,15 @@ agendaBoard.addEventListener("click", (event) => {
     return;
   }
 
+  const plannedTarget = event.target.closest("[data-planned-id]");
+  if (plannedTarget) {
+    const plannedEvent = visiblePlannedEvents.find((item) => item.id === plannedTarget.dataset.plannedId);
+    if (plannedEvent) {
+      openPlannedDialog(plannedEvent);
+    }
+    return;
+  }
+
   const target = event.target.closest("[data-session-id]");
   if (target) {
     const session = findSessionById(target.dataset.sessionId);
@@ -1367,6 +1637,67 @@ saveManualButton.addEventListener("click", () => {
   saveManualEntry();
 });
 
+plannedCancelButton?.addEventListener("click", () => {
+  closePlannedDialog();
+});
+
+plannedIgnoreButton?.addEventListener("click", () => {
+  applyPlannedEventDecision("ignored");
+});
+
+plannedSaveButton?.addEventListener("click", () => {
+  applyPlannedEventDecision("validated");
+});
+
+plannedApplySuggestionButton?.addEventListener("click", () => {
+  if (!plannedEditingEvent) {
+    return;
+  }
+  if (plannedEditingEvent.suggested_category) {
+    plannedCategoryInput.value = plannedEditingEvent.suggested_category;
+  }
+  plannedCurrentTags = dedupePreservingOrder([...(plannedCurrentTags ?? []), ...(plannedEditingEvent.suggested_tags ?? [])]);
+  renderPlannedTagTokens();
+  plannedCategoryInput.focus();
+});
+
+plannedDialog?.addEventListener("close", () => {
+  resetPlannedDialog();
+});
+
+manualDialog?.addEventListener("close", () => {
+  setManualDialogStatus("");
+});
+
+retryPendingStopButton?.addEventListener("click", () => {
+  void syncPendingStoppedSession({ fromRetry: true });
+});
+
+[
+  manualCollaboratorInput,
+  manualProjectInput,
+  manualTaskInput,
+  manualCategoriesInput,
+  manualTagsInput,
+  manualNotionInput,
+  manualObjectivePoleInput,
+  manualObjectiveOkrInput,
+  manualObjectiveKrInput,
+  manualNotesInput,
+  manualStartDateInput,
+  manualStartTimeInput,
+  manualEndDateInput,
+  manualEndTimeInput,
+  manualDurationInput,
+].forEach((field) => {
+  field?.addEventListener("input", () => {
+    setManualDialogStatus("");
+  });
+  field?.addEventListener("change", () => {
+    setManualDialogStatus("");
+  });
+});
+
 cancelManualButton.addEventListener("click", () => {
   manualEditingSessionId = null;
   if (deleteManualButton) {
@@ -1380,14 +1711,23 @@ deleteManualButton?.addEventListener("click", () => {
   if (!session) {
     return;
   }
-  const confirmed = window.confirm(`Supprimer "${session.project || session.task || "cette entree"}" ?`);
-  if (!confirmed) {
-    return;
-  }
-  manualEditingSessionId = null;
-  deleteManualButton.hidden = true;
-  manualDialog.close();
-  void deleteSession(session);
+  void (async () => {
+    const confirmed = await requestDecision({
+      eyebrow: "Suppression",
+      title: "Supprimer cette entree",
+      copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entree"}" ?`,
+      detail: "Cette action efface l'entree du journal et de l'agenda.",
+      confirmLabel: "Supprimer",
+      tone: "danger",
+    });
+    if (!confirmed) {
+      return;
+    }
+    manualEditingSessionId = null;
+    deleteManualButton.hidden = true;
+    manualDialog.close();
+    await deleteSession(session);
+  })();
 });
 
 cancelConflictButton.addEventListener("click", () => {
@@ -1532,6 +1872,30 @@ function initializeAutocomplete() {
       },
     },
     {
+      input: journalFilterCategoryInput,
+      getOptions: () => getCategorySuggestionLabels(),
+      applyValue: (value) => {
+        journalFilterCategoryInput.value = value;
+        renderSessionList();
+      },
+    },
+    {
+      input: journalFilterTagsInput,
+      getOptions: () => uniqueTokenValues("tags").map((tag) => `#${tag}`),
+      applyValue: (value) => {
+        journalFilterTagsInput.value = value;
+        renderSessionList();
+      },
+    },
+    {
+      input: journalFilterSubjectInput,
+      getOptions: () => mergeSuggestionValues(uniqueValues("project"), uniqueValues("task")),
+      applyValue: (value) => {
+        journalFilterSubjectInput.value = value;
+        renderSessionList();
+      },
+    },
+    {
       input: categoriesInput,
       getOptions: () => getCategorySuggestionLabels(),
       allowCreate: () => canCreateSharedReferenceCatalog(),
@@ -1554,7 +1918,7 @@ function initializeAutocomplete() {
       input: tagsInput,
       getOptions: () => uniqueTokenValues("tags"),
       applyValue: (value) => {
-        currentTags = Array.from(new Set([...currentTags, value]));
+        currentTags = dedupePreservingOrder([...currentTags, value]);
         renderTagTokens();
         tagsInput.value = "";
       },
@@ -1639,17 +2003,44 @@ function initializeAutocomplete() {
           projectName: manualProjectInput.value.trim(),
         }),
       applyValue: (value) => {
-        const normalized = normalizeCategoryAndTags([value], parseTokenString(manualTagsInput.value));
+        const normalized = normalizeCategoryAndTags(
+          [value],
+          dedupePreservingOrder([...manualCurrentTags, ...parseTokenString(manualTagsInput.value)]),
+        );
         manualCategoriesInput.value = normalized.categories.join(", ");
-        manualTagsInput.value = normalized.tags.join(", ");
+        manualCurrentTags = normalized.tags;
+        manualTagsInput.value = "";
+        renderManualTagTokens();
       },
     },
     {
       input: manualTagsInput,
       getOptions: () => uniqueTokenValues("tags"),
       applyValue: (value) => {
-        const tokens = Array.from(new Set([...parseTokenString(manualTagsInput.value), value]));
-        manualTagsInput.value = tokens.join(", ");
+        manualCurrentTags = dedupePreservingOrder([...manualCurrentTags, value]);
+        manualTagsInput.value = "";
+        renderManualTagTokens();
+      },
+    },
+    {
+      input: plannedCategoryInput,
+      anchor: plannedCategoryInput.closest(".dialog-card"),
+      getOptions: () => getCategorySuggestionLabels(),
+      applyValue: (value) => {
+        const normalized = normalizeCategoryAndTags([value], plannedCurrentTags);
+        plannedCategoryInput.value = normalized.categories[0] ?? "";
+        plannedCurrentTags = normalized.tags;
+        plannedTagsInput.value = "";
+        renderPlannedTagTokens();
+      },
+    },
+    {
+      input: plannedTagsInput,
+      getOptions: () => uniqueTokenValues("tags"),
+      applyValue: (value) => {
+        plannedCurrentTags = dedupePreservingOrder([...plannedCurrentTags, value]);
+        plannedTagsInput.value = "";
+        renderPlannedTagTokens();
       },
     },
     {
@@ -1794,8 +2185,8 @@ function applyBookFavicon() {
   if (!faviconLink) {
     return;
   }
-  faviconLink.href = "icon.svg";
-  faviconLink.type = "image/svg+xml";
+  faviconLink.href = "icon.webp";
+  faviconLink.type = "image/webp";
 }
 
 function openAutocomplete(config) {
@@ -2719,6 +3110,274 @@ function loadActiveSession() {
   }
 }
 
+function loadPendingStoppedSessionState() {
+  try {
+    const raw = window.localStorage.getItem(PENDING_STOP_STATE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (!parsed?.session) {
+      return null;
+    }
+    return {
+      session: normalizeSession(parsed.session),
+      source: parsed.source || "timer",
+      state: parsed.state === "syncing" ? "pending" : parsed.state || "pending",
+      errorMessage: parsed.errorMessage || "",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistPendingStoppedSessionState() {
+  try {
+    if (!pendingStoppedSessionState?.session) {
+      window.localStorage.removeItem(PENDING_STOP_STATE_KEY);
+      return;
+    }
+    window.localStorage.setItem(PENDING_STOP_STATE_KEY, JSON.stringify(pendingStoppedSessionState));
+  } catch {
+    // ignore storage issues
+  }
+}
+
+function setPendingStoppedSessionState(nextState) {
+  pendingStoppedSessionState = nextState?.session ? nextState : null;
+  persistPendingStoppedSessionState();
+}
+
+function clearPendingStoppedSessionState() {
+  pendingStoppedSessionState = null;
+  persistPendingStoppedSessionState();
+}
+
+function loadRecentlyStoppedSessionGuards() {
+  try {
+    const raw = window.localStorage.getItem(RECENTLY_STOPPED_SESSIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    const now = Date.now();
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => item && Number(item.expiresAt) > now)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentlyStoppedSessionGuards() {
+  try {
+    const now = Date.now();
+    recentlyStoppedSessionGuards = recentlyStoppedSessionGuards.filter((item) => item && Number(item.expiresAt) > now);
+    if (!recentlyStoppedSessionGuards.length) {
+      window.localStorage.removeItem(RECENTLY_STOPPED_SESSIONS_KEY);
+      return;
+    }
+    window.localStorage.setItem(RECENTLY_STOPPED_SESSIONS_KEY, JSON.stringify(recentlyStoppedSessionGuards));
+  } catch {
+    // ignore storage issues
+  }
+}
+
+function rememberRecentlyStoppedSession(session) {
+  if (!session) {
+    return;
+  }
+  const collaborator = normalizeText(session.collaborator ?? "");
+  const startedAt = String(session.start ?? "").trim();
+  const activeSessionId = normalizeText(session.dbActiveSessionId ?? session.id ?? "");
+  if (!collaborator || !startedAt) {
+    return;
+  }
+  const expiresAt = Date.now() + RECENTLY_STOPPED_SESSION_TTL_MS;
+  recentlyStoppedSessionGuards = recentlyStoppedSessionGuards.filter((item) => {
+    if (!item) {
+      return false;
+    }
+    if (Number(item.expiresAt) <= Date.now()) {
+      return false;
+    }
+    return !(
+      item.collaborator === collaborator &&
+      item.startedAt === startedAt
+    );
+  });
+  recentlyStoppedSessionGuards.unshift({
+    collaborator,
+    startedAt,
+    activeSessionId,
+    expiresAt,
+  });
+  persistRecentlyStoppedSessionGuards();
+}
+
+function isRecentlyStoppedRemoteActiveRow(row) {
+  const collaborator = normalizeText(row?.user_name ?? "");
+  const startedAt = String(row?.started_at ?? "").trim();
+  const activeSessionId = normalizeText(row?.active_session_id ?? "");
+  if (!collaborator || !startedAt) {
+    return false;
+  }
+  const now = Date.now();
+  recentlyStoppedSessionGuards = recentlyStoppedSessionGuards.filter((item) => item && Number(item.expiresAt) > now);
+  return recentlyStoppedSessionGuards.some((item) => {
+    if (item.collaborator !== collaborator || item.startedAt !== startedAt) {
+      return false;
+    }
+    if (!item.activeSessionId || !activeSessionId) {
+      return true;
+    }
+    return item.activeSessionId === activeSessionId;
+  });
+}
+
+function getVisiblePendingStoppedSessionState() {
+  const collaborator = getCurrentCollaborator();
+  if (!collaborator || !pendingStoppedSessionState?.session) {
+    return null;
+  }
+  return normalizeText(pendingStoppedSessionState.session.collaborator) === normalizeText(collaborator)
+    ? pendingStoppedSessionState
+    : null;
+}
+
+function setStatusNodeMessage(node, message = "", tone = "error") {
+  if (!node) {
+    return;
+  }
+  node.textContent = message;
+  node.hidden = !message;
+  node.dataset.tone = message ? tone : "";
+}
+
+function setManualDialogStatus(message = "", tone = "error") {
+  setStatusNodeMessage(manualDialogStatus, message, tone);
+}
+
+function setUsersAdminDraftStatus(message = "", tone = "error") {
+  if (!usersAdminDraft) {
+    return;
+  }
+  usersAdminDraft.statusMessage = message;
+  usersAdminDraft.statusTone = tone;
+}
+
+function clearUsersAdminDraftTransientState() {
+  if (!usersAdminDraft) {
+    return;
+  }
+  usersAdminDraft.confirm_delete = false;
+  setUsersAdminDraftStatus("");
+}
+
+function failUsersAdminDraft(message, tone = "error") {
+  setUsersAdminDraftStatus(message, tone);
+  renderUsersAdmin();
+  return false;
+}
+
+function updateRemoteSyncStatus(nextHealth, { silent = false } = {}) {
+  remoteSyncHealth = nextHealth;
+  const labels = {
+    history: "historique",
+    active: "session active",
+    reprise: "reprises",
+  };
+  const failed = Object.entries(nextHealth)
+    .filter(([, value]) => value !== "ok")
+    .map(([key]) => labels[key]);
+  const allOk = failed.length === 0;
+  const signature = `${nextHealth.history}|${nextHealth.active}|${nextHealth.reprise}`;
+  const previousSignature = remoteSyncStatusSignature;
+  remoteSyncStatusSignature = signature;
+  const currentStatusText = authStatus?.textContent || "";
+  const currentTone = authStatus?.dataset.tone || "";
+  const currentMessageIsSyncRelated = currentStatusText.startsWith("Synchronisation ");
+  const shouldRespectCurrentError = currentTone === "error" && currentStatusText && !currentMessageIsSyncRelated;
+
+  if (allOk) {
+    if (previousSignature && previousSignature !== signature && !shouldRespectCurrentError) {
+      setAuthStatusMessage("Synchronisation retablie pour historique, session active et reprises.", "success", { persistMs: 2600 });
+    }
+    return;
+  }
+
+  const message = `Synchronisation partielle : ${failed.join(", ")} indisponible${failed.length > 1 ? "s" : ""}.`;
+  if ((!silent || previousSignature !== signature) && !shouldRespectCurrentError) {
+    setAuthStatusMessage(message, "warning");
+  }
+}
+
+async function syncPendingStoppedSession({ fromRetry = false } = {}) {
+  if (!pendingStoppedSessionState?.session) {
+    return false;
+  }
+
+  if (pendingStoppedSessionState.state === "syncing" && !fromRetry) {
+    return false;
+  }
+
+  let sessionToSync = pendingStoppedSessionState.session;
+  if (!sessionToSync.dbTimeEntryId) {
+    sessionToSync = {
+      ...sessionToSync,
+      dbTimeEntryId: await getNextTimeEntryId(),
+    };
+  }
+
+  setPendingStoppedSessionState({
+    ...pendingStoppedSessionState,
+    session: sessionToSync,
+    state: "syncing",
+    errorMessage: "",
+  });
+  renderActiveSession();
+
+  const synced = await finalizeStoppedSessionOnSupabase(
+    sessionToSync,
+    pendingStoppedSessionState.source || "timer",
+  );
+
+  if (synced) {
+    clearPendingStoppedSessionState();
+    setAuthStatusMessage("Session arretee et synchronisee.", "success", { persistMs: 2600 });
+    render();
+    return true;
+  }
+
+  setPendingStoppedSessionState({
+    ...pendingStoppedSessionState,
+    state: "pending",
+    errorMessage: "Session arretee localement. Reessayez la synchronisation.",
+  });
+  setAuthStatusMessage("Session arretee localement. Synchronisation a reprendre.", "warning", { persistMs: 3600 });
+  renderActiveSession();
+  return false;
+}
+
+async function completeStoppedSessionLocally(sessionToSave, source = "timer") {
+  const sessionWithServerId = sessionToSave.dbTimeEntryId
+    ? sessionToSave
+    : {
+        ...sessionToSave,
+        dbTimeEntryId: await getNextTimeEntryId(),
+      };
+  cancelActiveSessionServerSync();
+  rememberRecentlyStoppedSession(sessionWithServerId);
+  upsertSession(sessionWithServerId);
+  activeSession = null;
+  persistSessions();
+  persistActiveSession();
+  stopTimerLoop();
+  resetFormAfterStop();
+  setPendingStoppedSessionState({
+    session: sessionWithServerId,
+    source,
+    state: "syncing",
+    errorMessage: "",
+  });
+  render();
+  void syncPendingStoppedSession();
+}
+
 function normalizeSession(session) {
   const normalizedMeta = normalizeCategoryAndTags(
     Array.isArray(session.categories) ? session.categories.filter(Boolean) : [],
@@ -2835,8 +3494,23 @@ function mapActiveSessionRowToSession(row) {
 }
 
 function hydrateRemoteState(historyRows, activeRows) {
+  const previousHydratedActiveSessionId = activeSession?.id ?? null;
   const remoteSessions = historyRows.map(mapTimeEntryRowToSession);
   const mergedSessions = new Map();
+  const closedRemoteSessionIds = new Set();
+  const closedRemoteSessionKeys = new Set();
+
+  for (const row of historyRows) {
+    const sourceSessionId = normalizeText(row?.source_session_id ?? row?.time_entry_id ?? "");
+    if (sourceSessionId) {
+      closedRemoteSessionIds.add(sourceSessionId);
+    }
+    const userName = normalizeText(row?.user_name ?? "");
+    const startedAt = String(row?.started_at ?? "").trim();
+    if (userName && startedAt) {
+      closedRemoteSessionKeys.add(`${userName}::${startedAt}`);
+    }
+  }
 
   for (const session of remoteSessions) {
     mergedSessions.set(normalizeText(session.id), session);
@@ -2856,6 +3530,21 @@ function hydrateRemoteState(historyRows, activeRows) {
   sessions = Array.from(mergedSessions.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
 
   remoteActiveSessions = activeRows
+    .filter((row) => {
+      const activeSessionId = normalizeText(row?.active_session_id ?? "");
+      if (activeSessionId && closedRemoteSessionIds.has(activeSessionId)) {
+        return false;
+      }
+      const userName = normalizeText(row?.user_name ?? "");
+      const startedAt = String(row?.started_at ?? "").trim();
+      if (userName && startedAt && closedRemoteSessionKeys.has(`${userName}::${startedAt}`)) {
+        return false;
+      }
+      if (isRecentlyStoppedRemoteActiveRow(row)) {
+        return false;
+      }
+      return true;
+    })
     .map(mapActiveSessionRowToSession)
     .sort((left, right) => new Date(right.start) - new Date(left.start));
 
@@ -2883,6 +3572,19 @@ function hydrateRemoteState(historyRows, activeRows) {
     startTimerLoopIfNeeded();
   } else {
     stopTimerLoop();
+  }
+
+  const shouldHydrateActiveSessionForm = Boolean(activeSession) &&
+    (!projectInput.value.trim() &&
+      !taskInput.value.trim() &&
+      !currentCategories.length &&
+      !currentTags.length &&
+      !notionInput.value.trim() &&
+      !notesInput.value.trim()
+      || activeSession?.id !== previousHydratedActiveSessionId);
+
+  if (shouldHydrateActiveSessionForm) {
+    hydrateFormFromActiveSession();
   }
 }
 
@@ -2923,43 +3625,47 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
-    const wasRemoteStateAvailable = remoteStateAvailable;
     const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
       window.supabase.from("reprise_actions").select("*").order("updated_at", { ascending: false }),
     ]);
 
-    const historyRows =
-      historyResult.status === "fulfilled" && !historyResult.value.error ? historyResult.value.data ?? [] : null;
-    const activeRows =
-      activeResult.status === "fulfilled" && !activeResult.value.error ? activeResult.value.data ?? [] : null;
-    const repriseActionRows =
-      repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error
-        ? repriseActionsResult.value.data ?? []
-        : null;
+    const historyOk = historyResult.status === "fulfilled" && !historyResult.value.error;
+    const activeOk = activeResult.status === "fulfilled" && !activeResult.value.error;
+    const repriseOk = repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error;
+
+    const historyRows = historyOk ? historyResult.value.data ?? [] : null;
+    const activeRows = activeOk ? activeResult.value.data ?? [] : null;
+    const repriseActionRows = repriseOk ? repriseActionsResult.value.data ?? [] : null;
+
+    if (historyResult.status === "fulfilled" && historyResult.value.error) {
+      console.warn("time_entries load failed:", historyResult.value.error);
+    }
+    if (activeResult.status === "fulfilled" && activeResult.value.error) {
+      console.warn("active_sessions load failed:", activeResult.value.error);
+    }
+    if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
+      console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
+    }
+
+    updateRemoteSyncStatus(
+      {
+        history: historyOk ? "ok" : "error",
+        active: activeOk ? "ok" : "error",
+        reprise: repriseOk ? "ok" : "error",
+      },
+      { silent },
+    );
 
     if (!historyRows && !activeRows && !repriseActionRows) {
-      if (historyResult.status === "fulfilled" && historyResult.value.error) {
-        console.warn("time_entries load failed:", historyResult.value.error);
-      }
-      if (activeResult.status === "fulfilled" && activeResult.value.error) {
-        console.warn("active_sessions load failed:", activeResult.value.error);
-      }
-      if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
-        console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
-      }
       remoteStateAvailable = false;
-      setAuthStatusMessage("Synchronisation indisponible. Les donnees affichees peuvent etre partielles.", "warning");
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
-    remoteStateAvailable = true;
-    if (!wasRemoteStateAvailable) {
-      setAuthStatusMessage("Synchronisation retablie.", "success", { persistMs: 2600 });
-    }
+    remoteStateAvailable = historyOk || activeOk || repriseOk;
 
     if (!silent) {
       render();
@@ -2972,18 +3678,27 @@ async function loadServerBackedState({ silent = false } = {}) {
   return result;
 }
 
+function cancelActiveSessionServerSync() {
+  if (!activeDraftSyncTimeoutId) {
+    return;
+  }
+  window.clearTimeout(activeDraftSyncTimeoutId);
+  activeDraftSyncTimeoutId = null;
+}
+
 function scheduleActiveSessionServerSync({ immediate = false } = {}) {
   if (!activeSession || !window.supabase) {
     return;
   }
 
-  if (activeDraftSyncTimeoutId) {
-    window.clearTimeout(activeDraftSyncTimeoutId);
-    activeDraftSyncTimeoutId = null;
-  }
+  cancelActiveSessionServerSync();
 
+  const scheduledSessionId = activeSession.id;
   const sync = () => {
     activeDraftSyncTimeoutId = null;
+    if (!activeSession || activeSession.id !== scheduledSessionId) {
+      return;
+    }
     void upsertActiveSessionToSupabase(activeSession);
   };
 
@@ -3046,6 +3761,8 @@ function hydrateFormFromActiveSession() {
   renderCategoryTokens();
   renderTagTokens();
   renderObjectiveSelections();
+  updateFieldManageButtons();
+  applyProjectMemoryFromInput();
 }
 
 function resetComposerForm({ collaborator = "", hint = "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles." } = {}) {
@@ -3621,6 +4338,8 @@ function stopActiveSession() {
     return;
   }
 
+  cancelActiveSessionServerSync();
+
   const end = getActiveSessionEffectiveEnd(activeSession);
   const durationMs = getActiveSessionDurationMs(activeSession);
 
@@ -3635,14 +4354,7 @@ function stopActiveSession() {
   attemptSaveSession(finishedSession, {
     excludeId: activeSession.id,
     onSuccess: (sessionToSave) => {
-      upsertSession(sessionToSave);
-      activeSession = null;
-      persistSessions();
-      persistActiveSession();
-      stopTimerLoop();
-      resetFormAfterStop();
-      render();
-      void finalizeStoppedSessionOnSupabase(sessionToSave, "timer");
+      completeStoppedSessionLocally(sessionToSave, "timer");
     },
   });
 }
@@ -3728,9 +4440,14 @@ async function protectActiveSessionBeforeAccessChange(nextUserName = "") {
     return true;
   }
 
-  const confirmed = window.confirm(
-    "La session en cours n'a pas pu etre synchronisee. Quitter maintenant risque de masquer cette session. Voulez-vous continuer ?",
-  );
+  const confirmed = await requestDecision({
+    eyebrow: "Session en cours",
+    title: "Changer de profil malgre tout",
+    copy: "La session en cours n'a pas pu etre synchronisee.",
+    detail: "Quitter maintenant risque de masquer cette session sur cet appareil.",
+    confirmLabel: "Quitter quand meme",
+    tone: "danger",
+  });
   if (!confirmed) {
     setAuthStatusMessage("Changement de profil annule.", "warning", { persistMs: 3200 });
   }
@@ -4434,48 +5151,80 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
   };
 }
 
-async function syncSessionToSupabase(session, source = "manual") {
+async function executeSupabaseMutation({
+  queryFactory,
+  unavailableMessage = "",
+  unavailableTone = "warning",
+  errorLogLabel,
+  errorMessage,
+  unexpectedErrorMessage = null,
+  refreshAfterSuccess = true,
+  onSuccess = null,
+}) {
+  if (!window.supabase) {
+    if (unavailableMessage) {
+      setAuthStatusMessage(unavailableMessage, unavailableTone);
+    }
+    return false;
+  }
+
+  try {
+    const result = await queryFactory(window.supabase);
+    if (result?.error) {
+      console.warn(`${errorLogLabel}:`, result.error);
+      setAuthStatusMessage(errorMessage, "error");
+      return false;
+    }
+    if (onSuccess) {
+      onSuccess(result);
+    }
+    if (refreshAfterSuccess) {
+      await loadServerBackedState({ silent: false });
+    }
+    return true;
+  } catch (error) {
+    console.error(`Unexpected ${errorLogLabel}:`, error);
+    setAuthStatusMessage(unexpectedErrorMessage || errorMessage, "error");
+    return false;
+  }
+}
+
+async function syncSessionToSupabase(session, source = "manual", options = {}) {
   const payload = await buildTimeEntryPayloadFromSession(session, source);
   if (!payload) {
     setAuthStatusMessage("Impossible de preparer l'enregistrement serveur pour cette session.", "error");
     return false;
   }
 
-  return createTimeEntry(payload, { updateExisting: Boolean(session.dbTimeEntryId) });
+  return createTimeEntry(payload, {
+    updateExisting: Boolean(session.dbTimeEntryId),
+    refreshAfterSuccess: options.refreshAfterSuccess,
+  });
 }
 
 async function createTimeEntry(data, options = {}) {
-  if (!window.supabase) {
-    return false;
-  }
-
-  try {
-    const query = options.updateExisting
-      ? window.supabase
-          .from("time_entries")
-          .update({
-            ...data,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("time_entry_id", data.time_entry_id)
-          .select()
-      : window.supabase.from("time_entries").insert([data]).select();
-
-    const { data: inserted, error } = await query;
-
-    if (error) {
-      console.error("Supabase insert error:", error);
-      setAuthStatusMessage("Enregistrement serveur impossible pour le moment.", "error");
-      return false;
-    }
-
-    await loadServerBackedState({ silent: false });
-    return true;
-  } catch (e) {
-    console.error("Unexpected Supabase error:", e);
-    setAuthStatusMessage("Erreur inattendue pendant l'enregistrement serveur.", "error");
-    return false;
-  }
+  return executeSupabaseMutation({
+    queryFactory: (supabase) => {
+      const query = options.updateExisting
+        ? supabase
+            .from("time_entries")
+            .update({
+              ...data,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("time_entry_id", data.time_entry_id)
+            .select()
+        : supabase
+            .from("time_entries")
+            .upsert([data], { onConflict: "time_entry_id" })
+            .select();
+      return query;
+    },
+    errorLogLabel: "time_entries mutation failed",
+    errorMessage: "Enregistrement serveur impossible pour le moment.",
+    unexpectedErrorMessage: "Erreur inattendue pendant l'enregistrement serveur.",
+    refreshAfterSuccess: options.refreshAfterSuccess ?? true,
+  });
 }
 
 async function buildActiveSessionPayload(session) {
@@ -4512,10 +5261,7 @@ async function buildActiveSessionPayload(session) {
 }
 
 async function upsertActiveSessionToSupabase(session) {
-  if (!window.supabase || !session) {
-    if (session) {
-      setAuthStatusMessage("Synchronisation indisponible pour cette session en cours.", "warning");
-    }
+  if (!session) {
     return false;
   }
 
@@ -4525,56 +5271,122 @@ async function upsertActiveSessionToSupabase(session) {
     return false;
   }
 
-  const { error } = await window.supabase
-    .from("active_sessions")
-    .upsert([payload], { onConflict: "active_session_id" });
-
-  if (error) {
-    console.warn("active_sessions upsert failed:", error);
-    setAuthStatusMessage("Synchronisation de la session en cours impossible.", "error");
-    return false;
-  }
-
-  await loadServerBackedState({ silent: false });
-  return true;
+  return executeSupabaseMutation({
+    queryFactory: (supabase) =>
+      supabase.from("active_sessions").upsert([payload], { onConflict: "active_session_id" }),
+    unavailableMessage: "Synchronisation indisponible pour cette session en cours.",
+    unavailableTone: "warning",
+    errorLogLabel: "active_sessions upsert failed",
+    errorMessage: "Synchronisation de la session en cours impossible.",
+  });
 }
 
-async function removeActiveSessionFromSupabase(sessionId) {
-  if (!window.supabase || !sessionId) {
+async function removeActiveSessionFromSupabase(sessionId, options = {}) {
+  if (!sessionId) {
     return false;
   }
 
-  const { error } = await window.supabase.from("active_sessions").delete().eq("active_session_id", sessionId);
-  if (error) {
-    console.warn("active_sessions delete failed:", error);
+  return executeSupabaseMutation({
+    queryFactory: (supabase) => supabase.from("active_sessions").delete().eq("active_session_id", sessionId),
+    errorLogLabel: "active_sessions delete failed",
+    errorMessage: "Impossible de nettoyer la session active sur le serveur.",
+    refreshAfterSuccess: options.refreshAfterSuccess ?? true,
+  });
+}
+
+async function removeStoppedSessionGhostsFromSupabase(session, options = {}) {
+  if (!window.supabase || !session) {
+    return false;
+  }
+
+  const collaborator = String(session.collaborator ?? "").trim();
+  const sessionStart = String(session.start ?? "").trim();
+  const candidateIds = dedupePreservingOrder([
+    session.dbActiveSessionId,
+    session.id,
+  ].filter(Boolean));
+
+  try {
+    let removedAny = false;
+
+    for (const activeSessionId of candidateIds) {
+      const { error } = await window.supabase
+        .from("active_sessions")
+        .delete()
+        .eq("active_session_id", activeSessionId);
+      if (error) {
+        console.warn("active_sessions ghost delete by id failed:", error);
+        setAuthStatusMessage("Impossible de nettoyer la session active sur le serveur.", "error");
+        return false;
+      }
+      removedAny = true;
+    }
+
+    if (collaborator && sessionStart) {
+      const { error } = await window.supabase
+        .from("active_sessions")
+        .delete()
+        .eq("user_name", collaborator)
+        .eq("started_at", sessionStart);
+      if (error) {
+        console.warn("active_sessions ghost delete by identity failed:", error);
+        setAuthStatusMessage("Impossible de nettoyer la session active sur le serveur.", "error");
+        return false;
+      }
+      removedAny = true;
+    }
+
+    if (removedAny && (options.refreshAfterSuccess ?? true)) {
+      await loadServerBackedState({ silent: false });
+    }
+    return removedAny;
+  } catch (error) {
+    console.error("Unexpected active_sessions ghost cleanup failed:", error);
     setAuthStatusMessage("Impossible de nettoyer la session active sur le serveur.", "error");
     return false;
   }
-
-  await loadServerBackedState({ silent: false });
-  return true;
 }
 
 async function removeTimeEntryFromSupabase(timeEntryId) {
-  if (!window.supabase || !timeEntryId) {
+  if (!timeEntryId) {
     return false;
   }
 
-  const { error } = await window.supabase.from("time_entries").delete().eq("time_entry_id", timeEntryId);
-  if (error) {
-    console.warn("time_entries delete failed:", error);
-    setAuthStatusMessage("Suppression serveur impossible pour cette entree.", "error");
-    return false;
-  }
-
-  await loadServerBackedState({ silent: false });
-  return true;
+  return executeSupabaseMutation({
+    queryFactory: (supabase) => supabase.from("time_entries").delete().eq("time_entry_id", timeEntryId),
+    errorLogLabel: "time_entries delete failed",
+    errorMessage: "Suppression serveur impossible pour cette entree.",
+  });
 }
 
 async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
-  const historySaved = await syncSessionToSupabase(session, source);
-  const activeRemoved = await removeActiveSessionFromSupabase(session.dbActiveSessionId ?? session.id);
-  return historySaved && activeRemoved;
+  const historySaved = await syncSessionToSupabase(session, source, { refreshAfterSuccess: false });
+  if (!historySaved) {
+    return false;
+  }
+
+  const activeRemoved = await removeStoppedSessionGhostsFromSupabase(session, { refreshAfterSuccess: false });
+
+  remoteActiveSessions = remoteActiveSessions.filter((item) => {
+    if (item.dbActiveSessionId && session.dbActiveSessionId && item.dbActiveSessionId === session.dbActiveSessionId) {
+      return false;
+    }
+    if (item.id && session.id && item.id === session.id) {
+      return false;
+    }
+    return !(
+      normalizeText(item.collaborator) === normalizeText(session.collaborator) &&
+      String(item.start ?? "") === String(session.start ?? "")
+    );
+  });
+
+  await loadServerBackedState({ silent: false });
+
+  if (!activeRemoved) {
+    console.warn("Active session cleanup incomplete after stop; keeping local closure authoritative.", session);
+  }
+
+  return true;
 }
 
 async function logSessionChange(previousSession, nextSession, source = "manual") {
@@ -4692,12 +5504,14 @@ function openManualDialog(session = null, preset = null) {
   const start = preset?.start ? new Date(preset.start) : new Date(end.getTime() - 30 * 60 * 1000);
 
   manualEditingSessionId = session?.id ?? null;
+  setManualDialogStatus("");
   manualCollaboratorInput.value =
     session?.collaborator ?? preset?.collaborator ?? collaboratorInput.value.trim();
   manualProjectInput.value = session?.project ?? preset?.project ?? projectInput.value.trim();
   manualTaskInput.value = session?.task ?? preset?.task ?? taskInput.value.trim();
   manualCategoriesInput.value = (session?.categories ?? preset?.categories ?? currentCategories).join(", ");
-  manualTagsInput.value = (session?.tags ?? preset?.tags ?? currentTags).join(", ");
+  manualCurrentTags = dedupePreservingOrder(session?.tags ?? preset?.tags ?? currentTags);
+  manualTagsInput.value = "";
   manualNotionInput.value = session?.notionRef ?? preset?.notionRef ?? notionInput.value.trim();
   manualObjectivePoleInput.value = session?.objectivePole ?? preset?.objectivePole ?? objectivePoleInput.value.trim();
   manualObjectiveOkrInput.value = session?.objectiveOkr ?? preset?.objectiveOkr ?? objectiveOkrInput.value.trim();
@@ -4710,39 +5524,67 @@ function openManualDialog(session = null, preset = null) {
     deleteManualButton.hidden = !session;
   }
   saveManualButton.textContent = session ? "Enregistrer les changements" : "Enregistrer";
+  renderManualTagTokens();
   renderObjectiveSelections();
   manualDialog.showModal();
 }
 
+function shouldFinalizeActiveSessionFromManualEdit(originalSession, editedSession) {
+  if (!originalSession || !editedSession) {
+    return false;
+  }
+
+  const effectiveEndMs = getActiveSessionEffectiveEnd(originalSession).getTime();
+  const editedEndMs = new Date(editedSession.end).getTime();
+  if (Number.isNaN(effectiveEndMs) || Number.isNaN(editedEndMs)) {
+    return false;
+  }
+
+  const endDeltaMs = Math.abs(editedEndMs - effectiveEndMs);
+  const sameMinuteWindow = endDeltaMs < 2 * 60 * 1000;
+  const samePausedState = Boolean(originalSession.pausedAt) && editedEndMs === new Date(originalSession.pausedAt).getTime();
+
+  return !(sameMinuteWindow || samePausedState);
+}
+
 function saveManualEntry() {
+  setManualDialogStatus("");
   const collaborator = getEffectiveCollaboratorValue(manualCollaboratorInput.value);
   const project = manualProjectInput.value.trim();
   const start = readDateTimeFieldValue(manualStartDateInput, manualStartTimeInput);
   const end = readDateTimeFieldValue(manualEndDateInput, manualEndTimeInput);
 
   if (!collaborator) {
+    setManualDialogStatus("Choisissez votre nom pour enregistrer cette entree.", "warning");
     showAuthRequiredMessage();
     return;
   }
   if (!project) {
+    setManualDialogStatus("Le sujet est requis pour enregistrer cette entree.", "error");
     manualProjectInput.focus();
     return;
   }
   if (!start || !end) {
+    setManualDialogStatus("Renseignez une date et une heure de debut et de fin.", "error");
+    (manualStartDateInput.value ? manualEndTimeInput : manualStartDateInput)?.focus();
     return;
   }
   const durationMs = end.getTime() - start.getTime();
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || durationMs <= 0) {
+    setManualDialogStatus("L'heure de fin doit etre posterieure au debut.", "error");
     manualEndTimeInput.focus();
     return;
   }
 
   const manualSession = {
-    id: manualEditingSessionId ?? crypto.randomUUID(),
+    id: manualEditingSessionId ?? createSessionId(),
     collaborator,
     project,
     task: manualTaskInput.value.trim(),
-    ...normalizeCategoryAndTags(parseTokenString(manualCategoriesInput.value), parseTokenString(manualTagsInput.value)),
+    ...normalizeCategoryAndTags(
+      parseTokenString(manualCategoriesInput.value),
+      dedupePreservingOrder([...manualCurrentTags, ...parseTokenString(manualTagsInput.value)]),
+    ),
     notionRef: manualNotionInput.value.trim(),
     objectivePole: manualObjectivePoleInput.value.trim(),
     objectiveOkr: manualObjectiveOkrInput.value.trim(),
@@ -4757,6 +5599,29 @@ function saveManualEntry() {
     (manualEditingSessionId && getPersistedActiveSessions().find((item) => item.id === manualEditingSessionId)) ?? null;
 
   if (activeSessionBeingEdited) {
+    if (shouldFinalizeActiveSessionFromManualEdit(activeSessionBeingEdited, manualSession)) {
+      const finishedSession = normalizeSession({
+        ...activeSessionBeingEdited,
+        ...manualSession,
+        pausedAt: null,
+        pausedDurationMs: Number(activeSessionBeingEdited.pausedDurationMs) || 0,
+        isServerActive: false,
+      });
+
+      attemptSaveSession(finishedSession, {
+        excludeId: manualEditingSessionId,
+        onSuccess: (sessionToSave) => {
+          manualEditingSessionId = null;
+          manualDialog.close();
+          saveManualButton.textContent = "Enregistrer";
+          renderObjectiveSelections();
+          void logSessionChange(activeSessionBeingEdited, sessionToSave, "manual-edit-active-stop");
+          void completeStoppedSessionLocally(sessionToSave, "manual-edit-active");
+        },
+      });
+      return;
+    }
+
     const nextActiveSession = normalizeSession({
       ...activeSessionBeingEdited,
       ...manualSession,
@@ -5210,7 +6075,7 @@ function renderDayThemes() {
   dayThemesList.innerHTML = "";
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
-    dayThemesList.append(createEmptyState("Choisissez votre nom pour cadrer vos themes du jour."));
+    dayThemesList.append(createEmptyState("Choisissez votre nom pour cadrer vos thèmes du jour."));
     return;
   }
 
@@ -5245,15 +6110,44 @@ function renderDayThemes() {
 }
 
 function renderActiveSession() {
+  const pendingStop = getVisiblePendingStoppedSessionState();
+
+  if (activeSessionStatusCopy) {
+    activeSessionStatusCopy.textContent = "";
+    activeSessionStatusCopy.hidden = true;
+    activeSessionStatusCopy.dataset.tone = "";
+  }
+  if (activeSessionStatusActions) {
+    activeSessionStatusActions.hidden = true;
+  }
+
   if (!activeSession) {
     timerDisplay.textContent = "00:00:00";
-    activeTaskLabel.textContent = "Pret a lancer une nouvelle session.";
+    activeTaskLabel.textContent = pendingStop
+      ? pendingStop.state === "syncing"
+        ? "Cloture en cours."
+        : "Session arretee localement."
+      : "Pret a lancer une nouvelle session.";
     toggleButton.textContent = "Demarrer";
     toggleButton.classList.remove("running");
     pauseButton.hidden = true;
     pauseButton.classList.remove("paused");
-    activeStartDisplay.textContent = "Le depart se regle si besoin";
+    activeStartDisplay.textContent = pendingStop
+      ? "La cloture sera synchronisee des que possible"
+      : "L'heure de depart apparaitra ici";
     activeStartDisplay.disabled = true;
+
+    if (pendingStop && activeSessionStatusCopy) {
+      const syncing = pendingStop.state === "syncing";
+      activeSessionStatusCopy.textContent = syncing
+        ? "Synchronisation de la session arretee en cours."
+        : pendingStop.errorMessage || "Session arretee localement. Reessayez la synchronisation pour finaliser l'enregistrement.";
+      activeSessionStatusCopy.hidden = false;
+      activeSessionStatusCopy.dataset.tone = syncing ? "warning" : "error";
+      if (activeSessionStatusActions) {
+        activeSessionStatusActions.hidden = syncing;
+      }
+    }
     return;
   }
 
@@ -5264,7 +6158,7 @@ function renderActiveSession() {
   pauseButton.hidden = false;
   pauseButton.textContent = isPaused ? "Reprendre" : "Mettre en pause";
   pauseButton.classList.toggle("paused", isPaused);
-  activeStartDisplay.textContent = `Demarre a ${formatTimeLabel(new Date(activeSession.start))}`;
+  activeStartDisplay.textContent = `Démarré à ${formatTimeLabel(new Date(activeSession.start))}`;
   activeStartDisplay.disabled = false;
   updateLiveTimer();
 }
@@ -5330,13 +6224,16 @@ function renderSuggestions() {
 function renderQuickProjects() {
   quickProjects.innerHTML = "";
   const collaborator = getCurrentCollaborator();
+
+  if (!collaborator) {
+    quickProjects.append(createEmptyState("Choisissez votre nom pour retrouver vos reprises probables."));
+    return;
+  }
+
   const memories = getOrderedProjectMemories(collaborator).slice(0, QUICK_REPRISES_LIMIT);
 
   if (!memories.length) {
-    const message = collaborator
-      ? "Les reprises probables apparaitront ici."
-      : "Choisissez votre nom pour retrouver vos reprises probables.";
-    quickProjects.append(createEmptyState(message));
+    quickProjects.append(createEmptyState("Les reprises probables apparaitront ici."));
     return;
   }
 
@@ -5355,13 +6252,16 @@ function renderQuickProjects() {
 function renderProjectMemoryList() {
   projectMemoryList.innerHTML = "";
   const collaborator = getCurrentCollaborator();
+
+  if (!collaborator) {
+    projectMemoryList.append(createEmptyState("Choisissez votre nom pour afficher les contextes memorises."));
+    return;
+  }
+
   const memories = getOrderedProjectMemories(collaborator).slice(0, MEMORY_CONTEXT_LIMIT);
 
   if (!memories.length) {
-    const message = collaborator
-      ? `Les contextes memorises de ${collaborator} apparaitront ici.`
-      : "Choisissez votre nom pour afficher les contextes memorises.";
-    projectMemoryList.append(createEmptyState(message));
+    projectMemoryList.append(createEmptyState(`Les contextes memorises de ${collaborator} apparaitront ici.`));
     return;
   }
 
@@ -5383,16 +6283,16 @@ function renderProjectMemoryList() {
     tags.className = "memory-meta";
 
     if (memory.objectivePole) {
-      tags.append(createPill(memory.objectivePole));
+      tags.append(createPill(memory.objectivePole, { kind: "neutral" }));
     }
     for (const category of memory.categories) {
-      tags.append(createPill(category));
+      tags.append(createPill(category, { kind: "category" }));
     }
     for (const tag of memory.tags) {
-      tags.append(createPill(`#${tag}`));
+      tags.append(createPill(`#${tag}`, { kind: "tag" }));
     }
     if (memory.notionRef) {
-      tags.append(createPill("Lien"));
+      tags.append(createPill("Lien", { kind: "link" }));
     }
 
     copy.append(title, meta, tags);
@@ -5412,6 +6312,7 @@ function getFilteredJournalSessions(rows) {
   const fromDate = journalFilterFromInput?.value ? new Date(`${journalFilterFromInput.value}T00:00:00`) : null;
   const toDate = journalFilterToInput?.value ? new Date(`${journalFilterToInput.value}T23:59:59.999`) : null;
   const categoryFilter = normalizeText(journalFilterCategoryInput?.value ?? "");
+  const tagFilter = normalizeText(String(journalFilterTagsInput?.value ?? "").replace(/^#/, ""));
   const subjectFilter = normalizeText(journalFilterSubjectInput?.value ?? "");
 
   return rows.filter((session) => {
@@ -5425,6 +6326,12 @@ function getFilteredJournalSessions(rows) {
     if (
       categoryFilter &&
       !(session.categories ?? []).some((category) => normalizeText(category).includes(categoryFilter))
+    ) {
+      return false;
+    }
+    if (
+      tagFilter &&
+      !(session.tags ?? []).some((tag) => normalizeText(tag).includes(tagFilter))
     ) {
       return false;
     }
@@ -5447,6 +6354,7 @@ function renderSessionList() {
       journalFilterFromInput?.value ||
         journalFilterToInput?.value ||
         journalFilterCategoryInput?.value ||
+        journalFilterTagsInput?.value ||
         journalFilterSubjectInput?.value,
     );
     sessionList.append(
@@ -5477,8 +6385,9 @@ function renderSessionList() {
 
     fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans sujet";
     const secondaryElement = fragment.querySelector(".session-secondary");
-    secondaryElement.textContent = session.task || "";
-    secondaryElement.hidden = true;
+    const secondaryBits = [getSessionClientLabel(session), formatDate(session.start)].filter(Boolean);
+    secondaryElement.textContent = secondaryBits.join(" · ");
+    secondaryElement.hidden = !secondaryBits.length;
     fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
     const dateElement = fragment.querySelector(".session-date");
     dateElement.textContent = formatDate(session.start);
@@ -5490,12 +6399,13 @@ function renderSessionList() {
 
     const categoriesElement = fragment.querySelector(".session-categories");
     categoriesElement.innerHTML = "";
-    renderPills(categoriesElement, (session.categories ?? []).slice(0, 1));
+    renderPills(categoriesElement, (session.categories ?? []).slice(0, 1), { kind: "category" });
     categoriesElement.hidden = !(session.categories ?? []).length;
 
     const tagsElement = fragment.querySelector(".session-tags");
     tagsElement.innerHTML = "";
-    tagsElement.hidden = true;
+    renderPills(tagsElement, (session.tags ?? []).slice(0, 2).map((tag) => `#${tag}`), { kind: "tag" });
+    tagsElement.hidden = !(session.tags ?? []).length;
 
     sessionList.append(fragment);
   }
@@ -5508,38 +6418,67 @@ function renderCadreViews() {
   renderAgenda();
 }
 
+function getDisplayedWeekRange() {
+  return getPeriodRange(getReportAnchorDate(), "week");
+}
+
+function getSummaryCardLabel(index) {
+  return document.querySelectorAll(".cadre-summary .summary-card p")[index] ?? null;
+}
+
 function renderPersonalStats() {
   const collaborator = getCurrentCollaborator();
+  const firstCardLabel = getSummaryCardLabel(0);
+  const secondCardLabel = getSummaryCardLabel(1);
   if (!collaborator) {
+    if (firstCardLabel) {
+      firstCardLabel.textContent = "Aujourd'hui réel";
+    }
+    if (secondCardLabel) {
+      secondCardLabel.textContent = "Cette semaine réelle";
+    }
     todayTotal.textContent = "0 h 00";
     weekTotal.textContent = "0 h 00";
-    todayPanelCopy.textContent = "Choisissez votre nom pour charger votre semaine.";
+    todayPanelCopy.textContent = "Choisissez votre nom pour charger votre temps réel.";
     teamCount.textContent = "0";
     activeCountCopy.textContent = "Aucune session en cours.";
     return;
   }
 
   const rows = getSessionsForCollaborator(collaborator);
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const weekStart = getStartOfWeek(now);
+  const range = getDisplayedWeekRange();
+  const today = new Date();
+  const weekContainsToday = today >= range.start && today < range.end;
+  const referenceDay = weekContainsToday ? today : range.start;
+  const referenceDayStart = new Date(referenceDay.getFullYear(), referenceDay.getMonth(), referenceDay.getDate());
+  const referenceDayEnd = new Date(referenceDayStart);
+  referenceDayEnd.setDate(referenceDayEnd.getDate() + 1);
 
-  let todayMs = 0;
+  let referenceDayMs = 0;
   let weekMs = 0;
   for (const session of rows) {
     const start = new Date(session.start);
     const durationMs = Number(session.durationMs) || 0;
-    if (start >= todayStart) {
-      todayMs += durationMs;
+    if (start >= referenceDayStart && start < referenceDayEnd) {
+      referenceDayMs += durationMs;
     }
-    if (start >= weekStart) {
+    if (isSessionInRange(session, range)) {
       weekMs += durationMs;
     }
   }
 
-  todayTotal.textContent = formatDuration(todayMs);
+  if (firstCardLabel) {
+    firstCardLabel.textContent = weekContainsToday ? "Aujourd'hui réel" : "Jour repère réel";
+  }
+  if (secondCardLabel) {
+    secondCardLabel.textContent = weekContainsToday ? "Cette semaine réelle" : "Semaine réelle affichée";
+  }
+
+  todayTotal.textContent = formatDuration(referenceDayMs);
   weekTotal.textContent = formatDuration(weekMs);
-  todayPanelCopy.textContent = `Temps saisi aujourd'hui pour ${collaborator}.`;
+  todayPanelCopy.textContent = weekContainsToday
+    ? `Temps réel saisi aujourd'hui pour ${collaborator}.`
+    : `Lecture réelle ancrée au ${formatDate(referenceDayStart)} pour ${collaborator}.`;
 
   const collaborators = new Set(getScopedSessions(getAllSessionsWithActive()).map((session) => session.collaborator).filter(Boolean));
   teamCount.textContent = String(collaborators.size);
@@ -5554,8 +6493,8 @@ function renderPersonalDistribution() {
 
   personalStatsTitle.textContent = usesObjectives ? "Objectifs en cours" : "Categories en cours";
   personalStatsCopy.textContent = usesObjectives
-    ? "Lecture compacte par OKR et KR quand ils sont renseignes."
-    : "Lecture compacte par type de travail sur la semaine.";
+    ? "Lecture compacte des objectifs réels de la semaine."
+    : "Lecture compacte des catégories réelles sur la semaine.";
 
   if (!collaborator) {
     renderPersonalDistributionDonut([], 0, usesObjectives, "Choisissez votre nom pour voir votre semaine.");
@@ -5581,8 +6520,10 @@ function renderPersonalDistribution() {
 
 function renderAgenda() {
   agendaBoard.innerHTML = "";
+  visiblePlannedEvents = [];
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
+    renderPlannedSummary([], null);
     agendaBoard.append(createEmptyState("Choisissez votre nom pour afficher et deplacer vos creneaux."));
     if (agendaWeekLabel) {
       agendaWeekLabel.textContent = "";
@@ -5595,6 +6536,9 @@ function renderAgenda() {
   }
   const rows = getAllSessionsWithActive().filter((session) => isSessionInRange(session, range));
   const scopedRows = rows.filter((session) => normalizeText(session.collaborator) === normalizeText(collaborator));
+  const plannedRows = getPlannedEventsForCollaborator(collaborator, range);
+  visiblePlannedEvents = plannedRows;
+  renderPlannedSummary(plannedRows, range);
 
   const startHour = 0;
   const endHour = 24;
@@ -5627,97 +6571,146 @@ function renderAgenda() {
     const day = new Date(range.start);
     day.setDate(day.getDate() + index);
 
-    const dayCard = document.createElement("article");
-    dayCard.className = "agenda-day";
+    try {
+      const dayCard = document.createElement("article");
+      dayCard.className = "agenda-day";
 
-    const dayRows = scopedRows
-      .filter((session) => isSameDay(new Date(session.start), day))
-      .sort((a, b) => new Date(a.start) - new Date(b.start));
+      const dayRows = scopedRows
+        .filter((session) => isSameDay(new Date(session.start), day))
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
+      const dayPlannedRows = plannedRows
+        .filter((item) => item?.start_at && item?.end_at && isSameDay(new Date(item.start_at), day))
+        .sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
 
-    const dayTotal = dayRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
+      const dayTotal = dayRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
 
-    const headMeta = document.createElement("div");
-    headMeta.className = "agenda-day-meta";
+      const headMeta = document.createElement("div");
+      headMeta.className = "agenda-day-meta";
 
-    const dayNumber = document.createElement("strong");
-    dayNumber.className = "agenda-day-number";
-    dayNumber.textContent = String(day.getDate());
+      const dayNumber = document.createElement("strong");
+      dayNumber.className = "agenda-day-number";
+      dayNumber.textContent = String(day.getDate());
 
-    const headCopy = document.createElement("div");
-    headCopy.className = "agenda-day-copy";
+      const headCopy = document.createElement("div");
+      headCopy.className = "agenda-day-copy";
 
-    const title = document.createElement("h3");
-    title.textContent = formatAgendaDayLabel(day);
+      const title = document.createElement("h3");
+      title.textContent = formatAgendaDayLabel(day);
 
-    const subtitle = document.createElement("p");
-    subtitle.textContent = dayTotal ? formatDurationHours(dayTotal) : "0 h";
+      const subtitle = document.createElement("p");
+      subtitle.textContent = dayTotal ? formatDurationHours(dayTotal) : "0 h";
 
-    const dayHead = document.createElement("div");
-    dayHead.className = "agenda-day-head";
-    headCopy.append(title, subtitle);
-    headMeta.append(dayNumber, headCopy);
-    dayHead.append(headMeta);
-    dayCard.append(dayHead);
+      const dayHead = document.createElement("div");
+      dayHead.className = "agenda-day-head";
+      headCopy.append(title, subtitle);
+      headMeta.append(dayNumber, headCopy);
+      dayHead.append(headMeta);
+      dayCard.append(dayHead);
 
-    const dayTrack = document.createElement("div");
-    dayTrack.className = "agenda-day-track";
-    dayTrack.style.height = `${(endHour - startHour) * hourHeight}px`;
-    dayTrack.dataset.dayDate = formatDateInput(day);
-    dayTrack.dataset.startHour = String(startHour);
-    dayTrack.dataset.endHour = String(endHour);
-    dayTrack.dataset.hourHeight = String(hourHeight);
+      const dayTrack = document.createElement("div");
+      dayTrack.className = "agenda-day-track";
+      dayTrack.style.height = `${(endHour - startHour) * hourHeight}px`;
+      dayTrack.dataset.dayDate = formatDateInput(day);
+      dayTrack.dataset.startHour = String(startHour);
+      dayTrack.dataset.endHour = String(endHour);
+      dayTrack.dataset.hourHeight = String(hourHeight);
 
-    if (!dayRows.length) {
-      const empty = createEmptyState("Ajouter un shift");
-      empty.classList.add("agenda-empty-state");
-      dayTrack.append(empty);
+      if (!dayRows.length && !dayPlannedRows.length) {
+        const empty = createEmptyState("Ajouter un shift");
+        empty.classList.add("agenda-empty-state");
+        dayTrack.append(empty);
+        const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
+        if (nowMarker) {
+          dayTrack.append(nowMarker);
+        }
+        dayCard.append(dayTrack);
+        agendaBoard.append(dayCard);
+        continue;
+      }
+
+      const laidOutPlannedRows = layoutAgendaPlannedEvents(dayPlannedRows, startHour, endHour, hourHeight);
+      for (const row of laidOutPlannedRows) {
+        const plannedEvent = row.session;
+        const visualSize = getAgendaEventVisualSize(row.heightPx);
+        const event = document.createElement("button");
+        event.type = "button";
+        event.className = "agenda-event agenda-event--planned";
+        if (visualSize !== "full") {
+          event.classList.add(`agenda-event--${visualSize}`);
+        }
+        event.dataset.plannedId = plannedEvent.id;
+        event.style.top = `${row.topPx}px`;
+        event.style.height = `${row.heightPx}px`;
+        event.style.left = `${row.leftOffset}%`;
+        event.style.width = `${row.widthPercent}%`;
+        event.title = buildPlannedEventTooltip(plannedEvent);
+        applyPlannedAgendaEventColor(event, plannedEvent);
+        renderPlannedAgendaEventContents(event, plannedEvent, visualSize);
+        dayTrack.append(event);
+      }
+
+      const laidOutRows = layoutAgendaSessions(dayRows, startHour, endHour, hourHeight);
+
+      for (const row of laidOutRows) {
+        const session = row.session;
+        const visualSize = getAgendaEventVisualSize(row.heightPx);
+
+        const event = document.createElement("button");
+        event.type = "button";
+        event.className = "agenda-event";
+        if (visualSize !== "full") {
+          event.classList.add(`agenda-event--${visualSize}`);
+        }
+        event.dataset.sessionId = session.id;
+        event.style.top = `${row.topPx}px`;
+        event.style.height = `${row.heightPx}px`;
+        event.style.left = `${row.leftOffset}%`;
+        event.style.width = `${row.widthPercent}%`;
+        event.title = buildAgendaTooltip(session);
+        applyAgendaEventColor(event, session);
+        renderAgendaEventContents(event, session, visualSize);
+
+        dayTrack.append(event);
+      }
+
       const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
       if (nowMarker) {
         dayTrack.append(nowMarker);
       }
+
       dayCard.append(dayTrack);
       agendaBoard.append(dayCard);
-      continue;
+    } catch (error) {
+      console.error("Agenda day render failed:", formatDateInput(day), error);
+      const fallbackCard = document.createElement("article");
+      fallbackCard.className = "agenda-day";
+      const fallbackHead = document.createElement("div");
+      fallbackHead.className = "agenda-day-head";
+      fallbackHead.innerHTML = `<div class="agenda-day-meta"><strong class="agenda-day-number">${day.getDate()}</strong><div class="agenda-day-copy"><h3>${formatAgendaDayLabel(day)}</h3><p>0 h</p></div></div>`;
+      const fallbackTrack = document.createElement("div");
+      fallbackTrack.className = "agenda-day-track";
+      fallbackTrack.style.height = `${(endHour - startHour) * hourHeight}px`;
+      const empty = createEmptyState("Lecture prévue indisponible pour ce jour.");
+      empty.classList.add("agenda-empty-state");
+      fallbackTrack.append(empty);
+      fallbackCard.append(fallbackHead, fallbackTrack);
+      agendaBoard.append(fallbackCard);
     }
-
-    const laidOutRows = layoutAgendaSessions(dayRows, startHour, endHour, hourHeight);
-
-    for (const row of laidOutRows) {
-      const session = row.session;
-      const visualSize = getAgendaEventVisualSize(row.heightPx);
-
-      const event = document.createElement("button");
-      event.type = "button";
-      event.className = "agenda-event";
-      if (visualSize !== "full") {
-        event.classList.add(`agenda-event--${visualSize}`);
-      }
-      event.dataset.sessionId = session.id;
-      event.style.top = `${row.topPx}px`;
-      event.style.height = `${row.heightPx}px`;
-      event.style.left = `${row.leftOffset}%`;
-      event.style.width = `${row.widthPercent}%`;
-      event.title = buildAgendaTooltip(session);
-      applyAgendaEventColor(event, session);
-      renderAgendaEventContents(event, session, visualSize);
-
-      dayTrack.append(event);
-    }
-
-    const nowMarker = createAgendaNowMarker(day, startHour, endHour, hourHeight);
-    if (nowMarker) {
-      dayTrack.append(nowMarker);
-    }
-
-    dayCard.append(dayTrack);
-    agendaBoard.append(dayCard);
   }
 }
 
 function layoutAgendaSessions(dayRows, startHour, endHour, hourHeight) {
+  return layoutAgendaTimedRows(dayRows, startHour, endHour, hourHeight, (session) => session.start, (session) => session.end);
+}
+
+function layoutAgendaPlannedEvents(dayRows, startHour, endHour, hourHeight) {
+  return layoutAgendaTimedRows(dayRows, startHour, endHour, hourHeight, (event) => event.start_at, (event) => event.end_at);
+}
+
+function layoutAgendaTimedRows(dayRows, startHour, endHour, hourHeight, getStart, getEnd) {
   const preparedRows = dayRows.map((session) => {
-    const start = new Date(session.start);
-    const end = new Date(session.end);
+    const start = new Date(getStart(session));
+    const end = new Date(getEnd(session));
     const visibleStartMinutes = Math.max(0, (start.getHours() - startHour) * 60 + start.getMinutes());
     const visibleEndMinutes = Math.min((endHour - startHour) * 60, (end.getHours() - startHour) * 60 + end.getMinutes());
     return {
@@ -5785,10 +6778,10 @@ function assignAgendaGroupLanes(group, hourHeight) {
 }
 
 function getAgendaEventVisualSize(heightPx) {
-  if (heightPx < 24) {
+  if (heightPx < 22) {
     return "tiny";
   }
-  if (heightPx < 46) {
+  if (heightPx < 40) {
     return "compact";
   }
   return "full";
@@ -5810,10 +6803,13 @@ function renderAgendaEventContents(element, session, visualSize) {
   }
 
   if (visualSize === "full") {
-    const client = document.createElement("p");
-    client.className = "agenda-event-client";
-    client.textContent = getSessionClientLabel(session);
-    element.append(client);
+    const secondaryLabel = getAgendaEventSecondaryLabel(session);
+    if (secondaryLabel) {
+      const client = document.createElement("p");
+      client.className = "agenda-event-client";
+      client.textContent = secondaryLabel;
+      element.append(client);
+    }
 
     const icon = document.createElement("span");
     icon.className = "agenda-event-icon";
@@ -5826,6 +6822,737 @@ function renderAgendaEventContents(element, session, visualSize) {
   bottomHandle.className = "agenda-resize-handle agenda-resize-handle--end";
   bottomHandle.setAttribute("aria-hidden", "true");
   element.append(bottomHandle);
+}
+
+function renderPlannedAgendaEventContents(element, plannedEvent, visualSize) {
+  element.innerHTML = "";
+
+  const time = document.createElement("p");
+  time.className = "agenda-event-time";
+  time.innerHTML = `<span class="agenda-event-status">${getPlannedEventStatusSymbol(plannedEvent.status)}</span> ${formatPlannedEventTime(plannedEvent)}`;
+  element.append(time);
+
+  if (visualSize === "tiny") {
+    return;
+  }
+
+  const subject = document.createElement("p");
+  subject.className = "agenda-event-client agenda-event-subject";
+  subject.textContent = plannedEvent.title || "Evenement importe";
+  element.append(subject);
+
+  if (visualSize === "full") {
+    const category = getPlannedEventDisplayCategory(plannedEvent);
+    if (category) {
+      const copy = document.createElement("p");
+      copy.className = "agenda-event-category";
+      copy.textContent = category;
+      element.append(copy);
+    }
+  }
+}
+
+function applyPlannedAgendaEventColor(element, plannedEvent) {
+  const category = getPlannedEventDisplayCategory(plannedEvent);
+  const baseColor = category ? getCategoryColor(category, plannedEvent.title || plannedEvent.id) : "#9baab3";
+  element.style.setProperty("--agenda-accent", baseColor);
+  element.style.background = `${baseColor}12`;
+  element.style.borderColor = `${baseColor}4D`;
+}
+
+function buildPlannedEventTooltip(plannedEvent) {
+  const bits = [
+    `${getPlannedEventStatusSymbol(plannedEvent.status)} ${plannedEvent.title || "Evenement importe"}`,
+    `${formatPlannedEventWeekday(plannedEvent.start_at)} · ${formatPlannedEventTime(plannedEvent)}`,
+    getPlannedEventDisplayCategory(plannedEvent) || "À qualifier",
+    plannedEvent.validated_tags?.length
+      ? `Tags: ${plannedEvent.validated_tags.join(", ")}`
+      : plannedEvent.suggested_tags?.length
+        ? `Tags: ${plannedEvent.suggested_tags.join(", ")}`
+        : "",
+  ];
+  return bits.filter(Boolean).join("\n");
+}
+
+function formatPlannedEventTime(plannedEvent) {
+  return `${formatTimeOnly(plannedEvent.start_at)}-${formatTimeOnly(plannedEvent.end_at)}`;
+}
+
+function formatPlannedEventWeekday(value) {
+  return new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric", month: "short" })
+    .format(new Date(value))
+    .replace(".", "");
+}
+
+function getPlannedEventStatusSymbol(status) {
+  const map = { pending: "•", suggested: "~", validated: "✓", ignored: "×" };
+  return map[status] || "•";
+}
+
+function getPlannedEventDisplayCategory(plannedEvent) {
+  return plannedEvent.validated_category || plannedEvent.suggested_category || "";
+}
+
+function getPlannedEventEditableTags(plannedEvent) {
+  return dedupePreservingOrder([...(plannedEvent.validated_tags ?? []), ...(plannedEvent.suggested_tags ?? [])]);
+}
+
+function getPlannedConfidenceLabel(confidence = 0) {
+  if (confidence >= 0.82) return "forte";
+  if (confidence >= 0.62) return "probable";
+  return "faible";
+}
+
+function syncPlannedDialogSuggestion(plannedEvent) {
+  if (!plannedDialogSuggestion || !plannedDialogSuggestionCategory || !plannedDialogSuggestionDetail) {
+    return;
+  }
+
+  const suggestedCategory = plannedEvent?.suggested_category || "";
+  const suggestedTags = plannedEvent?.suggested_tags?.length ? plannedEvent.suggested_tags.join(", ") : "";
+  if (!suggestedCategory) {
+    plannedDialogSuggestion.hidden = true;
+    plannedDialogSuggestionCategory.textContent = "";
+    plannedDialogSuggestionDetail.textContent = "";
+    return;
+  }
+
+  plannedDialogSuggestion.hidden = false;
+  plannedDialogSuggestionCategory.textContent = suggestedCategory;
+  const detailBits = [`Confiance ${getPlannedConfidenceLabel(plannedEvent.matching_confidence)}`];
+  if (suggestedTags) {
+    detailBits.push(`Tags : ${suggestedTags}`);
+  }
+  plannedDialogSuggestionDetail.textContent = detailBits.join(" · ");
+}
+
+function renderPlannedSummary(rows, range) {
+  if (!plannedSummary) {
+    return;
+  }
+  plannedSummary.innerHTML = "";
+  if (!range) {
+    plannedSummary.hidden = true;
+    return;
+  }
+
+  const currentWeekStart = getStartOfWeek(new Date());
+  const isPastWeek = range.end <= currentWeekStart;
+
+  if (isPastWeek) {
+    const cards = [
+      { value: "0 h", label: "Temps planifié" },
+      { value: "—", label: "Temps ouvert estimé" },
+      { value: "—", label: "Catégorie dominante" },
+      { value: "0", label: "Événements à qualifier" },
+    ];
+
+    cards.forEach((card) => {
+      const article = document.createElement("article");
+      article.className = "planned-summary-card planned-summary-card--muted";
+      const strong = document.createElement("strong");
+      strong.textContent = card.value;
+      const span = document.createElement("span");
+      span.textContent = card.label;
+      article.append(strong, span);
+      plannedSummary.append(article);
+    });
+
+    const note = document.createElement("p");
+    note.className = "planned-summary-note";
+    note.textContent = "La lecture prévisionnelle commence cette semaine. Les semaines passées restent en lecture réelle uniquement.";
+    plannedSummary.append(note);
+    plannedSummary.hidden = false;
+    return;
+  }
+
+  if (!rows.length) {
+    plannedSummary.hidden = true;
+    return;
+  }
+
+  const activeRows = rows.filter((row) => row.status !== "ignored");
+  const plannedMs = activeRows.reduce((sum, row) => sum + (Number(row.durationMs) || 0), 0);
+  const plannedWindowMs = getPlannedWorkWindowMinutes(range) * 60000;
+  const occupiedWindowMs = getPlannedOccupiedMinutesInWindow(activeRows, range);
+  const openWindowMs = Math.max(plannedWindowMs - occupiedWindowMs, 0);
+  const qualifierCount = rows.filter((row) => row.status === "pending" || row.status === "suggested").length;
+  const categoryRows = buildPlannedCategoryRows(activeRows);
+  const dominantCategory = categoryRows[0]?.label || "À qualifier";
+  const cards = [
+    { value: formatDurationHours(plannedMs), label: "Temps planifié" },
+    { value: formatDurationHours(openWindowMs), label: "Temps ouvert estimé" },
+    { value: dominantCategory, label: "Catégorie dominante" },
+    { value: String(qualifierCount), label: "Événements à qualifier" },
+  ];
+
+  cards.forEach((card) => {
+    const article = document.createElement("article");
+    article.className = "planned-summary-card";
+    const strong = document.createElement("strong");
+    strong.textContent = card.value;
+    const span = document.createElement("span");
+    span.textContent = card.label;
+    article.append(strong, span);
+    plannedSummary.append(article);
+  });
+
+  const note = document.createElement("p");
+  note.className = "planned-summary-note";
+  note.textContent = "Lecture prévisionnelle de l'agenda, distincte du temps réel affiché dans « Ma semaine ». Base estimée sur une plage lun–ven, 9h–18h.";
+  plannedSummary.append(note);
+
+  plannedSummary.hidden = false;
+}
+
+function getPlannedWorkWindowMinutes(range) {
+  let totalMinutes = 0;
+  for (let cursor = new Date(range.start); cursor < range.end; cursor.setDate(cursor.getDate() + 1)) {
+    const day = new Date(cursor);
+    if (!PLANNED_WORK_DAYS.has(day.getDay())) {
+      continue;
+    }
+    totalMinutes += (PLANNED_WORK_END_HOUR - PLANNED_WORK_START_HOUR) * 60;
+  }
+  return totalMinutes;
+}
+
+function getPlannedWorkWindowStart(day) {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), PLANNED_WORK_START_HOUR, 0, 0, 0);
+}
+
+function getPlannedWorkWindowEnd(day) {
+  return new Date(day.getFullYear(), day.getMonth(), day.getDate(), PLANNED_WORK_END_HOUR, 0, 0, 0);
+}
+
+function getPlannedOccupiedMinutesInWindow(rows, range) {
+  const intervals = [];
+  for (const row of rows) {
+    const start = new Date(row.start_at);
+    const end = new Date(row.end_at);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+      continue;
+    }
+    for (let cursor = new Date(range.start); cursor < range.end; cursor.setDate(cursor.getDate() + 1)) {
+      const day = new Date(cursor);
+      if (!PLANNED_WORK_DAYS.has(day.getDay())) {
+        continue;
+      }
+      const windowStart = getPlannedWorkWindowStart(day);
+      const windowEnd = getPlannedWorkWindowEnd(day);
+      const overlapStart = Math.max(start.getTime(), windowStart.getTime());
+      const overlapEnd = Math.min(end.getTime(), windowEnd.getTime());
+      if (overlapEnd > overlapStart) {
+        intervals.push([overlapStart, overlapEnd]);
+      }
+    }
+  }
+  intervals.sort((left, right) => left[0] - right[0]);
+  let occupiedMs = 0;
+  let current = null;
+  for (const interval of intervals) {
+    if (!current) {
+      current = [...interval];
+      continue;
+    }
+    if (interval[0] <= current[1]) {
+      current[1] = Math.max(current[1], interval[1]);
+      continue;
+    }
+    occupiedMs += current[1] - current[0];
+    current = [...interval];
+  }
+  if (current) {
+    occupiedMs += current[1] - current[0];
+  }
+  return occupiedMs;
+}
+
+function inferPlannedSuggestionFromTitle(rawTitle = "") {
+  const title = String(rawTitle ?? "").trim();
+  const normalized = normalizeComparableText(title);
+  if (!normalized) {
+    return {
+      suggested_category: "",
+      suggested_tags: [],
+      status: "pending",
+      matching_confidence: 0.2,
+    };
+  }
+
+  const inferredTags = [];
+  if (normalized.includes("entrepot")) inferredTags.push("Entrepot");
+  if (normalized.includes("coursier")) inferredTags.push("Coursier");
+  if (normalized.includes("operationnel")) inferredTags.push("Operationnel");
+  if (normalized.includes("cargonautes")) inferredTags.push("Cargonautes");
+  if (normalized.includes("point")) inferredTags.push("Point");
+  if (normalized.includes("reunion")) inferredTags.push("Reunion");
+  if (normalized.includes("shift")) inferredTags.push("Shift");
+  if (normalized.includes("indisponible")) inferredTags.push("Indisponible");
+
+  if (normalized.includes("indisponible")) {
+    return {
+      suggested_category: "",
+      suggested_tags: dedupePreservingOrder(inferredTags),
+      status: "pending",
+      matching_confidence: 0.18,
+    };
+  }
+
+  if (normalized.includes("point") || normalized.includes("reunion")) {
+    return {
+      suggested_category: "Management equipe",
+      suggested_tags: dedupePreservingOrder(inferredTags),
+      status: "suggested",
+      matching_confidence: normalized.includes("operationnel") ? 0.88 : 0.82,
+    };
+  }
+
+  if (normalized.includes("shift")) {
+    return {
+      suggested_category: "Management equipe",
+      suggested_tags: dedupePreservingOrder(inferredTags),
+      status: "suggested",
+      matching_confidence: normalized.includes("coursier") ? 0.58 : 0.66,
+    };
+  }
+
+  if (normalized.includes("verifier") || normalized.includes("verification")) {
+    return {
+      suggested_category: "Administration interne",
+      suggested_tags: dedupePreservingOrder(inferredTags),
+      status: "suggested",
+      matching_confidence: 0.63,
+    };
+  }
+
+  return {
+    suggested_category: "",
+    suggested_tags: dedupePreservingOrder(inferredTags),
+    status: "pending",
+    matching_confidence: 0.24,
+  };
+}
+
+function buildPlannedCategoryRows(rows) {
+  const grouped = new Map();
+  rows.forEach((row) => {
+    const label = getPlannedEventDisplayCategory(row);
+    if (!label) {
+      return;
+    }
+    const current = grouped.get(label) ?? { label, durationMs: 0, count: 0 };
+    current.durationMs += Number(row.durationMs) || 0;
+    current.count += 1;
+    grouped.set(label, current);
+  });
+  return Array.from(grouped.values()).sort((a, b) => b.durationMs - a.durationMs);
+}
+
+function getPlannedEventsForCollaborator(collaborator, range) {
+  const importedRows = getImportedPlannedEventsForCollaborator(collaborator, range);
+  if (importedRows.length) {
+    return importedRows;
+  }
+
+  const currentWeekStart = getStartOfWeek(new Date());
+  if (range.end <= currentWeekStart) {
+    return [];
+  }
+
+  const weekOffset = Math.max(
+    0,
+    Math.round((new Date(range.start).getTime() - currentWeekStart.getTime()) / (7 * 24 * 60 * 60 * 1000)),
+  );
+
+  const buildPlannedMockEvent = (definition, index) => {
+    const start = new Date(range.start);
+    start.setDate(start.getDate() + definition.dayOffset);
+    start.setHours(definition.hour, definition.minute, 0, 0);
+    const end = new Date(start.getTime() + definition.durationMin * 60000);
+    const inferred = inferPlannedSuggestionFromTitle(definition.title);
+    const baseCategory = definition.suggested_category ?? inferred.suggested_category ?? "";
+    const baseTags = dedupePreservingOrder([...(definition.suggested_tags ?? []), ...(inferred.suggested_tags ?? [])]).slice(0, 4);
+    const defaultStatus = definition.status ?? inferred.status ?? (baseCategory ? "suggested" : "pending");
+    const id = `planned-${normalizeComparableText(collaborator || "cargonaute")}-${formatDateInput(range.start)}-${definition.key}`;
+    const override = plannedEventOverrides[id] ?? {};
+    const status = override.status ?? defaultStatus;
+    const validatedCategory = override.validated_category ?? (status === "validated" ? baseCategory : "");
+    const validatedTags = override.validated_tags ?? (status === "validated" ? baseTags : []);
+
+    return {
+      id,
+      source: "google_calendar",
+      source_event_id: override.source_event_id ?? definition.source_event_id ?? id,
+      source_calendar_id: override.source_calendar_id ?? definition.source_calendar_id ?? "google-calendar-snapshot",
+      collaborator,
+      title: override.title ?? definition.title ?? "Bloc de travail a qualifier",
+      description: override.description ?? definition.description ?? "",
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      durationMs: definition.durationMin * 60000,
+      day_key: formatDateInput(start),
+      suggested_category: baseCategory,
+      suggested_tags: baseTags,
+      validated_category: validatedCategory,
+      validated_tags: dedupePreservingOrder(validatedTags),
+      matching_confidence: definition.matching_confidence ?? inferred.matching_confidence ?? (baseCategory ? Math.max(0.58, 0.86 - (index % 4) * 0.08) : 0.24),
+      status,
+      updated_at: override.updated_at ?? null,
+    };
+  };
+
+  if (weekOffset === 1) {
+    const nextWeekDefinitions = [
+      {
+        key: "gw1-verifier-stockage",
+        dayOffset: 0,
+        hour: 0,
+        minute: 0,
+        durationMin: 15,
+        title: "Vérifier l'espace de stockage sur le fichier",
+        source_event_id: "2q6e8j9crgnv4vqjr95j5o4c7u_20260427T073000Z",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-point-entrepot",
+        dayOffset: 0,
+        hour: 9,
+        minute: 30,
+        durationMin: 60,
+        title: "Point entrepôt",
+        source_event_id: "2q6e8j9crgnv4vqjr95j5o4c7u_20260427T073000Z",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-indisponible",
+        dayOffset: 0,
+        hour: 12,
+        minute: 0,
+        durationMin: 150,
+        title: "Indisponible",
+        source_event_id: "30mhlh6h4322kuk9f0icsa04c0_20260427T100000Z",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-shift-entrepot",
+        dayOffset: 2,
+        hour: 9,
+        minute: 0,
+        durationMin: 240,
+        title: "Shift Entrepôt",
+        source_event_id: "3h81cv9jt98158auc5dvg15ghn",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-point-operationnel",
+        dayOffset: 2,
+        hour: 12,
+        minute: 30,
+        durationMin: 30,
+        title: "Point opérationnel Cargonautes",
+        source_event_id: "1ft1jkr1nkhadikm9kq1b65h80_20260429T103000Z",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-reunion-entrepot",
+        dayOffset: 3,
+        hour: 13,
+        minute: 0,
+        durationMin: 60,
+        title: "Réunion entrepôt",
+        source_event_id: "62na35r1kc017plnlhe4o6tklv",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+      {
+        key: "gw1-shift-coursier",
+        dayOffset: 5,
+        hour: 7,
+        minute: 0,
+        durationMin: 300,
+        title: "Shift coursier",
+        source_event_id: "1f5ud34r4478k6lmhuugb07m2t",
+        source_calendar_id: "eduardo@cargonautes.fr",
+      },
+    ];
+
+    return nextWeekDefinitions.map(buildPlannedMockEvent);
+  }
+
+  const memories = getProjectMemories(collaborator).slice(0, 6);
+  const fallbackRows = getSessionsForCollaborator(collaborator)
+    .slice()
+    .sort((left, right) => new Date(right.start) - new Date(left.start))
+    .slice(0, 6)
+    .map((session, index) => ({
+      key: `fallback-${index}`,
+      title: session.task || session.project || "Bloc de travail a qualifier",
+      description: session.notes ?? "",
+      suggested_category: [...(session.categories ?? []).slice(0, 1)][0] ?? "",
+      suggested_tags: [...(session.tags ?? [])],
+    }));
+  const sources = memories.length
+    ? memories.map((memory, index) => ({
+        key: memory.key || `memory-${index}`,
+        title: memory.task || memory.project || "Bloc de travail a qualifier",
+        description: memory.notes ?? "",
+        suggested_category: memory.categories?.[0] ?? "",
+        suggested_tags: [...(memory.tags ?? [])],
+      }))
+    : fallbackRows;
+  if (!sources.length) {
+    return [];
+  }
+
+  const slotSets = [
+    [
+      { key: "s1", dayOffset: 1, hour: 9, minute: 30, durationMin: 60 },
+      { key: "s2", dayOffset: 2, hour: 11, minute: 0, durationMin: 90 },
+      { key: "s3", dayOffset: 3, hour: 14, minute: 0, durationMin: 60 },
+      { key: "s4", dayOffset: 4, hour: 10, minute: 30, durationMin: 75 },
+    ],
+    [
+      { key: "s1", dayOffset: 1, hour: 8, minute: 45, durationMin: 75 },
+      { key: "s2", dayOffset: 2, hour: 10, minute: 15, durationMin: 60 },
+      { key: "s3", dayOffset: 3, hour: 13, minute: 30, durationMin: 90 },
+      { key: "s4", dayOffset: 4, hour: 15, minute: 0, durationMin: 60 },
+      { key: "s5", dayOffset: 5, hour: 9, minute: 0, durationMin: 45 },
+    ],
+    [
+      { key: "s1", dayOffset: 1, hour: 9, minute: 0, durationMin: 45 },
+      { key: "s2", dayOffset: 2, hour: 11, minute: 30, durationMin: 120 },
+      { key: "s3", dayOffset: 3, hour: 15, minute: 15, durationMin: 60 },
+      { key: "s4", dayOffset: 4, hour: 10, minute: 0, durationMin: 90 },
+    ],
+  ];
+  const slots = slotSets[weekOffset % slotSets.length];
+
+  return slots.map((slot, index) => {
+    const source = sources[(index + weekOffset) % sources.length];
+    return buildPlannedMockEvent(
+      {
+        ...slot,
+        title: source.title,
+        description: source.description,
+        suggested_category: source.suggested_category,
+        suggested_tags: source.suggested_tags,
+        status: source.suggested_category ? (index % 3 === 2 ? "validated" : "suggested") : "pending",
+      },
+      index,
+    );
+  });
+}
+
+function openPlannedDialog(plannedEvent) {
+  if (!plannedDialog) {
+    return;
+  }
+  plannedEditingEventId = plannedEvent.id;
+  plannedEditingEvent = plannedEvent;
+  plannedSubjectInput.value = plannedEvent.title || "";
+  plannedCategoryInput.value = getPlannedEventDisplayCategory(plannedEvent);
+  plannedCurrentTags = getPlannedEventEditableTags(plannedEvent);
+  renderPlannedTagTokens();
+  plannedDialogSubtitle.textContent = `${formatPlannedEventWeekday(plannedEvent.start_at)} · ${formatPlannedEventTime(plannedEvent)}`;
+  syncPlannedDialogSuggestion(plannedEvent);
+  plannedDialog.showModal();
+  requestAnimationFrame(() => plannedCategoryInput.focus());
+}
+
+function resetPlannedDialog() {
+  plannedEditingEventId = null;
+  plannedEditingEvent = null;
+  plannedSubjectInput.value = "";
+  plannedCategoryInput.value = "";
+  plannedCurrentTags = [];
+  renderPlannedTagTokens();
+  plannedDialogSubtitle.textContent = "";
+  syncPlannedDialogSuggestion(null);
+}
+
+function closePlannedDialog() {
+  plannedDialog?.close();
+}
+
+function applyPlannedEventDecision(mode) {
+  if (!plannedEditingEventId) {
+    return;
+  }
+
+  const payload = {
+    title: plannedSubjectInput.value.trim(),
+    validated_category: plannedCategoryInput.value.trim(),
+    validated_tags: dedupePreservingOrder(plannedCurrentTags),
+    status: mode,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (mode === "validated" && !payload.validated_category && !payload.validated_tags.length) {
+    payload.status = "pending";
+  }
+
+  plannedEventOverrides[plannedEditingEventId] = {
+    ...(plannedEventOverrides[plannedEditingEventId] ?? {}),
+    ...payload,
+  };
+  storePlannedEventOverrides(plannedEventOverrides);
+  closePlannedDialog();
+  renderCadreViews();
+}
+
+function loadStoredPlannedCalendarSnapshots() {
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PLANNED_CALENDAR_SNAPSHOTS_KEY) ?? "[]");
+    const storedRows = sanitizePlannedCalendarSnapshots(Array.isArray(stored) ? stored : []);
+    return mergePlannedCalendarSnapshots(SEEDED_PLANNED_CALENDAR_SNAPSHOTS, storedRows);
+  } catch {
+    return [...SEEDED_PLANNED_CALENDAR_SNAPSHOTS];
+  }
+}
+
+function storePlannedCalendarSnapshots(value) {
+  try {
+    window.localStorage.setItem(PLANNED_CALENDAR_SNAPSHOTS_KEY, JSON.stringify(value));
+  } catch {
+    // ignore local storage errors
+  }
+}
+
+function sanitizePlannedCalendarSnapshots(rows) {
+  return (rows ?? [])
+    .filter((row) => row && row.collaborator && row.week_start && row.source_calendar_id)
+    .map((row) => ({
+      ...row,
+      events: (row.events ?? []).filter((event) => isValidPlannedSnapshotEvent(event)),
+    }))
+    .filter((row) => row.events.length > 0);
+}
+
+function isLikelyBrokenPlannedSnapshotTitle(value) {
+  const normalized = normalizeComparableText(value);
+  return normalized === "success no rows returned" || normalized === "no rows returned";
+}
+
+function isValidPlannedSnapshotEvent(event) {
+  if (!event) {
+    return false;
+  }
+  const start = new Date(event.start_at);
+  const end = new Date(event.end_at);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return false;
+  }
+  const durationMs = end.getTime() - start.getTime();
+  if (durationMs > 12 * 60 * 60 * 1000) {
+    return false;
+  }
+  if (isLikelyBrokenPlannedSnapshotTitle(event.title ?? "")) {
+    return false;
+  }
+  return true;
+}
+
+function getPlannedSnapshotQuality(snapshot) {
+  return (snapshot?.events ?? []).filter((event) => isValidPlannedSnapshotEvent(event)).length;
+}
+
+function mergePlannedCalendarSnapshots(baseRows, overrideRows) {
+  const merged = new Map();
+  for (const row of [...(baseRows ?? []), ...(overrideRows ?? [])]) {
+    if (!row || !row.collaborator || !row.week_start || !row.source_calendar_id) {
+      continue;
+    }
+    const key = `${normalizeComparableText(row.collaborator)}::${row.week_start}::${normalizeComparableText(row.source_calendar_id)}`;
+    const previous = merged.get(key);
+    if (!previous) {
+      merged.set(key, row);
+      continue;
+    }
+    const previousQuality = getPlannedSnapshotQuality(previous);
+    const nextQuality = getPlannedSnapshotQuality(row);
+    if (nextQuality > previousQuality) {
+      merged.set(key, row);
+      continue;
+    }
+    if (nextQuality === previousQuality && nextQuality > 0) {
+      const previousImportedAt = new Date(previous.imported_at ?? 0).getTime();
+      const nextImportedAt = new Date(row.imported_at ?? 0).getTime();
+      if (nextImportedAt >= previousImportedAt) {
+        merged.set(key, row);
+      }
+    }
+  }
+  return Array.from(merged.values());
+}
+
+function buildPlannedImportedEvent(snapshot, event, index) {
+  const title = String(event?.title ?? "").trim();
+  const inferred = inferPlannedSuggestionFromTitle(title);
+  const id = `planned-import-${normalizeComparableText(snapshot.collaborator)}-${normalizeComparableText(snapshot.source_calendar_id)}-${normalizeComparableText(event.source_event_id || `${snapshot.week_start}-${index}`)}`;
+  const override = plannedEventOverrides[id] ?? {};
+  const status = override.status ?? inferred.status ?? (inferred.suggested_category ? "suggested" : "pending");
+  const validatedCategory = override.validated_category ?? (status === "validated" ? inferred.suggested_category : "");
+  const validatedTags = override.validated_tags ?? (status === "validated" ? inferred.suggested_tags : []);
+  const startAt = !Number.isNaN(new Date(override.start_at ?? "").getTime()) ? override.start_at : event.start_at;
+  const endAt = !Number.isNaN(new Date(override.end_at ?? "").getTime()) ? override.end_at : event.end_at;
+  return {
+    id,
+    source: snapshot.source ?? "google_calendar",
+    source_event_id: override.source_event_id ?? event.source_event_id ?? id,
+    source_calendar_id: override.source_calendar_id ?? snapshot.source_calendar_id,
+    collaborator: snapshot.collaborator,
+    title: override.title ?? title ?? "Événement importé",
+    description: override.description ?? event.description ?? "",
+    start_at: startAt,
+    end_at: endAt,
+    durationMs: Math.max(new Date(endAt).getTime() - new Date(startAt).getTime(), 0),
+    day_key: formatDateInput(new Date(startAt)),
+    suggested_category: inferred.suggested_category,
+    suggested_tags: inferred.suggested_tags,
+    validated_category: validatedCategory,
+    validated_tags: dedupePreservingOrder(validatedTags),
+    matching_confidence: inferred.matching_confidence,
+    status,
+    updated_at: override.updated_at ?? snapshot.imported_at ?? null,
+  };
+}
+
+function getImportedPlannedEventsForCollaborator(collaborator, range) {
+  const normalizedCollaborator = normalizeText(collaborator);
+  const targetWeekStart = formatDateInput(range.start);
+  return plannedCalendarSnapshots
+    .filter(
+      (snapshot) =>
+        normalizeText(snapshot.collaborator) === normalizedCollaborator &&
+        String(snapshot.week_start ?? "") === targetWeekStart,
+    )
+    .flatMap((snapshot) =>
+      (snapshot.events ?? [])
+        .filter((event) => isValidPlannedSnapshotEvent(event))
+        .map((event, index) => buildPlannedImportedEvent(snapshot, event, index)),
+    )
+    .filter((row) => {
+      const start = new Date(row.start_at);
+      const end = new Date(row.end_at);
+      return !Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime()) && end > range.start && start < range.end;
+    })
+    .sort((left, right) => new Date(left.start_at) - new Date(right.start_at));
+}
+
+function loadStoredPlannedEventOverrides() {
+  try {
+    return JSON.parse(window.localStorage.getItem(PLANNED_EVENTS_OVERRIDES_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function storePlannedEventOverrides(value) {
+  try {
+    window.localStorage.setItem(PLANNED_EVENTS_OVERRIDES_KEY, JSON.stringify(value));
+  } catch {
+    // ignore local storage errors
+  }
 }
 
 function applyAgendaEventColor(element, session) {
@@ -6026,6 +7753,9 @@ function renderResourcesViews() {
     usesObjectives ? objectiveTotals : categoryTotals,
     totalMs,
     usesObjectives ? "Aucun OKR renseigne sur cette plage." : "Aucune categorie disponible sur cette plage.",
+    {
+      colorResolver: (row) => (usesObjectives ? colorForLabel(row.label) : colorForPastelDistributionLabel(row.label)),
+    },
   );
   renderEvolutionGrid(resourceEvolutionGrid, anchor, "all");
   if (usesObjectives) {
@@ -6071,115 +7801,376 @@ function renderUsersAdmin() {
   }
 
   const rows = [...referenceCatalog.users].sort((left, right) => left.user_name.localeCompare(right.user_name, "fr"));
-  if (!rows.length) {
-    usersAdminShell.append(createEmptyState("Les utilisateurs apparaitront ici apres connexion."));
-    return;
+  const head = document.createElement("div");
+  head.className = "users-admin-head";
+
+  const copy = document.createElement("div");
+  copy.className = "users-admin-copy";
+  const title = document.createElement("h3");
+  title.textContent = "Equipe visible";
+  const description = document.createElement("p");
+  description.textContent = "Creer, modifier ou retirer un utilisateur sans quitter Mordologie.";
+  copy.append(title, description);
+
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "btn btn-primary";
+  addButton.textContent = "Ajouter un utilisateur";
+  addButton.addEventListener("click", () => {
+    usersAdminEditingId = "__new__";
+    usersAdminDraft = createUsersAdminDraft();
+    renderUsersAdmin();
+  });
+
+  head.append(copy, addButton);
+  usersAdminShell.append(head);
+
+  const list = document.createElement("div");
+  list.className = "users-admin-list";
+
+  if (usersAdminEditingId === "__new__" && usersAdminDraft) {
+    list.append(renderUsersAdminEditorCard(null, true));
   }
 
-  const shell = document.createElement("div");
-  shell.className = "table-shell users-table-shell";
-
-  const table = document.createElement("table");
-  table.className = "report-table compact-table users-table";
-
-  const thead = document.createElement("thead");
-  thead.innerHTML = `
-    <tr>
-      <th>Personne</th>
-      <th>Email</th>
-      <th>Role</th>
-      <th>Action</th>
-    </tr>
-  `;
-  table.append(thead);
-
-  const tbody = document.createElement("tbody");
-  for (const user of rows) {
-    const tr = document.createElement("tr");
-
-    const nameCell = document.createElement("td");
-    const nameWrap = document.createElement("div");
-    nameWrap.className = "users-cell-copy";
-    const name = document.createElement("strong");
-    name.textContent = user.user_name ?? "Sans nom";
-    const meta = document.createElement("span");
-    meta.className = "muted-copy";
-    meta.textContent = user.status === "active" ? "Actif" : "Inactif";
-    nameWrap.append(name, meta);
-    nameCell.append(nameWrap);
-
-    const emailCell = document.createElement("td");
-    emailCell.textContent = user.email || "Aucun email";
-
-    const roleCell = document.createElement("td");
-    const roleSelect = document.createElement("select");
-    roleSelect.className = "select-input users-role-select";
-    [
-      ["cadre", "Utilisateur normal"],
-      ["manager", "Manager"],
-      ["admin", "Admin"],
-    ].forEach(([value, label]) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = label;
-      roleSelect.append(option);
-    });
-    roleSelect.value = user.role ?? "cadre";
-    roleCell.append(roleSelect);
-
-    const actionCell = document.createElement("td");
-    const saveButton = document.createElement("button");
-    saveButton.type = "button";
-    saveButton.className = "btn btn-secondary users-save-button";
-    saveButton.textContent = "Enregistrer";
-    saveButton.disabled = true;
-    roleSelect.addEventListener("change", () => {
-      saveButton.disabled = roleSelect.value === (user.role ?? "cadre");
-    });
-    saveButton.addEventListener("click", async () => {
-      saveButton.disabled = true;
-      await updateUserRole(user, roleSelect.value);
-    });
-    actionCell.append(saveButton);
-
-    tr.append(nameCell, emailCell, roleCell, actionCell);
-    tbody.append(tr);
+  if (!rows.length && usersAdminEditingId !== "__new__") {
+    list.append(createEmptyState("Aucun utilisateur actif pour le moment."));
+  } else {
+    for (const user of rows) {
+      const isEditing = usersAdminEditingId === user.user_id;
+      list.append(isEditing ? renderUsersAdminEditorCard(user, false) : renderUsersAdminDisplayCard(user));
+    }
   }
 
-  table.append(tbody);
-  shell.append(table);
-  usersAdminShell.append(shell);
+  usersAdminShell.append(list);
 }
 
-async function updateUserRole(user, nextRole) {
-  if (!window.supabase || !user?.user_id || !nextRole) {
-    return false;
+function createUsersAdminDraft(user = null) {
+  const defaultTeamName =
+    accessProfile.appUser?.team_name ||
+    accessProfile.appUser?.managed_team_name ||
+    user?.team_name ||
+    "Equipe";
+
+  return {
+    user_id: user?.user_id ?? null,
+    user_name: user?.user_name ?? "",
+    email: user?.email ?? "",
+    role: user?.role ?? "cadre",
+    team_name: user?.team_name ?? defaultTeamName,
+    managed_team_name: user?.managed_team_name ?? "",
+    confirm_delete: false,
+    statusMessage: "",
+    statusTone: "error",
+  };
+}
+
+function renderUsersAdminDisplayCard(user) {
+  const card = document.createElement("article");
+  card.className = "users-user-card";
+
+  const grid = document.createElement("div");
+  grid.className = "users-user-grid";
+  grid.append(
+    createUsersAdminDisplayField("Personne", user.user_name ?? "Sans nom", user.status === "active" ? "Actif" : "Inactif"),
+    createUsersAdminDisplayField("Email", user.email || "Aucun email"),
+    createUsersAdminDisplayField("Role", formatUsersRoleLabel(user.role ?? "cadre")),
+  );
+
+  const actions = document.createElement("div");
+  actions.className = "users-card-actions";
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "btn btn-secondary users-save-button";
+  editButton.textContent = "Changer";
+  editButton.addEventListener("click", () => {
+    usersAdminEditingId = user.user_id;
+    usersAdminDraft = createUsersAdminDraft(user);
+    renderUsersAdmin();
+  });
+
+  actions.append(editButton);
+  card.append(grid, actions);
+  return card;
+}
+
+function createUsersAdminDisplayField(labelText, valueText, metaText = "") {
+  const field = document.createElement("div");
+  field.className = "users-display-field";
+
+  const label = document.createElement("span");
+  label.className = "users-display-label";
+  label.textContent = labelText;
+
+  const value = document.createElement("strong");
+  value.textContent = valueText;
+
+  field.append(label, value);
+  if (metaText) {
+    const meta = document.createElement("span");
+    meta.className = "muted-copy";
+    meta.textContent = metaText;
+    field.append(meta);
   }
 
-  const { error } = await window.supabase
-    .from("users")
-    .update({ role: nextRole, updated_at: new Date().toISOString() })
-    .eq("user_id", user.user_id)
-    .select("user_id, user_name, email, role, team_name, managed_team_name, status, auth_user_id");
+  return field;
+}
+
+function renderUsersAdminEditorCard(user, isNew) {
+  const draft = usersAdminDraft ?? createUsersAdminDraft(user);
+  const card = document.createElement("article");
+  card.className = "users-user-card users-user-card--editing";
+
+  const grid = document.createElement("div");
+  grid.className = "users-edit-grid";
+
+  const nameField = createUsersAdminInputField("Personne", "text", draft.user_name, "Ex. Paulo");
+  nameField.input.addEventListener("input", (event) => {
+    usersAdminDraft.user_name = event.target.value;
+    clearUsersAdminDraftTransientState();
+  });
+
+  const emailField = createUsersAdminInputField("Email", "email", draft.email, "prenom@domaine.fr");
+  emailField.input.addEventListener("input", (event) => {
+    usersAdminDraft.email = event.target.value;
+    clearUsersAdminDraftTransientState();
+  });
+
+  const roleField = document.createElement("label");
+  roleField.className = "field";
+  const roleLabel = document.createElement("span");
+  roleLabel.textContent = "Role";
+  const roleSelect = document.createElement("select");
+  roleSelect.className = "select-input users-role-select";
+  [
+    ["cadre", "Utilisateur normal"],
+    ["manager", "Manager"],
+    ["admin", "Admin"],
+  ].forEach(([value, label]) => {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    roleSelect.append(option);
+  });
+  roleSelect.value = draft.role;
+  roleSelect.addEventListener("change", (event) => {
+    usersAdminDraft.role = event.target.value;
+    clearUsersAdminDraftTransientState();
+  });
+  roleField.append(roleLabel, roleSelect);
+
+  grid.append(nameField.field, emailField.field, roleField);
+
+  const info = document.createElement("p");
+  info.className = "users-edit-meta";
+  info.textContent = `Equipe par defaut: ${draft.team_name}`;
+
+  const status = document.createElement("p");
+  status.className = "users-edit-status";
+  status.hidden = !draft.statusMessage;
+  status.textContent = draft.statusMessage || "";
+  status.dataset.tone = draft.statusMessage ? draft.statusTone || "error" : "";
+
+  const actions = document.createElement("div");
+  actions.className = "dialog-actions users-edit-actions";
+
+  if (!isNew) {
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "btn btn-ghost-danger dialog-action-danger";
+    deleteButton.textContent = draft.confirm_delete ? "Confirmer la suppression" : "Supprimer";
+    deleteButton.addEventListener("click", async () => {
+      if (!usersAdminDraft.confirm_delete) {
+        usersAdminDraft.confirm_delete = true;
+        renderUsersAdmin();
+        return;
+      }
+      await deleteManagedUser(user);
+    });
+    actions.append(deleteButton);
+  }
+
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.className = "btn btn-secondary";
+  cancelButton.textContent = "Annuler";
+  cancelButton.addEventListener("click", () => {
+    usersAdminEditingId = null;
+    usersAdminDraft = null;
+    renderUsersAdmin();
+  });
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.className = "btn btn-primary";
+  saveButton.textContent = isNew ? "Creer" : "Enregistrer";
+  saveButton.addEventListener("click", async () => {
+    await saveManagedUser(user, isNew);
+  });
+
+  actions.append(cancelButton, saveButton);
+  card.append(grid, info, status, actions);
+  return card;
+}
+
+function createUsersAdminInputField(labelText, type, value, placeholder = "") {
+  const field = document.createElement("label");
+  field.className = "field";
+  const label = document.createElement("span");
+  label.textContent = labelText;
+  const input = document.createElement("input");
+  input.type = type;
+  input.value = value;
+  input.placeholder = placeholder;
+  field.append(label, input);
+  return { field, input };
+}
+
+function formatUsersRoleLabel(role) {
+  return (
+    {
+      cadre: "Utilisateur normal",
+      manager: "Manager",
+      admin: "Admin",
+    }[role] ?? "Utilisateur normal"
+  );
+}
+
+function validateManagedUserDraft(draft, user = null) {
+  const userName = draft.user_name.trim();
+  const email = draft.email.trim();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const duplicateName = referenceCatalog.users.find((item) =>
+    item.user_id !== (user?.user_id ?? null) && normalizeComparableText(item.user_name) === normalizeComparableText(userName),
+  );
+  const duplicateEmail = email
+    ? referenceCatalog.users.find((item) =>
+        item.user_id !== (user?.user_id ?? null) && normalizeText(item.email || "") === normalizeText(email),
+      )
+    : null;
+
+  if (!userName) {
+    return { ok: false, message: "Le nom de la personne est requis." };
+  }
+  if (duplicateName) {
+    return { ok: false, message: "Ce nom est deja utilise. Choisissez un nom unique pour eviter les collisions de profil." };
+  }
+  if (email && !emailPattern.test(email)) {
+    return { ok: false, message: "L'adresse email semble invalide." };
+  }
+  if (duplicateEmail) {
+    return { ok: false, message: "Cette adresse email est deja associee a un autre utilisateur." };
+  }
+
+  return {
+    ok: true,
+    userName,
+    email,
+  };
+}
+
+async function saveManagedUser(user, isNew) {
+  if (!usersAdminDraft) {
+    return false;
+  }
+  if (!window.supabase) {
+    return failUsersAdminDraft("La synchronisation distante est indisponible pour le moment.");
+  }
+
+  const validation = validateManagedUserDraft(usersAdminDraft, user);
+  if (!validation.ok) {
+    return failUsersAdminDraft(validation.message);
+  }
+
+  const { userName, email } = validation;
+
+  const basePayload = {
+    user_name: userName,
+    email: email || null,
+    role: usersAdminDraft.role || "cadre",
+    team_name: usersAdminDraft.team_name,
+    managed_team_name: usersAdminDraft.role === "manager" ? usersAdminDraft.team_name : null,
+    updated_at: new Date().toISOString(),
+  };
+
+  let error = null;
+  if (isNew) {
+    const nextId = await getNextPrefixedId("users", "user_id", "USR-", 3);
+    if (!nextId) {
+      return failUsersAdminDraft("Impossible de preparer le nouvel utilisateur.");
+    }
+
+    ({ error } = await window.supabase.from("users").insert([
+      {
+        user_id: nextId,
+        ...basePayload,
+        weekly_capacity_hours: 40,
+        status: "active",
+      },
+    ]));
+  } else {
+    ({ error } = await window.supabase
+      .from("users")
+      .update(basePayload)
+      .eq("user_id", user.user_id));
+  }
 
   if (error) {
-    console.error("Users role update failed:", error);
-    setAuthStatusMessage("Impossible d'enregistrer ce role pour le moment.", "error");
-    renderUsersAdmin();
-    return false;
+    console.error("Users save failed:", error);
+    return failUsersAdminDraft("Impossible d'enregistrer cet utilisateur pour le moment.");
   }
 
   await ensureReferenceCatalogLoaded(true);
-  if (accessProfile.appUser?.user_id === user.user_id) {
+  if (accessProfile.appUser?.user_id === user?.user_id) {
+    const refreshedCurrentUser = findKnownUserByName(userName) ?? accessProfile.appUser;
     accessProfile = {
       ...accessProfile,
-      role: nextRole,
-      appUser:
-        referenceCatalog.users.find((item) => item.user_id === user.user_id) ??
-        { ...accessProfile.appUser, role: nextRole },
+      role: basePayload.role,
+      appUser: refreshedCurrentUser,
     };
+    storeLocalRescueName(refreshedCurrentUser.user_name);
   }
-  setAuthStatusMessage("Role mis a jour.", "success", { persistMs: 2400 });
+
+  usersAdminEditingId = null;
+  usersAdminDraft = null;
+  setAuthStatusMessage(isNew ? "Utilisateur cree." : "Utilisateur mis a jour.", "success", { persistMs: 2400 });
+  render();
+  return true;
+}
+
+async function deleteManagedUser(user) {
+  if (!window.supabase || !user?.user_id) {
+    return failUsersAdminDraft("La synchronisation distante est indisponible pour le moment.");
+  }
+  if (accessProfile.appUser?.user_id === user.user_id) {
+    return failUsersAdminDraft("Impossible de supprimer le profil actuellement utilise.", "warning");
+  }
+
+  let { error } = await window.supabase.from("users").delete().eq("user_id", user.user_id);
+  if (error?.code === "23503") {
+    ({ error } = await window.supabase
+      .from("users")
+      .update({ status: "inactive", updated_at: new Date().toISOString() })
+      .eq("user_id", user.user_id));
+    if (!error) {
+      await ensureReferenceCatalogLoaded(true);
+      usersAdminEditingId = null;
+      usersAdminDraft = null;
+      setAuthStatusMessage("Utilisateur retire de la liste active.", "success", { persistMs: 2400 });
+      render();
+      return true;
+    }
+  }
+
+  if (error) {
+    console.error("Users delete failed:", error);
+    return failUsersAdminDraft("Impossible de supprimer cet utilisateur pour le moment.");
+  }
+
+  await ensureReferenceCatalogLoaded(true);
+  usersAdminEditingId = null;
+  usersAdminDraft = null;
+  setAuthStatusMessage("Utilisateur supprime.", "success", { persistMs: 2400 });
   render();
   return true;
 }
@@ -6653,7 +8644,7 @@ function renderReportTable(container, rows, totalMs, emptyMessage) {
   }
 }
 
-function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyMessage) {
+function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyMessage, options = {}) {
   barContainer.innerHTML = "";
   legendContainer.innerHTML = "";
 
@@ -6663,7 +8654,7 @@ function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyM
   }
 
   for (const row of rows) {
-    const color = colorForLabel(row.label);
+    const color = options.colorResolver ? options.colorResolver(row) : colorForLabel(row.label);
     const categoryTooltip = formatCategoryTagTooltip(row);
 
     const segment = document.createElement("div");
@@ -6690,10 +8681,11 @@ function renderDistribution(barContainer, legendContainer, rows, totalMs, emptyM
 }
 
 function getDistributionColor(label, usesObjectives = false) {
-  if (!usesObjectives) {
-    return getCategoryColor(label, label);
-  }
-  return colorForLabel(label);
+  return colorForLabel(`${usesObjectives ? "objective" : "category"}-${label}`);
+}
+
+function colorForPastelDistributionLabel(label) {
+  return colorForLabel(`pastel-${label}`);
 }
 
 function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMessage) {
@@ -6706,7 +8698,7 @@ function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMes
   if (!rows.length || !totalMs) {
     personalDistributionDonut.style.background = "conic-gradient(rgba(255, 192, 203, 0.22) 0deg 360deg)";
     personalDistributionTotal.textContent = "0%";
-    personalDistributionSubcopy.textContent = "repartition";
+    personalDistributionSubcopy.textContent = "répartition";
     personalDistributionLegend.append(createEmptyState(emptyMessage));
     return;
   }
@@ -7235,6 +9227,17 @@ function getMainProjectForCollaborator(rows, collaborator) {
 }
 
 function setupTokenInput(input, config) {
+  const tokenField = input.closest(".token-field");
+  if (tokenField && !tokenField.dataset.tokenFieldInteractive) {
+    tokenField.dataset.tokenFieldInteractive = "true";
+    tokenField.addEventListener("click", (event) => {
+      if (event.target === input || event.target.closest("button")) {
+        return;
+      }
+      focusTokenFieldInput(input);
+    });
+  }
+
   input.addEventListener("keydown", (event) => {
     const autocompleteOpenForInput =
       !autocompletePopover.hidden && autocompleteState.config?.input === input;
@@ -7265,6 +9268,16 @@ function setupTokenInput(input, config) {
   });
 }
 
+function focusTokenFieldInput(input) {
+  if (!input) {
+    return;
+  }
+  input.focus();
+  requestAnimationFrame(() => {
+    input.scrollIntoView({ block: "nearest", inline: "nearest" });
+  });
+}
+
 function commitTokenInput(input, config) {
   const tokens = parseTokenString(input.value);
   if (!tokens.length) {
@@ -7274,7 +9287,7 @@ function commitTokenInput(input, config) {
 
   const nextValues = config.singleValue
     ? [tokens[tokens.length - 1]]
-    : Array.from(new Set([...config.getValues(), ...tokens]));
+    : dedupePreservingOrder([...config.getValues(), ...tokens]);
 
   config.setValues(nextValues);
   input.value = "";
@@ -7296,7 +9309,24 @@ function renderTagTokens() {
   updateFieldManageButtons();
 }
 
+function renderManualTagTokens() {
+  renderTokenList(manualTagsList, manualCurrentTags, (index) => {
+    manualCurrentTags = manualCurrentTags.filter((_, itemIndex) => itemIndex !== index);
+    renderManualTagTokens();
+  });
+}
+
+function renderPlannedTagTokens() {
+  renderTokenList(plannedTagsList, plannedCurrentTags, (index) => {
+    plannedCurrentTags = plannedCurrentTags.filter((_, itemIndex) => itemIndex !== index);
+    renderPlannedTagTokens();
+  });
+}
+
 function renderTokenList(container, values, onRemove, options = {}) {
+  if (!container) {
+    return;
+  }
   container.innerHTML = "";
   for (const [index, value] of values.entries()) {
     const chip = document.createElement("span");
@@ -7312,6 +9342,7 @@ function renderTokenList(container, values, onRemove, options = {}) {
 
     const remove = document.createElement("button");
     remove.type = "button";
+    remove.className = "token-chip-remove";
     remove.setAttribute("aria-label", `Retirer ${value}`);
     remove.textContent = "×";
     remove.addEventListener("click", () => onRemove(index));
@@ -7322,18 +9353,44 @@ function renderTokenList(container, values, onRemove, options = {}) {
   }
 }
 
-function renderPills(container, values) {
+function renderPills(container, values, options = {}) {
   container.innerHTML = "";
   for (const value of values) {
-    container.append(createPill(value));
+    container.append(createPill(value, options));
   }
 }
 
-function createPill(label) {
+function createPill(label, options = {}) {
   const pill = document.createElement("span");
   pill.className = "pill";
-  pill.textContent = label;
+  const trimmedLabel = String(label ?? "").trim();
+  pill.textContent = trimmedLabel;
+
+  const kind = options.kind || inferPillKind(trimmedLabel);
+  if (kind) {
+    pill.dataset.kind = kind;
+  }
+
+  if (kind === "category") {
+    applyCategorySurface(pill, getCategoryColor(trimmedLabel));
+  }
+
   return pill;
+}
+
+function inferPillKind(label) {
+  if (!label) {
+    return "";
+  }
+  if (label.startsWith("#")) {
+    return "tag";
+  }
+  if (label === "Lien") {
+    return "link";
+  }
+  const normalizedLabel = normalizeText(label);
+  const knownCategories = getCategorySuggestionLabels().map((item) => normalizeText(item));
+  return knownCategories.includes(normalizedLabel) ? "category" : "neutral";
 }
 
 function fillDatalist(element, values) {
@@ -7374,15 +9431,50 @@ function createEmptyState(message) {
   return element;
 }
 
+function isPlaceholderClientLabel(value) {
+  const normalized = normalizeComparableText(value);
+  return !normalized || normalized === "a renseigner" || normalized === "sans client";
+}
+
 function getSessionClientLabel(session) {
-  if (session.dbClientName) {
-    return session.dbClientName;
+  const taskLabel = String(session.task ?? "").trim();
+  if (taskLabel && !isPlaceholderClientLabel(taskLabel)) {
+    return taskLabel;
+  }
+
+  const storedClientLabel = String(session.dbClientName ?? "").trim();
+  if (storedClientLabel && !isPlaceholderClientLabel(storedClientLabel)) {
+    return storedClientLabel;
   }
 
   const project = referenceCatalog.projects.find(
     (item) => normalizeText(item.project_name) === normalizeText(session.project ?? ""),
   );
-  return project?.client_name || session.project || "Sans client";
+  const projectClientLabel = String(project?.client_name ?? "").trim();
+  if (projectClientLabel && !isPlaceholderClientLabel(projectClientLabel)) {
+    return projectClientLabel;
+  }
+
+  return "";
+}
+
+function getAgendaEventSecondaryLabel(session) {
+  const subjectLabel = String(session.project ?? "").trim();
+  if (subjectLabel) {
+    return subjectLabel;
+  }
+
+  const clientLabel = getSessionClientLabel(session);
+  if (clientLabel) {
+    return clientLabel;
+  }
+
+  const categoryLabel = String(session.categories?.[0] ?? "").trim();
+  if (categoryLabel) {
+    return categoryLabel;
+  }
+
+  return "";
 }
 
 function createCell(value) {
@@ -7523,6 +9615,11 @@ function formatTimeLabel(date) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatTimeOnly(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : formatTimeLabel(date);
 }
 
 function getStartOfWeek(dateValue) {

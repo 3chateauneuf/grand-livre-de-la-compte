@@ -14,7 +14,7 @@
       rel="stylesheet"
     />
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="icon.webp" type="image/webp" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
@@ -124,11 +124,11 @@
               <section class="capture-quick-column focus-rail">
                 <section class="memory-strip day-themes-panel quick-strip">
                   <div class="section-minihead section-minihead-compact">
-                    <h3>Themes du jour</h3>
+                    <h3>Thèmes du jour</h3>
                   </div>
                   <div id="day-themes-list" class="chip-row"></div>
                   <div class="day-inline-form">
-                    <input id="day-theme-input" class="select-input" type="text" placeholder="Ajouter un theme" />
+                    <input id="day-theme-input" class="select-input" type="text" placeholder="Ajouter un thème" />
                     <button id="add-day-theme-button" type="button" class="btn btn-secondary">Ajouter</button>
                   </div>
                 </section>
@@ -145,7 +145,7 @@
                     </div>
                     <div id="reprise-done-zone" class="reprise-dropzone reprise-dropzone--done" data-action-kind="done">
                       <span class="reprise-dropzone-icon" aria-hidden="true">✓</span>
-                      <span>Traite</span>
+                      <span>Traité</span>
                     </div>
                   </div>
                 </section>
@@ -153,18 +153,22 @@
                 <section class="timer-panel">
                   <div class="timer-head">
                     <p class="timer-label">Session active</p>
-                    <p id="active-task-label" class="active-task-label">Pret a lancer une nouvelle session.</p>
+                    <p id="active-task-label" class="active-task-label">Prêt à lancer une nouvelle session.</p>
                   </div>
                   <p id="timer-display" class="timer-display">00:00:00</p>
                   <div class="start-inline">
                     <button id="active-start-display" type="button" class="start-display-button" disabled>
-                      Le depart se regle si besoin
+                      Le départ se règle si besoin
                     </button>
                   </div>
                   <div class="button-row timer-actions">
-                    <button id="toggle-button" type="submit" class="btn btn-primary">Demarrer</button>
+                    <button id="toggle-button" type="button" class="btn btn-primary">Démarrer</button>
                     <button id="pause-button" type="button" class="btn btn-secondary" hidden>Mettre en pause</button>
                     <button id="open-manual-button" type="button" class="btn btn-secondary">Saisie manuelle</button>
+                  </div>
+                  <p id="active-session-status-copy" class="timer-status-copy" hidden></p>
+                  <div id="active-session-status-actions" class="button-row timer-status-actions" hidden>
+                    <button id="retry-pending-stop-button" type="button" class="btn btn-secondary">Réessayer la synchronisation</button>
                   </div>
                 </section>
               </section>
@@ -181,7 +185,7 @@
                   <label class="field field-wide">
                     <div class="field-head">
                       <span>Sujet</span>
-                      <button id="manage-project-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                      <button id="manage-project-button" type="button" class="field-manage-button" hidden>Gérer</button>
                     </div>
                     <input
                       id="project-input"
@@ -198,7 +202,7 @@
                   <label class="field">
                     <div class="field-head">
                       <span>Client</span>
-                      <button id="manage-client-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                      <button id="manage-client-button" type="button" class="field-manage-button" hidden>Gérer</button>
                     </div>
                     <input
                       id="task-input"
@@ -209,15 +213,15 @@
 
                   <label class="field">
                     <div class="field-head">
-                      <span>Categorie</span>
-                      <button id="manage-category-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                      <span>Catégorie</span>
+                      <button id="manage-category-button" type="button" class="field-manage-button" hidden>Gérer</button>
                     </div>
                     <div class="token-field">
                       <div class="token-list" id="categories-list"></div>
                       <input
                         id="categories-input"
                         type="text"
-                        placeholder="Choisir une categorie"
+                        placeholder="Choisir une catégorie"
                         list="category-suggestions"
                       />
                     </div>
@@ -227,14 +231,14 @@
                   <label class="field">
                     <div class="field-head">
                       <span>Tags</span>
-                      <button id="manage-tags-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                      <button id="manage-tags-button" type="button" class="field-manage-button" hidden>Gérer</button>
                     </div>
-                    <div class="token-field">
+                    <div class="token-field token-field--tags">
                       <div class="token-list" id="tags-list"></div>
                       <input
                         id="tags-input"
                         type="text"
-                        placeholder="Atelier, revue, admin..."
+                        placeholder="Atelier, revue, suivi client..."
                         list="tag-suggestions"
                       />
                     </div>
@@ -244,7 +248,7 @@
                   <label class="field">
                     <div class="field-head">
                       <span>Lien d'interet</span>
-                      <button id="manage-link-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                      <button id="manage-link-button" type="button" class="field-manage-button" hidden>Gérer</button>
                     </div>
                     <input
                       id="notion-input"
@@ -254,20 +258,19 @@
                   </label>
 
                   <label class="field field-wide">
-                    <span>Note rapide</span>
-                    <input
+                    <span>Notes</span>
+                    <textarea
                       id="notes-input"
                       class="note-textarea"
-                      type="text"
-                      placeholder="Contexte, precision ou correction a retenir"
-                    />
+                      placeholder="Contexte, décision, suite à donner..."
+                    ></textarea>
                   </label>
 
                   <div class="field field-full objective-shell">
                     <details id="objective-disclosure" class="objective-disclosure">
                       <summary class="objective-summary">
                         <div class="objective-summary-copy">
-                          <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
+                          <span class="objective-summary-title">Associer à un objectif 2026 (optionnel)</span>
                           <span id="objective-summary-text" class="objective-summary-text"></span>
                         </div>
                       </summary>
@@ -276,8 +279,8 @@
                         <div class="objective-grid">
                           <label class="field objective-subfield">
                             <div class="field-head">
-                              <span>Pole</span>
-                              <button id="manage-pole-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                              <span>Pôle</span>
+                              <button id="manage-pole-button" type="button" class="field-manage-button" hidden>Gérer</button>
                             </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-pole-selected"></div>
@@ -292,7 +295,7 @@
                           <label class="field objective-subfield">
                             <div class="field-head">
                               <span>OKR</span>
-                              <button id="manage-okr-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                              <button id="manage-okr-button" type="button" class="field-manage-button" hidden>Gérer</button>
                             </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-okr-selected"></div>
@@ -307,14 +310,14 @@
                           <label class="field objective-subfield objective-subfield-wide">
                             <div class="field-head">
                               <span>KR</span>
-                              <button id="manage-kr-button" type="button" class="field-manage-button" hidden>Gerer</button>
+                              <button id="manage-kr-button" type="button" class="field-manage-button" hidden>Gérer</button>
                             </div>
                             <div class="single-select-field">
                               <div class="single-select-token" id="objective-kr-selected"></div>
                               <input
                                 id="objective-kr-input"
                                 type="text"
-                                placeholder="Choisir un resultat cle si besoin"
+                                placeholder="Choisir un résultat clé si besoin"
                               />
                             </div>
                           </label>
@@ -334,21 +337,21 @@
               <p class="eyebrow">Lecture personnelle</p>
               <h2>Ma semaine</h2>
             </div>
-            <p class="panel-copy">Lecture immediate de la charge et de la repartition.</p>
+            <p class="panel-copy">Lecture immédiate du temps réel et de sa répartition.</p>
           </div>
           <div id="personal-stats-switch" class="view-switch">
             <button type="button" class="period-btn" data-stats-mode="objectives">Objectifs</button>
-            <button type="button" class="period-btn active" data-stats-mode="categories">Categories</button>
+            <button type="button" class="period-btn active" data-stats-mode="categories">Catégories</button>
           </div>
 
           <div class="cadre-summary">
             <article class="summary-card">
-              <p>Aujourd'hui</p>
+              <p>Aujourd'hui réel</p>
               <strong id="today-total">0 h 00</strong>
-              <span id="today-panel-copy">Temps saisi pour le cargonaute en cours.</span>
+              <span id="today-panel-copy">Temps réel saisi pour le cargonaute en cours.</span>
             </article>
             <article class="summary-card">
-              <p>Cette semaine</p>
+              <p>Cette semaine réelle</p>
               <strong id="week-total">0 h 00</strong>
               <span>Vue du lundi au dimanche.</span>
             </article>
@@ -362,14 +365,14 @@
           <section class="cadre-stack">
             <article class="inner-card">
               <div class="section-minihead">
-                <h3 id="personal-stats-title">Categories en cours</h3>
-                <p id="personal-stats-copy">Lecture compacte de la semaine, par objectifs ou categories.</p>
+                <h3 id="personal-stats-title">Catégories en cours</h3>
+                <p id="personal-stats-copy">Lecture compacte du temps réel, par objectifs ou catégories.</p>
               </div>
               <div class="personal-distribution-shell">
                 <div id="personal-distribution-donut" class="personal-distribution-donut" aria-hidden="true">
                   <div class="personal-distribution-donut-inner">
                     <strong id="personal-distribution-total">0%</strong>
-                    <span id="personal-distribution-subcopy">repartition</span>
+                    <span id="personal-distribution-subcopy">répartition</span>
                   </div>
                 </div>
                 <div id="personal-distribution-legend" class="personal-distribution-legend"></div>
@@ -389,12 +392,13 @@
           </div>
           <div class="agenda-toolbar">
             <div class="agenda-week-nav">
-              <button id="agenda-prev-week" type="button" class="period-btn">Semaine precedente</button>
+              <button id="agenda-prev-week" type="button" class="period-btn">Semaine précédente</button>
               <button id="agenda-current-week" type="button" class="period-btn">Cette semaine</button>
               <button id="agenda-next-week" type="button" class="period-btn">Semaine suivante</button>
             </div>
             <p id="agenda-week-label" class="agenda-week-label"></p>
           </div>
+          <div id="planned-summary" class="planned-summary" hidden></div>
           <div id="agenda-board" class="agenda-board agenda-board-wide"></div>
         </section>
         </section>
@@ -406,33 +410,37 @@
             <p class="eyebrow">Lecture d'analyse</p>
             <h2 id="analysis-toolbar-title">Pilotage manager</h2>
           </div>
-          <p class="panel-copy">Une meme plage de lecture pour piloter l'equipe ou lire les ressources globales.</p>
         </div>
 
         <div class="manager-toolbar">
-          <div class="toolbar-group">
-            <span class="toolbar-group-label">Periode</span>
-            <div id="period-switch" class="period-switch">
-              <button type="button" class="period-btn active" data-period="week">Semaine</button>
-              <button type="button" class="period-btn" data-period="month">Mois</button>
-              <button type="button" class="period-btn" data-period="year">Annee</button>
+          <div id="analysis-collaborator-filter-wrap" class="toolbar-primary-focus">
+            <span class="toolbar-group-label">Je m'informe sur</span>
+            <select id="manager-collaborator-filter" class="select-input">
+              <option value="all">Toute l'équipe</option>
+            </select>
+          </div>
+          <div class="toolbar-cluster toolbar-cluster--controls">
+            <div class="toolbar-group toolbar-group--period">
+              <span class="toolbar-group-label">Période</span>
+              <div id="period-switch" class="period-switch">
+                <button type="button" class="period-btn active" data-period="week">Semaine</button>
+                <button type="button" class="period-btn" data-period="month">Mois</button>
+                <button type="button" class="period-btn" data-period="year">Année</button>
+              </div>
+            </div>
+            <div class="toolbar-group toolbar-group--reading">
+              <span class="toolbar-group-label">Lecture</span>
+              <div id="analysis-stats-switch" class="view-switch">
+                <button type="button" class="period-btn" data-stats-mode="objectives">Objectifs</button>
+                <button type="button" class="period-btn active" data-stats-mode="categories">Catégories</button>
+              </div>
             </div>
           </div>
-          <div class="toolbar-group">
-            <span class="toolbar-group-label">Lecture</span>
-            <div id="analysis-stats-switch" class="view-switch">
-              <button type="button" class="period-btn" data-stats-mode="objectives">Objectifs</button>
-              <button type="button" class="period-btn active" data-stats-mode="categories">Categories</button>
+          <div class="toolbar-cluster toolbar-cluster--utility">
+            <div class="toolbar-meta toolbar-meta--manager">
+              <input id="report-anchor" class="date-input" type="date" />
+              <button id="export-csv-button" type="button" class="btn btn-secondary">Exporter CSV</button>
             </div>
-          </div>
-          <div class="toolbar-meta">
-            <input id="report-anchor" class="date-input" type="date" />
-            <div id="analysis-collaborator-filter-wrap" class="toolbar-filter">
-              <select id="manager-collaborator-filter" class="select-input">
-                <option value="all">Toute l'equipe</option>
-              </select>
-            </div>
-            <button id="export-csv-button" type="button" class="btn btn-secondary">Exporter CSV</button>
           </div>
         </div>
       </section>
@@ -444,14 +452,14 @@
             <p class="eyebrow">Vue manager</p>
             <h2>Pilotage equipe</h2>
           </div>
-          <p class="panel-copy">Charge, repartition et ecarts de lecture en un seul endroit.</p>
+          <p class="panel-copy">Charge, répartition et écarts de lecture en un seul endroit.</p>
         </div>
 
         <div class="manager-kpis">
           <article class="summary-card">
             <p>Temps suivi</p>
             <strong id="report-total">0 h 00</strong>
-            <span id="report-range">Aucune plage selectionnee</span>
+            <span id="report-range">Aucune plage sélectionnée</span>
           </article>
           <article class="summary-card">
             <p>Projet dominant</p>
@@ -473,8 +481,8 @@
         <div class="manager-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3 id="manager-distribution-title">Repartition categories</h3>
-              <p id="manager-distribution-copy">Poids relatif des categories sur la periode.</p>
+              <h3 id="manager-distribution-title">Répartition catégories</h3>
+              <p id="manager-distribution-copy">Poids relatif des catégories sur la période.</p>
             </div>
             <div id="manager-distribution-bar" class="distribution-bar"></div>
             <div id="manager-distribution-legend" class="distribution-legend"></div>
@@ -586,7 +594,7 @@
             <article class="summary-card">
               <p>Temps total</p>
               <strong id="resource-total">0 h 00</strong>
-              <span id="resource-range">Aucune plage selectionnee</span>
+              <span id="resource-range">Aucune plage sélectionnée</span>
             </article>
             <article class="summary-card">
               <p>Projet principal</p>
@@ -608,8 +616,8 @@
         <div class="manager-grid">
           <article class="inner-card">
             <div class="section-minihead">
-              <h3 id="resource-distribution-title">Repartition globale categories</h3>
-              <p id="resource-distribution-copy">Lecture transversale des categories sur la plage choisie.</p>
+              <h3 id="resource-distribution-title">Répartition globale catégories</h3>
+              <p id="resource-distribution-copy">Lecture transversale des catégories sur la plage choisie.</p>
             </div>
             <div id="resource-distribution-bar" class="distribution-bar"></div>
             <div id="resource-distribution-legend" class="distribution-legend"></div>
@@ -709,11 +717,13 @@
 
       <section class="app-view" id="journal" data-view-panel="journal">
       <section class="journal-grid">
-        <section class="panel">
+        <section class="panel journal-panel-main">
           <div class="panel-head panel-head-compact">
             <div>
-              <h2>Entrees recentes</h2>
+              <p class="eyebrow">Journal</p>
+              <h2>Entrées récentes</h2>
             </div>
+            <p class="panel-copy">Lecture, filtre et correction rapide du temps réel saisi.</p>
           </div>
           <div class="journal-filters">
             <div class="journal-filter-row journal-filter-row-top">
@@ -728,25 +738,30 @@
             </div>
             <div class="journal-filter-row journal-filter-row-bottom">
               <label class="field">
-                <span>Categorie</span>
+                <span>Catégorie</span>
                 <input id="journal-filter-category" class="select-input" type="text" list="category-suggestions" placeholder="Toutes" />
+              </label>
+              <label class="field">
+                <span>Tags</span>
+                <input id="journal-filter-tags" class="select-input" type="text" list="tag-suggestions" placeholder="#bio, #sav, #slack" />
               </label>
               <label class="field">
                 <span>Sujet</span>
                 <input id="journal-filter-subject" class="select-input" type="text" placeholder="Filtrer un sujet" />
               </label>
               <div class="journal-filter-actions">
-                <button id="journal-filter-reset" type="button" class="btn btn-secondary" aria-label="Reinitialiser les filtres" title="Reinitialiser les filtres">↺</button>
+                <button id="journal-filter-reset" type="button" class="btn btn-secondary" aria-label="Réinitialiser les filtres" title="Réinitialiser les filtres">↺</button>
               </div>
             </div>
           </div>
           <div id="session-list" class="session-list"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel journal-panel-side">
           <div class="panel-head panel-head-compact">
             <div>
-              <h2>Contextes memorises</h2>
+              <p class="eyebrow">Mémoire</p>
+              <h2>Contextes mémorisés</h2>
             </div>
           </div>
           <div id="project-memory-list" class="memory-list"></div>
@@ -804,13 +819,16 @@
               </label>
 
               <label class="field">
-                <span>Categorie</span>
-                <input id="manual-categories-input" type="text" list="category-suggestions" placeholder="Choisir une categorie" />
+                <span>Catégorie</span>
+                <input id="manual-categories-input" type="text" list="category-suggestions" placeholder="Choisir une catégorie" />
               </label>
 
               <label class="field">
                 <span>Tags</span>
-                <input id="manual-tags-input" type="text" placeholder="Atelier, revue" />
+                <div class="token-field token-field--tags">
+                  <div class="token-list" id="manual-tags-list"></div>
+                  <input id="manual-tags-input" type="text" placeholder="Atelier, revue, suivi client" />
+                </div>
               </label>
 
               <label class="field">
@@ -819,15 +837,15 @@
               </label>
 
               <label class="field field-full">
-                <span>Note</span>
-                <input id="manual-notes-input" type="text" placeholder="Precision ou correction" />
+                <span>Notes</span>
+                <textarea id="manual-notes-input" class="note-textarea" placeholder="Contexte, précision, correction, décision..."></textarea>
               </label>
 
               <div class="field field-full objective-shell">
                 <details id="manual-objective-disclosure" class="objective-disclosure">
                   <summary class="objective-summary">
                     <div class="objective-summary-copy">
-                      <span class="objective-summary-title">Associer a un objectif 2026 (optionnel)</span>
+                      <span class="objective-summary-title">Associer à un objectif 2026 (optionnel)</span>
                       <span id="manual-objective-summary-text" class="objective-summary-text"></span>
                     </div>
                   </summary>
@@ -835,7 +853,7 @@
                   <div class="objective-block">
                     <div class="objective-grid">
                       <label class="field objective-subfield">
-                        <span>Pole</span>
+                        <span>Pôle</span>
                         <div class="single-select-field">
                           <div class="single-select-token" id="manual-objective-pole-selected"></div>
                           <input id="manual-objective-pole-input" type="text" placeholder="Pole principal" />
@@ -932,12 +950,60 @@
               <option value="8"></option>
             </datalist>
           </section>
+          <p id="manual-dialog-status" class="dialog-status" hidden></p>
         </div>
 
         <div class="dialog-actions">
+          <button id="delete-manual-button" type="button" class="btn btn-ghost-danger dialog-action-danger" hidden>Supprimer</button>
           <button id="cancel-manual-button" type="button" class="btn btn-secondary">Annuler</button>
-          <button id="delete-manual-button" type="button" class="btn btn-ghost-danger" hidden>Supprimer</button>
           <button id="save-manual-button" type="button" class="btn btn-primary">Enregistrer</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="planned-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card dialog-card--planned">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">Semaine prevue</p>
+            <h2>Qualifier l'evenement</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+        <div class="dialog-body">
+          <section class="dialog-section">
+            <p id="planned-dialog-subtitle" class="muted-copy"></p>
+            <div id="planned-dialog-suggestion" class="planned-dialog-suggestion" hidden>
+              <div class="planned-dialog-suggestion-copy">
+                <span class="planned-dialog-suggestion-label">Suggestion</span>
+                <strong id="planned-dialog-suggestion-category"></strong>
+                <p id="planned-dialog-suggestion-detail"></p>
+              </div>
+              <button id="planned-apply-suggestion-button" type="button" class="btn btn-secondary btn-compact">Appliquer</button>
+            </div>
+            <div class="dialog-grid">
+              <label class="field field-full">
+                <span>Sujet</span>
+                <input id="planned-subject-input" type="text" placeholder="Titre de l'evenement" autocomplete="off" />
+              </label>
+              <label class="field field-full">
+                <span>Catégorie</span>
+                <input id="planned-category-input" type="text" placeholder="Certification, management..." autocomplete="off" />
+              </label>
+              <label class="field field-full">
+                <span>Tags</span>
+                <div class="token-field token-field--tags">
+                  <div class="token-list" id="planned-tags-list"></div>
+                  <input id="planned-tags-input" type="text" placeholder="Bio, revue, préparation" autocomplete="off" />
+                </div>
+              </label>
+            </div>
+          </section>
+        </div>
+        <div class="dialog-actions">
+          <button id="planned-ignore-button" type="button" class="btn btn-ghost-danger dialog-action-danger">Ignorer</button>
+          <button id="planned-cancel-button" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="planned-save-button" type="button" class="btn btn-primary">Valider</button>
         </div>
       </form>
     </dialog>
@@ -963,6 +1029,30 @@
           <button id="cancel-conflict-button" type="button" class="btn btn-secondary">Annuler</button>
           <button id="edit-conflict-button" type="button" class="btn btn-secondary">Ouvrir l'existante</button>
           <button id="adjust-conflict-button" type="button" class="btn btn-primary">Garder la partie libre</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="decision-dialog" class="dialog-shell">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow" id="decision-dialog-eyebrow">Confirmation</p>
+            <h2 id="decision-dialog-title">Verifier cette action</h2>
+          </div>
+          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+        </div>
+
+        <div class="dialog-body">
+          <div class="conflict-copy">
+            <p id="decision-dialog-copy"></p>
+            <p id="decision-dialog-detail" class="muted-copy"></p>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <button id="decision-dialog-cancel" type="button" class="btn btn-secondary">Annuler</button>
+          <button id="decision-dialog-confirm" type="button" class="btn btn-primary">Confirmer</button>
         </div>
       </form>
     </dialog>
