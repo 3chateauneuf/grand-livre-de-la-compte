@@ -10,6 +10,8 @@ const LOCAL_RESCUE_ACCESS_KEY = "mordologie-local-rescue-access-v1";
 const PENDING_STOP_STATE_KEY = "mordologie-pending-stop-v1";
 const RECENTLY_STOPPED_SESSIONS_KEY = "mordologie-recently-stopped-sessions-v1";
 const RECENTLY_STOPPED_SESSION_TTL_MS = 15 * 60 * 1000;
+const MAX_REASONABLE_ACTIVE_SESSION_MS = 18 * 60 * 60 * 1000;
+const MAX_REASONABLE_PERSISTED_SESSION_MS = 18 * 60 * 60 * 1000;
 const LEGACY_STORAGE_KEYS = {
   [STORAGE_KEY]: "cadence-equipe-sessions-v3",
   [ACTIVE_SESSION_KEY]: "cadence-equipe-active-session-v3",
@@ -27,7 +29,7 @@ const CATEGORY_REWRITE_RULES = [
   {
     matches: ["certification bio", "certificacion bio"],
     category: "Certification",
-    impliedTags: ["Bio"],
+    impliedTags : ["Bio"],
   },
 ];
 const SEEDED_PLANNED_CALENDAR_SNAPSHOTS = [
@@ -466,9 +468,9 @@ const OBJECTIVE_2026_CATALOG = [
     pole: "Cercle de management",
     okrCode: "O3",
     okrLabel:
-      "Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+      "Nous investissons dans le matériel et l’équipement nécessaires à des conditions de travail optimales",
     krs: [
-      "RC 3.1 : 100% des salarie.es en periode d'essai recoivent un kit de base complet",
+      "RC 3.1 : 100% des salarié·es en période d’essai reçoivent un kit de base complet",
       "RC 3.2 : 100% du materiel a duree de vie definie est renouvele dans les delais",
       "RC 3.3 : 100% des cadenas sont recuperes lors des departs",
       "RC 3.4 : 100% des salarie.es eligibles recoivent la participation telephone",
@@ -514,7 +516,7 @@ const OBJECTIVE_2026_CATALOG = [
     okrLabel:
       "On utilise les projets annexes pour financer Cyke tout en ameliorant le socle de fonctionnalites",
     krs: [
-      "R1 : L'equipe ne ressent pas de surcharge ni de ralentissement lies aux projets annexes",
+      "R1 : L'équipe ne ressent pas de surcharge ni de ralentissement liés aux projets annexes",
       "R2 : Chaque amelioration d'un projet annexe correspond a la roadmap ou la vision Cyke",
       "R3 : 100% des fonctionnalites liees a un projet annexe sont utilisees par d'autres utilisateurs",
     ],
@@ -535,7 +537,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Claire",
     project: "Hub Paris - Exploitation",
     task: "Vague du matin B2B",
-    categories: ["Preparation de commandes"],
+    categories: ["Préparation de commandes"],
     tags: ["hub", "matin"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -560,7 +562,7 @@ const LOCAL_DEMO_SESSIONS = [
     objectivePole: "Cyclologistique",
     objectiveOkr: "O3 · On a renforce l'excellence operationnelle",
     objectiveKr: "Le taux de livraisons en retard de plus de 30 minutes est passe de 1,24% a 1,00%",
-    notes: "Beaucoup de retours sur creneaux non tenus.",
+    notes: "Beaucoup de retours sur des créneaux non tenus.",
     start: "2026-04-07T14:10:00+02:00",
     end: "2026-04-07T15:20:00+02:00",
     durationMs: 4200000,
@@ -573,7 +575,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Eduardo",
     project: "Etat de stock Hub Bercy",
     task: "Controle ecarts de stock",
-    categories: ["Etat des stocks"],
+    categories: ["État des stocks"],
     tags: ["stock", "hub"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -592,7 +594,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Martin Salles",
     project: "Mordologie",
     task: "Ajustements saisie rapide",
-    categories: ["Developpement outil interne"],
+    categories: ["Développement outil interne"],
     tags: ["produit", "ux"],
     notionRef: "",
     objectivePole: "Cyke",
@@ -668,7 +670,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Claire",
     project: "Tournees Bio Monceau",
     task: "Dispatch tournees et mise a quai",
-    categories: ["Expeditions"],
+    categories: ["Expéditions"],
     tags: ["dispatch", "tournees"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -687,11 +689,11 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Eduardo",
     project: "Hub Paris - Exploitation",
     task: "Point securite et mise a jour standard",
-    categories: ["QHSE / amelioration continue"],
+    categories: ["QHSE / amélioration continue"],
     tags: ["qhse", "standard"],
     notionRef: "",
     objectivePole: "Cercle de management",
-    objectiveOkr: "O3 · Nous investissons dans le materiel et l'equipement necessaires a des conditions de travail optimales",
+    objectiveOkr: "O3 · Nous investissons dans le matériel et l’équipement nécessaires à des conditions de travail optimales",
     objectiveKr: "100% du materiel a duree de vie definie est renouvele dans les delais",
     notes: "",
     start: "2026-04-09T08:15:00+02:00",
@@ -705,8 +707,8 @@ const LOCAL_DEMO_SESSIONS = [
     id: "LOC-010",
     collaborator: "Martin Salles",
     project: "Mordologie",
-    task: "Lecture manager et capacite",
-    categories: ["Developpement outil interne"],
+    task: "Lecture manager et capacité",
+    categories: ["Développement outil interne"],
     tags: ["manager", "reporting"],
     notionRef: "",
     objectivePole: "Cyke",
@@ -725,7 +727,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Claire",
     project: "SAV Retards & Litiges",
     task: "Analyse causes racines",
-    categories: ["Incident client / qualite"],
+    categories: ["Incident client / qualité"],
     tags: ["sav", "qualite"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -782,7 +784,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Eduardo",
     project: "Etat de stock Hub Bercy",
     task: "Inventaire tournant",
-    categories: ["Etat des stocks"],
+    categories: ["État des stocks"],
     tags: ["stock", "inventaire"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -801,7 +803,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Claire",
     project: "Hub Paris - Exploitation",
     task: "Vague de reappro et cross-dock",
-    categories: ["Preparation de commandes"],
+    categories: ["Préparation de commandes"],
     tags: ["reappro", "cross-dock"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -820,7 +822,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Martin Salles",
     project: "Mordologie",
     task: "Corrections suggestions intelligentes",
-    categories: ["Developpement outil interne"],
+    categories: ["Développement outil interne"],
     tags: ["suggestions", "priorisation"],
     notionRef: "",
     objectivePole: "Cyke",
@@ -858,7 +860,7 @@ const LOCAL_DEMO_SESSIONS = [
     collaborator: "Eduardo",
     project: "SAV Retards & Litiges",
     task: "Plan action incidents recurrents",
-    categories: ["QHSE / amelioration continue"],
+    categories: ["QHSE / amélioration continue"],
     tags: ["sav", "plan action"],
     notionRef: "",
     objectivePole: "Cyclologistique",
@@ -1549,9 +1551,9 @@ sessionList.addEventListener("click", (event) => {
     void (async () => {
       const confirmed = await requestDecision({
         eyebrow: "Suppression",
-        title: "Supprimer cette entree",
-        copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entree"}" ?`,
-        detail: "Cette action efface l'entree du journal et de l'agenda.",
+        title: "Supprimer cette entrée",
+        copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entrée"}" ?`,
+        detail: "Cette action efface l'entrée du journal et de l'agenda.",
         confirmLabel: "Supprimer",
         tone: "danger",
       });
@@ -1714,9 +1716,9 @@ deleteManualButton?.addEventListener("click", () => {
   void (async () => {
     const confirmed = await requestDecision({
       eyebrow: "Suppression",
-      title: "Supprimer cette entree",
-      copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entree"}" ?`,
-      detail: "Cette action efface l'entree du journal et de l'agenda.",
+      title: "Supprimer cette entrée",
+      copy: `Voulez-vous vraiment supprimer "${session.project || session.task || "cette entrée"}" ?`,
+      detail: "Cette action efface l'entrée du journal et de l'agenda.",
       confirmLabel: "Supprimer",
       tone: "danger",
     });
@@ -1899,7 +1901,7 @@ function initializeAutocomplete() {
       input: categoriesInput,
       getOptions: () => getCategorySuggestionLabels(),
       allowCreate: () => canCreateSharedReferenceCatalog(),
-      createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle catégorie`,
       createValue: (value) =>
         createCategoryReference(value, {
           userName: collaboratorInput.value.trim(),
@@ -1996,7 +1998,7 @@ function initializeAutocomplete() {
       input: manualCategoriesInput,
       getOptions: () => getCategorySuggestionLabels(),
       allowCreate: () => canCreateSharedReferenceCatalog(),
-      createLabel: (value) => `Ajouter "${value}" comme nouvelle categorie`,
+      createLabel: (value) => `Ajouter "${value}" comme nouvelle catégorie`,
       createValue: (value) =>
         createCategoryReference(value, {
           userName: manualCollaboratorInput.value.trim(),
@@ -3088,6 +3090,7 @@ function loadSessions() {
     const parsed = raw ? JSON.parse(raw) : [];
     const normalized = parsed
       .map(normalizeSession)
+      .filter((session) => !isCorruptedPersistedSession(session))
       .filter((session) => DEMO_MODE_ENABLED || !isDemoSession(session));
     const demoSessions = getDemoSessions();
     if (!normalized.length) {
@@ -3243,6 +3246,27 @@ function getVisiblePendingStoppedSessionState() {
     : null;
 }
 
+function matchesPendingStoppedSession(activeLike) {
+  const pendingSession = pendingStoppedSessionState?.session;
+  if (!pendingSession || !activeLike) {
+    return false;
+  }
+  if (normalizeText(activeLike.collaborator ?? "") !== normalizeText(pendingSession.collaborator ?? "")) {
+    return false;
+  }
+  const activeStartKey = getSessionStartIdentity(activeLike.start);
+  const pendingStartKey = getSessionStartIdentity(pendingSession.start);
+  if (activeStartKey && pendingStartKey && activeStartKey === pendingStartKey) {
+    return true;
+  }
+  const activeStartMs = new Date(activeLike.start).getTime();
+  const pendingStartMs = new Date(pendingSession.start).getTime();
+  if (Number.isNaN(activeStartMs) || Number.isNaN(pendingStartMs)) {
+    return false;
+  }
+  return Math.abs(activeStartMs - pendingStartMs) < 5 * 60 * 1000;
+}
+
 function setStatusNodeMessage(node, message = "", tone = "error") {
   if (!node) {
     return;
@@ -3299,7 +3323,7 @@ function updateRemoteSyncStatus(nextHealth, { silent = false } = {}) {
 
   if (allOk) {
     if (previousSignature && previousSignature !== signature && !shouldRespectCurrentError) {
-      setAuthStatusMessage("Synchronisation retablie pour historique, session active et reprises.", "success", { persistMs: 2600 });
+      setAuthStatusMessage("Synchronisation rétablie pour l’historique, la session active et les reprises.", "success", { persistMs: 2600 });
     }
     return;
   }
@@ -3342,7 +3366,7 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
 
   if (synced) {
     clearPendingStoppedSessionState();
-    setAuthStatusMessage("Session arretee et synchronisee.", "success", { persistMs: 2600 });
+    setAuthStatusMessage("Session arrêtée et synchronisée.", "success", { persistMs: 2600 });
     render();
     return true;
   }
@@ -3350,9 +3374,9 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
   setPendingStoppedSessionState({
     ...pendingStoppedSessionState,
     state: "pending",
-    errorMessage: "Session arretee localement. Reessayez la synchronisation.",
+    errorMessage: "Session arrêtée localement. Réessayez la synchronisation.",
   });
-  setAuthStatusMessage("Session arretee localement. Synchronisation a reprendre.", "warning", { persistMs: 3600 });
+  setAuthStatusMessage("Session arrêtée localement. Synchronisation à reprendre.", "warning", { persistMs: 3600 });
   renderActiveSession();
   return false;
 }
@@ -3414,6 +3438,33 @@ function normalizeSession(session) {
     isServerBacked: Boolean(session.isServerBacked),
     isServerActive: Boolean(session.isServerActive),
   };
+}
+
+function isCorruptedPersistedSession(session) {
+  if (!session) {
+    return true;
+  }
+  const startMs = new Date(session.start).getTime();
+  if (Number.isNaN(startMs)) {
+    return true;
+  }
+
+  const declaredDurationMs = Number(session.durationMs) || 0;
+  if (declaredDurationMs > MAX_REASONABLE_PERSISTED_SESSION_MS) {
+    return true;
+  }
+
+  if (!session.end) {
+    return false;
+  }
+
+  const endMs = new Date(session.end).getTime();
+  if (Number.isNaN(endMs) || endMs <= startMs) {
+    return true;
+  }
+
+  const boundedDurationMs = endMs - startMs;
+  return boundedDurationMs > MAX_REASONABLE_PERSISTED_SESSION_MS;
 }
 
 function parseCsvTokens(rawValue) {
@@ -3517,6 +3568,9 @@ function hydrateRemoteState(historyRows, activeRows) {
   }
 
   for (const session of remoteSessions) {
+    if (isCorruptedPersistedSession(session)) {
+      continue;
+    }
     mergedSessions.set(normalizeText(session.id), session);
   }
 
@@ -3544,7 +3598,7 @@ function hydrateRemoteState(historyRows, activeRows) {
       if (userName && startedAtKey && closedRemoteSessionKeys.has(`${userName}::${startedAtKey}`)) {
         return false;
       }
-      if (isRecentlyStoppedRemoteActiveRow(row)) {
+      if (isRecentlyStoppedRemoteActiveRow(row) || matchesPendingStoppedSession(row)) {
         return false;
       }
       return true;
@@ -3770,7 +3824,7 @@ function hydrateFormFromActiveSession() {
   applyProjectMemoryFromInput();
 }
 
-function resetComposerForm({ collaborator = "", hint = "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles." } = {}) {
+function resetComposerForm({ collaborator = "", hint = "Commencez à taper : un sujet déjà connu recharge automatiquement ses informations utiles." } = {}) {
   form.reset();
   collaboratorInput.value = collaborator;
   manualCollaboratorInput.value = collaborator;
@@ -3819,7 +3873,7 @@ async function validateAndNormalizeMainForm() {
     return null;
   }
   if (!sessionDraft.project) {
-    showFieldResolutionError(projectInput, "Choisissez ou saisissez un projet avant de demarrer.");
+    showFieldResolutionError(projectInput, "Choisissez ou saisissez un projet avant de démarrer.");
     return null;
   }
 
@@ -3908,57 +3962,57 @@ function getFieldManagePayload(kind) {
   const payloads = {
     project: {
       kind,
-      title: "Gerer le projet",
+      title: "Gérer le projet",
       copy: "Vous pouvez modifier le projet courant ou le supprimer du contexte.",
       detail: projectInput.value.trim(),
       allowDelete: true,
     },
     client: {
       kind,
-      title: "Gerer le client",
-      copy: "Vous pouvez corriger le client courant ou l'effacer du contexte.",
+      title: "Gérer le client",
+      copy: "Vous pouvez corriger le client courant ou l’effacer du contexte.",
       detail: taskInput.value.trim(),
       allowDelete: true,
     },
     category: {
       kind,
-      title: "Gerer la categorie",
-      copy: "Vous pouvez modifier la categorie choisie ou la retirer.",
+      title: "Gérer la catégorie",
+      copy: "Vous pouvez modifier la catégorie choisie ou la retirer.",
       detail: currentCategories.join(", "),
       allowDelete: true,
     },
     tags: {
       kind,
-      title: "Gerer les tags",
-      copy: "Vous pouvez corriger les tags ou tous les retirer en une fois.",
+      title: "Gérer les tags",
+      copy: "Vous pouvez corriger les tags ou les retirer en une fois.",
       detail: currentTags.join(", "),
       allowDelete: true,
     },
     link: {
       kind,
-      title: "Gerer le lien d'interet",
+      title: "Gérer le lien d'intérêt",
       copy: "Vous pouvez modifier ce lien ou le supprimer du contexte.",
       detail: notionInput.value.trim(),
       allowDelete: true,
     },
     pole: {
       kind,
-      title: "Gerer le pole",
-      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
+      title: "Gérer le pôle",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d’objectifs se fait ailleurs.",
       detail: objectivePoleInput.value.trim(),
       allowDelete: false,
     },
     okr: {
       kind,
-      title: "Gerer l'OKR",
-      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
+      title: "Gérer l'OKR",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d’objectifs se fait ailleurs.",
       detail: objectiveOkrInput.value.trim(),
       allowDelete: false,
     },
     kr: {
       kind,
-      title: "Gerer le KR",
-      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d'objectifs se fait ailleurs.",
+      title: "Gérer le KR",
+      copy: "Vous pouvez corriger ce choix ici. La gestion du catalogue d’objectifs se fait ailleurs.",
       detail: objectiveKrInput.value.trim(),
       allowDelete: false,
     },
@@ -4308,7 +4362,7 @@ function applyFieldManageDeletion(kind) {
     projectInput.value = "";
     delete projectInput.dataset.lastHydratedKey;
     projectMemoryHint.textContent =
-      "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.";
+      "Commencez à taper : un sujet déjà connu recharge automatiquement ses informations utiles.";
   } else if (kind === "client") {
     taskInput.value = "";
   } else if (kind === "category") {
@@ -4361,6 +4415,13 @@ function stopActiveSession() {
     end: end.toISOString(),
     durationMs,
   };
+
+  const overlap = findOverlappingSession(finishedSession, activeSession.id);
+  if (overlap && shouldBypassStopConflict(activeSession, finishedSession, overlap)) {
+    setAuthStatusMessage("Conflit résiduel ignoré à l’arrêt. Vérifiez le journal ensuite.", "warning", { persistMs: 4200 });
+    completeStoppedSessionLocally(finishedSession, "timer");
+    return;
+  }
 
   attemptSaveSession(finishedSession, {
     excludeId: activeSession.id,
@@ -4447,14 +4508,14 @@ async function protectActiveSessionBeforeAccessChange(nextUserName = "") {
   setAuthStatusMessage("Synchronisation de la session en cours...", "neutral");
   const synced = await upsertActiveSessionToSupabase(activeSession);
   if (synced) {
-    setAuthStatusMessage("Session en cours gardee et synchronisee.", "success", { persistMs: 3200 });
+    setAuthStatusMessage("Session en cours gardée et synchronisée.", "success", { persistMs: 3200 });
     return true;
   }
 
   const confirmed = await requestDecision({
     eyebrow: "Session en cours",
     title: "Changer de profil malgre tout",
-    copy: "La session en cours n'a pas pu etre synchronisee.",
+    copy: "La session en cours n’a pas pu être synchronisée.",
     detail: "Quitter maintenant risque de masquer cette session sur cet appareil.",
     confirmLabel: "Quitter quand meme",
     tone: "danger",
@@ -4519,7 +4580,7 @@ async function applyLocalRescueAccess(rawName, { silent = false } = {}) {
     startTimerLoopIfNeeded();
   }
   setAuthStatusMessage(
-    remoteLoaded ? "Profil charge et synchronise." : "Profil charge en local. Synchronisation indisponible pour le moment.",
+    remoteLoaded ? "Profil chargé et synchronisé." : "Profil chargé en local. Synchronisation indisponible pour le moment.",
     remoteLoaded ? "success" : "warning",
     { persistMs: remoteLoaded ? 2600 : undefined },
   );
@@ -4861,7 +4922,7 @@ async function createProjectReference(rawName, defaultCategoryLabel = "") {
   const payload = {
     project_id: nextId,
     project_name: projectName,
-    client_name: "A renseigner",
+    client_name: "À renseigner",
     status: "active",
     default_activity_category_id: defaultCategory?.activity_category_id ?? null,
     default_activity_category_label: normalizeCategorySelection(defaultCategory?.activity_category_label ?? "").category || null,
@@ -5366,7 +5427,7 @@ async function removeTimeEntryFromSupabase(timeEntryId) {
   return executeSupabaseMutation({
     queryFactory: (supabase) => supabase.from("time_entries").delete().eq("time_entry_id", timeEntryId),
     errorLogLabel: "time_entries delete failed",
-    errorMessage: "Suppression serveur impossible pour cette entree.",
+    errorMessage: "Suppression serveur impossible pour cette entrée.",
   });
 }
 
@@ -5416,9 +5477,9 @@ async function logSessionChange(previousSession, nextSession, source = "manual")
     ["start", "Debut"],
     ["end", "Fin"],
     ["durationMs", "Duree"],
-    ["categories", "Categorie"],
+    ["categories", "Catégorie"],
     ["tags", "Tags"],
-    ["notionRef", "Lien d'interet"],
+    ["notionRef", "Lien d'intérêt"],
     ["objectivePole", "Pole"],
     ["objectiveOkr", "OKR"],
     ["objectiveKr", "KR"],
@@ -5485,7 +5546,7 @@ function resetFormAfterStop() {
   const lastCollaborator = collaboratorInput.value.trim();
   resetComposerForm({
     collaborator: lastCollaborator,
-    hint: "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.",
+    hint: "Commencez à taper : un sujet déjà connu recharge automatiquement ses informations utiles.",
   });
 }
 
@@ -5566,12 +5627,12 @@ function saveManualEntry() {
   const end = readDateTimeFieldValue(manualEndDateInput, manualEndTimeInput);
 
   if (!collaborator) {
-    setManualDialogStatus("Choisissez votre nom pour enregistrer cette entree.", "warning");
+    setManualDialogStatus("Choisissez votre nom pour enregistrer cette entrée.", "warning");
     showAuthRequiredMessage();
     return;
   }
   if (!project) {
-    setManualDialogStatus("Le sujet est requis pour enregistrer cette entree.", "error");
+    setManualDialogStatus("Le sujet est requis pour enregistrer cette entrée.", "error");
     manualProjectInput.focus();
     return;
   }
@@ -5809,7 +5870,7 @@ function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "Une autre session de ce cargonaute occupe deja une partie de ce creneau.";
+    "Une autre session de ce cargonaute occupe déjà une partie de ce créneau.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
@@ -5846,6 +5907,52 @@ function getAdjustedSession(newSession, existingSession) {
     end: new Date(best.end).toISOString(),
     durationMs: best.durationMs,
   };
+}
+
+function shouldBypassStopConflict(activeLike, finishedSession, overlap) {
+  if (!activeLike || !finishedSession || !overlap) {
+    return false;
+  }
+  if (normalizeText(overlap.collaborator) !== normalizeText(finishedSession.collaborator)) {
+    return false;
+  }
+
+  const sameStartIdentity = getSessionStartIdentity(activeLike.start) === getSessionStartIdentity(overlap.start);
+  if (sameStartIdentity) {
+    return true;
+  }
+
+  if (overlap.isServerBacked && overlap.dbTimeEntryId) {
+    const activeStart = new Date(activeLike.start).getTime();
+    const finishedStart = new Date(finishedSession.start).getTime();
+    const overlapStart = new Date(overlap.start).getTime();
+    const overlapEnd = new Date(overlap.end).getTime();
+    if ([activeStart, finishedStart, overlapStart, overlapEnd].some(Number.isNaN)) {
+      return false;
+    }
+    const overlapStartedLongBefore = overlapStart + 60 * 60 * 1000 <= finishedStart;
+    const noFreePart = !getAdjustedSession(finishedSession, overlap);
+    if (overlapStartedLongBefore && noFreePart) {
+      return true;
+    }
+  }
+
+  const persistedMatch = findMatchingPersistedSessionForActive(activeLike);
+  if (!persistedMatch) {
+    return false;
+  }
+
+  if (!areSessionsEffectivelySame(persistedMatch, overlap)) {
+    return false;
+  }
+
+  const persistedEnd = new Date(persistedMatch.end).getTime();
+  const activeStart = new Date(activeLike.start).getTime();
+  if ([persistedEnd, activeStart].some(Number.isNaN)) {
+    return true;
+  }
+
+  return persistedEnd >= activeStart;
 }
 
 function setDateTimeFieldValue(dateInput, timeInput, date) {
@@ -6097,7 +6204,7 @@ function renderDayThemes() {
 
   const items = getScopedDayThemes(collaborator);
   if (!items.length) {
-    dayThemesList.append(createEmptyState("Ajoutez 2 ou 3 themes pour cadrer la journee."));
+    dayThemesList.append(createEmptyState("Ajoutez 2 ou 3 thèmes pour cadrer la journée."));
     return;
   }
 
@@ -6141,23 +6248,23 @@ function renderActiveSession() {
     timerDisplay.textContent = "00:00:00";
     activeTaskLabel.textContent = pendingStop
       ? pendingStop.state === "syncing"
-        ? "Cloture en cours."
-        : "Session arretee localement."
-      : "Pret a lancer une nouvelle session.";
-    toggleButton.textContent = "Demarrer";
+        ? "Clôture en cours."
+        : "Session arrêtée localement."
+      : "Prêt à lancer une nouvelle session.";
+    toggleButton.textContent = "Démarrer";
     toggleButton.classList.remove("running");
     pauseButton.hidden = true;
     pauseButton.classList.remove("paused");
     activeStartDisplay.textContent = pendingStop
-      ? "La cloture sera synchronisee des que possible"
-      : "L'heure de depart apparaitra ici";
+      ? "La clôture sera synchronisée dès que possible"
+      : "L'heure de départ apparaîtra ici";
     activeStartDisplay.disabled = true;
 
     if (pendingStop && activeSessionStatusCopy) {
       const syncing = pendingStop.state === "syncing";
       activeSessionStatusCopy.textContent = syncing
-        ? "Synchronisation de la session arretee en cours."
-        : pendingStop.errorMessage || "Session arretee localement. Reessayez la synchronisation pour finaliser l'enregistrement.";
+        ? "Synchronisation de la session arrêtée en cours."
+        : pendingStop.errorMessage || "Session arrêtée localement. Reessayez la synchronisation pour finaliser l'enregistrement.";
       activeSessionStatusCopy.hidden = false;
       activeSessionStatusCopy.dataset.tone = syncing ? "warning" : "error";
       if (activeSessionStatusActions) {
@@ -6224,7 +6331,7 @@ function renderSuggestions() {
 
   const teamOption = document.createElement("option");
   teamOption.value = "all";
-  teamOption.textContent = "Toute l'equipe";
+  teamOption.textContent = "Toute l'équipe";
   managerCollaboratorFilter.append(teamOption);
 
   for (const collaborator of collaborators) {
@@ -6249,7 +6356,7 @@ function renderQuickProjects() {
   const memories = getOrderedProjectMemories(collaborator).slice(0, QUICK_REPRISES_LIMIT);
 
   if (!memories.length) {
-    quickProjects.append(createEmptyState("Les reprises probables apparaitront ici."));
+    quickProjects.append(createEmptyState("Les reprises probables apparaîtront ici."));
     return;
   }
 
@@ -6270,14 +6377,14 @@ function renderProjectMemoryList() {
   const collaborator = getCurrentCollaborator();
 
   if (!collaborator) {
-    projectMemoryList.append(createEmptyState("Choisissez votre nom pour afficher les contextes memorises."));
+    projectMemoryList.append(createEmptyState("Choisissez votre nom pour afficher les contextes mémorisés."));
     return;
   }
 
   const memories = getOrderedProjectMemories(collaborator).slice(0, MEMORY_CONTEXT_LIMIT);
 
   if (!memories.length) {
-    projectMemoryList.append(createEmptyState(`Les contextes memorises de ${collaborator} apparaitront ici.`));
+    projectMemoryList.append(createEmptyState(`Les contextes mémorisés de ${collaborator} apparaîtront ici.`));
     return;
   }
 
@@ -6293,7 +6400,7 @@ function renderProjectMemoryList() {
 
     const meta = document.createElement("p");
     meta.className = "muted-copy";
-    meta.textContent = `${memory.task || "Client non precise"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
+    meta.textContent = `${memory.task || "Client non précisé"} · ${memory.usesCount} reprises · ${formatDate(memory.start)}`;
 
     const tags = document.createElement("div");
     tags.className = "memory-meta";
@@ -6376,8 +6483,8 @@ function renderSessionList() {
     sessionList.append(
       createEmptyState(
         filtersActive
-          ? "Aucune entree ne correspond a ces filtres."
-          : "Le journal affichera ici les entrees enregistrees.",
+          ? "Aucune entrée ne correspond à ces filtres."
+          : "Le journal affichera ici les entrées enregistrées.",
       ),
     );
     return;
@@ -6390,8 +6497,8 @@ function renderSessionList() {
     item.title = [
       `Sujet: ${session.project || session.task || "Sans sujet"}`,
       session.task ? `Client: ${session.task}` : "",
-      session.categories?.length ? `Categorie: ${session.categories.join(", ")}` : "",
-      session.tags?.length ? `Tags: ${session.tags.join(", ")}` : "",
+      session.categories?.length ? `Catégorie : ${session.categories.join(", ")}` : "",
+      session.tags?.length ? `Tags : ${session.tags.join(", ")}` : "",
       `Date: ${formatDate(session.start)}`,
       `Horaire: ${formatTimeLabel(new Date(session.start))}${session.end ? ` - ${formatTimeLabel(new Date(session.end))}` : ""}`,
       session.notes ? `Note: ${session.notes}` : "",
@@ -6507,7 +6614,7 @@ function renderPersonalDistribution() {
   const collaborator = getCurrentCollaborator();
   const usesObjectives = statsMode === "objectives";
 
-  personalStatsTitle.textContent = usesObjectives ? "Objectifs en cours" : "Categories en cours";
+  personalStatsTitle.textContent = usesObjectives ? "Objectifs en cours" : "Catégories en cours";
   personalStatsCopy.textContent = usesObjectives
     ? "Lecture compacte des objectifs réels de la semaine."
     : "Lecture compacte des catégories réelles sur la semaine.";
@@ -6529,8 +6636,8 @@ function renderPersonalDistribution() {
     totalMs,
     usesObjectives,
     usesObjectives
-      ? "Aucun objectif 2026 renseigne cette semaine pour ce cargonaute."
-      : "Aucune categorie enregistree cette semaine pour ce cargonaute.",
+      ? "Aucun objectif 2026 renseigné cette semaine pour ce cargonaute."
+      : "Aucune catégorie enregistrée cette semaine pour ce cargonaute.",
   );
 }
 
@@ -6540,7 +6647,7 @@ function renderAgenda() {
   const collaborator = getCurrentCollaborator();
   if (!collaborator) {
     renderPlannedSummary([], null);
-    agendaBoard.append(createEmptyState("Choisissez votre nom pour afficher et deplacer vos creneaux."));
+    agendaBoard.append(createEmptyState("Choisissez votre nom pour afficher et déplacer vos créneaux."));
     if (agendaWeekLabel) {
       agendaWeekLabel.textContent = "";
     }
@@ -6854,7 +6961,7 @@ function renderPlannedAgendaEventContents(element, plannedEvent, visualSize) {
 
   const subject = document.createElement("p");
   subject.className = "agenda-event-client agenda-event-subject";
-  subject.textContent = plannedEvent.title || "Evenement importe";
+  subject.textContent = plannedEvent.title || "Événement importé";
   element.append(subject);
 
   if (visualSize === "full") {
@@ -6878,13 +6985,13 @@ function applyPlannedAgendaEventColor(element, plannedEvent) {
 
 function buildPlannedEventTooltip(plannedEvent) {
   const bits = [
-    `${getPlannedEventStatusSymbol(plannedEvent.status)} ${plannedEvent.title || "Evenement importe"}`,
+    `${getPlannedEventStatusSymbol(plannedEvent.status)} ${plannedEvent.title || "Événement importé"}`,
     `${formatPlannedEventWeekday(plannedEvent.start_at)} · ${formatPlannedEventTime(plannedEvent)}`,
     getPlannedEventDisplayCategory(plannedEvent) || "À qualifier",
     plannedEvent.validated_tags?.length
-      ? `Tags: ${plannedEvent.validated_tags.join(", ")}`
+      ? `Tags : ${plannedEvent.validated_tags.join(", ")}`
       : plannedEvent.suggested_tags?.length
-        ? `Tags: ${plannedEvent.suggested_tags.join(", ")}`
+        ? `Tags : ${plannedEvent.suggested_tags.join(", ")}`
         : "",
   ];
   return bits.filter(Boolean).join("\n");
@@ -7015,7 +7122,7 @@ function renderPlannedSummary(rows, range) {
 
   const note = document.createElement("p");
   note.className = "planned-summary-note";
-  note.textContent = "Lecture prévisionnelle de l'agenda, distincte du temps réel affiché dans « Ma semaine ». Base estimée sur une plage lun–ven, 9h–18h.";
+  note.textContent = "Lecture prévisionnelle de l’agenda, distincte du temps réel affiché dans « Ma semaine ». Base estimée sur une plage lun–ven, 9 h–18 h.";
   plannedSummary.append(note);
 
   plannedSummary.hidden = false;
@@ -7117,7 +7224,7 @@ function inferPlannedSuggestionFromTitle(rawTitle = "") {
 
   if (normalized.includes("point") || normalized.includes("reunion")) {
     return {
-      suggested_category: "Management equipe",
+      suggested_category: "Management équipe",
       suggested_tags: dedupePreservingOrder(inferredTags),
       status: "suggested",
       matching_confidence: normalized.includes("operationnel") ? 0.88 : 0.82,
@@ -7126,7 +7233,7 @@ function inferPlannedSuggestionFromTitle(rawTitle = "") {
 
   if (normalized.includes("shift")) {
     return {
-      suggested_category: "Management equipe",
+      suggested_category: "Management équipe",
       suggested_tags: dedupePreservingOrder(inferredTags),
       status: "suggested",
       matching_confidence: normalized.includes("coursier") ? 0.58 : 0.66,
@@ -7202,7 +7309,7 @@ function getPlannedEventsForCollaborator(collaborator, range) {
       source_event_id: override.source_event_id ?? definition.source_event_id ?? id,
       source_calendar_id: override.source_calendar_id ?? definition.source_calendar_id ?? "google-calendar-snapshot",
       collaborator,
-      title: override.title ?? definition.title ?? "Bloc de travail a qualifier",
+      title: override.title ?? definition.title ?? "Bloc de travail à qualifier",
       description: override.description ?? definition.description ?? "",
       start_at: start.toISOString(),
       end_at: end.toISOString(),
@@ -7302,7 +7409,7 @@ function getPlannedEventsForCollaborator(collaborator, range) {
     .slice(0, 6)
     .map((session, index) => ({
       key: `fallback-${index}`,
-      title: session.task || session.project || "Bloc de travail a qualifier",
+      title: session.task || session.project || "Bloc de travail à qualifier",
       description: session.notes ?? "",
       suggested_category: [...(session.categories ?? []).slice(0, 1)][0] ?? "",
       suggested_tags: [...(session.tags ?? [])],
@@ -7310,7 +7417,7 @@ function getPlannedEventsForCollaborator(collaborator, range) {
   const sources = memories.length
     ? memories.map((memory, index) => ({
         key: memory.key || `memory-${index}`,
-        title: memory.task || memory.project || "Bloc de travail a qualifier",
+        title: memory.task || memory.project || "Bloc de travail à qualifier",
         description: memory.notes ?? "",
         suggested_category: memory.categories?.[0] ?? "",
         suggested_tags: [...(memory.tags ?? [])],
@@ -7688,10 +7795,10 @@ function renderManagerViews() {
   const managerDisplayRows = usesObjectives ? managerObjectiveRows : managerCategoryRows;
   const managerObjectiveTotalMs = managerObjectiveRows.reduce((sum, row) => sum + row.durationMs, 0);
   const managerCategoryTotalMs = scopedRows.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0);
-  managerDistributionTitle.textContent = usesObjectives ? "Repartition OKR" : "Repartition categories";
+  managerDistributionTitle.textContent = usesObjectives ? "Répartition OKR" : "Répartition catégories";
   managerDistributionCopy.textContent = usesObjectives
-    ? "Poids relatif des objectifs sur la periode."
-    : "Poids relatif des categories sur la periode.";
+    ? "Poids relatif des objectifs sur la période."
+    : "Poids relatif des catégories sur la période.";
   reportCategoryHead.textContent = usesObjectives ? "OKR" : "Categorie";
   managerObjectivesPanel.hidden = !usesObjectives;
   reportKrShell.hidden = !usesObjectives;
@@ -7700,7 +7807,7 @@ function renderManagerViews() {
     managerDistributionLegend,
     managerDisplayRows,
     usesObjectives ? managerObjectiveTotalMs : managerCategoryTotalMs,
-    usesObjectives ? "Aucun OKR renseigne sur cette plage." : "Aucune categorie disponible sur cette plage.",
+    usesObjectives ? "Aucun OKR renseigné sur cette plage." : "Aucune catégorie disponible sur cette plage.",
   );
   renderEvolutionGrid(evolutionGrid, anchor, filterCollaborator);
   if (usesObjectives) {
@@ -7708,7 +7815,7 @@ function renderManagerViews() {
   } else {
     managerObjectivesGrid.innerHTML = "";
   }
-  renderTeamTable(teamReportList, allRows, range, "Aucune donnee equipe sur cette plage.");
+  renderTeamTable(teamReportList, allRows, range, "Aucune donnée équipe sur cette plage.");
   renderReportTable(
     reportProjectList,
     buildReportRows(scopedRows, "project"),
@@ -7719,7 +7826,7 @@ function renderManagerViews() {
     reportCategoryList,
     managerDisplayRows,
     usesObjectives ? managerObjectiveTotalMs : managerCategoryTotalMs,
-    usesObjectives ? "Aucun OKR pour cette plage." : "Aucune categorie pour cette plage.",
+    usesObjectives ? "Aucun OKR pour cette plage." : "Aucune catégorie pour cette plage.",
   );
   if (usesObjectives) {
     renderReportTable(
@@ -7747,10 +7854,10 @@ function renderResourcesViews() {
   resourceRange.textContent = formatPeriodLabel(range.start, range.end, reportPeriod);
   resourceTopProject.textContent = projectTotals[0]?.label ?? "-";
   resourceTopProjectTime.textContent = projectTotals[0] ? formatDuration(projectTotals[0].durationMs) : "0 h 00";
-  resourceDistributionTitle.textContent = usesObjectives ? "Repartition globale OKR" : "Repartition globale categories";
+  resourceDistributionTitle.textContent = usesObjectives ? "Répartition globale OKR" : "Répartition globale catégories";
   resourceDistributionCopy.textContent = usesObjectives
     ? "Lecture transversale des objectifs sur la plage choisie."
-    : "Lecture transversale des categories sur la plage choisie.";
+    : "Lecture transversale des catégories sur la plage choisie.";
   resourceCategoryHead.textContent = usesObjectives ? "OKR" : "Categorie";
   resourceObjectivesPanel.hidden = !usesObjectives;
   resourceKrShell.hidden = !usesObjectives;
@@ -7768,7 +7875,7 @@ function renderResourcesViews() {
     resourceDistributionLegend,
     usesObjectives ? objectiveTotals : categoryTotals,
     totalMs,
-    usesObjectives ? "Aucun OKR renseigne sur cette plage." : "Aucune categorie disponible sur cette plage.",
+    usesObjectives ? "Aucun OKR renseigné sur cette plage." : "Aucune catégorie disponible sur cette plage.",
     {
       colorResolver: (row) => (usesObjectives ? colorForLabel(row.label) : colorForPastelDistributionLabel(row.label)),
     },
@@ -7779,7 +7886,7 @@ function renderResourcesViews() {
   } else {
     resourceObjectivesGrid.innerHTML = "";
   }
-  renderTeamTable(resourceTeamList, allRows, range, "Aucune donnee equipe sur cette plage.");
+  renderTeamTable(resourceTeamList, allRows, range, "Aucune donnée équipe sur cette plage.");
   renderReportTable(
     resourceProjectList,
     projectTotals,
@@ -7790,7 +7897,7 @@ function renderResourcesViews() {
     resourceCategoryList,
     usesObjectives ? objectiveTotals : categoryTotals,
     totalMs,
-    usesObjectives ? "Aucun OKR sur cette plage." : "Aucune categorie sur cette plage.",
+    usesObjectives ? "Aucun OKR sur cette plage." : "Aucune catégorie sur cette plage.",
   );
   if (usesObjectives) {
     renderReportTable(
@@ -7825,7 +7932,7 @@ function renderUsersAdmin() {
   const title = document.createElement("h3");
   title.textContent = "Equipe visible";
   const description = document.createElement("p");
-  description.textContent = "Creer, modifier ou retirer un utilisateur sans quitter Mordologie.";
+  description.textContent = "Créer, modifier ou retirer un utilisateur sans quitter Mordologie.";
   copy.append(title, description);
 
   const addButton = document.createElement("button");
@@ -8069,13 +8176,13 @@ function validateManagedUserDraft(draft, user = null) {
     return { ok: false, message: "Le nom de la personne est requis." };
   }
   if (duplicateName) {
-    return { ok: false, message: "Ce nom est deja utilise. Choisissez un nom unique pour eviter les collisions de profil." };
+    return { ok: false, message: "Ce nom est déjà utilisé. Choisissez un nom unique pour éviter les collisions de profil." };
   }
   if (email && !emailPattern.test(email)) {
     return { ok: false, message: "L'adresse email semble invalide." };
   }
   if (duplicateEmail) {
-    return { ok: false, message: "Cette adresse email est deja associee a un autre utilisateur." };
+    return { ok: false, message: "Cette adresse e-mail est déjà associée à un autre utilisateur." };
   }
 
   return {
@@ -8283,7 +8390,7 @@ function renderManagerObjectivesInto(container, rows) {
   const visibleCards = nonEmptyCards.length ? nonEmptyCards : cards.slice(0, 6);
 
   if (!visibleCards.length) {
-    container.append(createEmptyState("Les objectifs suivis apparaitront ici."));
+    container.append(createEmptyState("Les objectifs suivis apparaîtront ici."));
     return;
   }
 
@@ -8553,7 +8660,7 @@ function renderEvolutionGrid(container, anchor, filterCollaborator) {
 
   const maxValue = Math.max(...weeks.map((week) => week.totalMs), 0);
   if (!maxValue) {
-    container.append(createEmptyState("L'evolution apparaitra des que plusieurs semaines seront renseignees."));
+    container.append(createEmptyState("L'évolution apparaîtra dès que plusieurs semaines seront renseignées."));
     return;
   }
 
@@ -8774,7 +8881,7 @@ function renderPersonalDistributionDonut(rows, totalMs, usesObjectives, emptyMes
     share.textContent = `${Math.round((segment.share || 0) * 100)}%`;
 
     const meta = document.createElement("p");
-    meta.textContent = `${formatDuration(segment.durationMs)}${segment.count ? ` · ${segment.count} entree${segment.count > 1 ? "s" : ""}` : ""}`;
+    meta.textContent = `${formatDuration(segment.durationMs)}${segment.count ? ` · ${segment.count} entrée${segment.count > 1 ? "s" : ""}` : ""}`;
 
     top.append(label, share);
     copy.append(top, meta);
@@ -9004,7 +9111,7 @@ function applyProjectMemoryFromInput() {
   if (!rawProject) {
     delete projectInput.dataset.lastHydratedKey;
     projectMemoryHint.textContent =
-      "Commencez a taper: un sujet deja connu recharge automatiquement ses informations utiles.";
+      "Commencez à taper : un sujet déjà connu recharge automatiquement ses informations utiles.";
     return;
   }
 
@@ -9014,7 +9121,7 @@ function applyProjectMemoryFromInput() {
     return;
   }
 
-  projectMemoryHint.textContent = `${memory.project} reconnu. Categories, tags et lien d'interet rechargeables.`;
+  projectMemoryHint.textContent = `${memory.project} reconnu. Catégories, tags et lien d'intérêt rechargeables.`;
 
   if (projectInput.dataset.lastHydratedKey === memory.key) {
     return;
@@ -9105,14 +9212,19 @@ function getPersistedActiveSessions() {
   const merged = new Map();
 
   for (const session of remoteActiveSessions) {
-    if (isGhostActiveSessionCandidate(session)) {
+    if (isGhostActiveSessionCandidate(session) || isStaleActiveSessionCandidate(session) || matchesPendingStoppedSession(session)) {
       continue;
     }
-    merged.set(session.id, session);
+    const collaboratorKey = normalizeText(session.collaborator ?? "");
+    const existing = collaboratorKey ? merged.get(collaboratorKey) : null;
+    if (!existing || new Date(session.start).getTime() >= new Date(existing.start).getTime()) {
+      merged.set(collaboratorKey || session.id, session);
+    }
   }
 
-  if (activeSession && !isGhostActiveSessionCandidate(activeSession)) {
-    merged.set(activeSession.id, activeSession);
+  if (activeSession && !isGhostActiveSessionCandidate(activeSession) && !isStaleActiveSessionCandidate(activeSession, { allowCurrentLocal: true })) {
+    const collaboratorKey = normalizeText(activeSession.collaborator ?? "");
+    merged.set(collaboratorKey || activeSession.id, activeSession);
   }
 
   return Array.from(merged.values()).map((session) => ({
@@ -9147,6 +9259,24 @@ function isGhostActiveSessionCandidate(activeLike, persistedRows = sessions) {
       getSessionStartIdentity(session.start) === startKey
     );
   });
+}
+
+function isStaleActiveSessionCandidate(activeLike, options = {}) {
+  if (!activeLike?.start) {
+    return false;
+  }
+  if (options.allowCurrentLocal && activeSession && activeLike.id === activeSession.id) {
+    return false;
+  }
+  const startMs = new Date(activeLike.start).getTime();
+  if (Number.isNaN(startMs)) {
+    return false;
+  }
+  const durationMs = getActiveSessionDurationMs(activeLike);
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    return false;
+  }
+  return durationMs > MAX_REASONABLE_ACTIVE_SESSION_MS;
 }
 
 function getAllSessionsWithActive() {
@@ -9199,8 +9329,8 @@ async function dismissGhostActiveSession(activeLike, persistedMatch = null) {
   });
   setAuthStatusMessage(
     persistedMatch
-      ? "Session residuelle ignoree : l'entree existe deja dans le journal."
-      : "Session active residuelle nettoyee.",
+      ? "Session résiduelle ignorée : l’entrée existe déjà dans le journal."
+      : "Session active résiduelle nettoyée.",
     "warning",
     { persistMs: 3600 },
   );
@@ -9261,7 +9391,7 @@ function buildReportRows(rows, key) {
 
   for (const row of rows) {
     if (key === "categories") {
-      const labels = row.categories.length ? row.categories : ["Sans categorie"];
+      const labels = row.categories.length ? row.categories : ["Sans catégorie"];
       for (const label of labels) {
         const current = grouped.get(label) ?? { label, durationMs: 0, count: 0, tagCounts: new Map() };
         current.durationMs += Number(row.durationMs) || 0;
@@ -9303,7 +9433,7 @@ function getFallbackLabel(key) {
   if (key === "project") {
     return "Sans projet";
   }
-  return "Sans categorie";
+  return "Sans catégorie";
 }
 
 function getMainProjectForCollaborator(rows, collaborator) {
@@ -9660,8 +9790,8 @@ function buildAgendaTooltip(session) {
     `${getSessionClientLabel(session)}`,
     `${formatTimeRange(session)} · ${formatDurationHours(session.durationMs)}`,
     session.task || "",
-    session.categories?.length ? `Categorie: ${session.categories.join(", ")}` : "",
-    session.tags?.length ? `Tags: ${session.tags.join(", ")}` : "",
+    session.categories?.length ? `Catégorie : ${session.categories.join(", ")}` : "",
+    session.tags?.length ? `Tags : ${session.tags.join(", ")}` : "",
     session.notes || "",
   ].filter(Boolean);
 
@@ -9772,7 +9902,7 @@ function dedupePreservingOrder(values, normalizer = normalizeComparableText) {
 function normalizeCategorySelection(rawLabel) {
   const cleaned = String(rawLabel ?? "").trim();
   if (!cleaned) {
-    return { category: "", impliedTags: [] };
+    return { category: "", impliedTags : [] };
   }
 
   const comparable = normalizeComparableText(cleaned);
@@ -9780,13 +9910,13 @@ function normalizeCategorySelection(rawLabel) {
   if (matchedRule) {
     return {
       category: matchedRule.category,
-      impliedTags: [...matchedRule.impliedTags],
+      impliedTags : [...matchedRule.impliedTags],
     };
   }
 
   return {
     category: cleaned,
-    impliedTags: [],
+    impliedTags : [],
   };
 }
 

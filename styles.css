@@ -1724,6 +1724,16 @@ select.select-input {
   box-shadow: 0 8px 18px rgba(24, 56, 74, 0.08);
 }
 
+.agenda-event--planned .agenda-event-time {
+  color: color-mix(in srgb, var(--text) 72%, white);
+}
+
+.agenda-event--planned .agenda-event-client,
+.agenda-event--planned .agenda-event-category,
+.agenda-event--planned .agenda-event-subject {
+  color: color-mix(in srgb, var(--text) 62%, white);
+}
+
 .agenda-event--planned .agenda-resize-handle,
 .agenda-event--planned .agenda-event-icon {
   display: none;
