@@ -3183,8 +3183,9 @@ function rememberRecentlyStoppedSession(session) {
   }
   const collaborator = normalizeText(session.collaborator ?? "");
   const startedAt = String(session.start ?? "").trim();
+  const startedAtKey = getSessionStartIdentity(session.start);
   const activeSessionId = normalizeText(session.dbActiveSessionId ?? session.id ?? "");
-  if (!collaborator || !startedAt) {
+  if (!collaborator || !startedAtKey) {
     return;
   }
   const expiresAt = Date.now() + RECENTLY_STOPPED_SESSION_TTL_MS;
@@ -3195,14 +3196,16 @@ function rememberRecentlyStoppedSession(session) {
     if (Number(item.expiresAt) <= Date.now()) {
       return false;
     }
+    const itemStartedAtKey = item.startedAtKey || getSessionStartIdentity(item.startedAt);
     return !(
       item.collaborator === collaborator &&
-      item.startedAt === startedAt
+      itemStartedAtKey === startedAtKey
     );
   });
   recentlyStoppedSessionGuards.unshift({
     collaborator,
     startedAt,
+    startedAtKey,
     activeSessionId,
     expiresAt,
   });
@@ -3211,15 +3214,16 @@ function rememberRecentlyStoppedSession(session) {
 
 function isRecentlyStoppedRemoteActiveRow(row) {
   const collaborator = normalizeText(row?.user_name ?? "");
-  const startedAt = String(row?.started_at ?? "").trim();
+  const startedAtKey = getSessionStartIdentity(row?.started_at ?? "");
   const activeSessionId = normalizeText(row?.active_session_id ?? "");
-  if (!collaborator || !startedAt) {
+  if (!collaborator || !startedAtKey) {
     return false;
   }
   const now = Date.now();
   recentlyStoppedSessionGuards = recentlyStoppedSessionGuards.filter((item) => item && Number(item.expiresAt) > now);
   return recentlyStoppedSessionGuards.some((item) => {
-    if (item.collaborator !== collaborator || item.startedAt !== startedAt) {
+    const itemStartedAtKey = item.startedAtKey || getSessionStartIdentity(item.startedAt);
+    if (item.collaborator !== collaborator || itemStartedAtKey !== startedAtKey) {
       return false;
     }
     if (!item.activeSessionId || !activeSessionId) {
@@ -3506,9 +3510,9 @@ function hydrateRemoteState(historyRows, activeRows) {
       closedRemoteSessionIds.add(sourceSessionId);
     }
     const userName = normalizeText(row?.user_name ?? "");
-    const startedAt = String(row?.started_at ?? "").trim();
-    if (userName && startedAt) {
-      closedRemoteSessionKeys.add(`${userName}::${startedAt}`);
+    const startedAtKey = getSessionStartIdentity(row?.started_at ?? "");
+    if (userName && startedAtKey) {
+      closedRemoteSessionKeys.add(`${userName}::${startedAtKey}`);
     }
   }
 
@@ -3536,8 +3540,8 @@ function hydrateRemoteState(historyRows, activeRows) {
         return false;
       }
       const userName = normalizeText(row?.user_name ?? "");
-      const startedAt = String(row?.started_at ?? "").trim();
-      if (userName && startedAt && closedRemoteSessionKeys.has(`${userName}::${startedAt}`)) {
+      const startedAtKey = getSessionStartIdentity(row?.started_at ?? "");
+      if (userName && startedAtKey && closedRemoteSessionKeys.has(`${userName}::${startedAtKey}`)) {
         return false;
       }
       if (isRecentlyStoppedRemoteActiveRow(row)) {
@@ -3554,12 +3558,13 @@ function hydrateRemoteState(historyRows, activeRows) {
     ? remoteActiveSessions.find((session) => normalizeText(session.collaborator) === normalizeText(currentUserName)) ?? null
     : null;
 
-  if (remoteActiveSession) {
+  if (remoteActiveSession && !isGhostActiveSessionCandidate(remoteActiveSession, Array.from(mergedSessions.values()))) {
     activeSession = remoteActiveSession;
   } else if (
     previousActiveSession &&
     !previousActiveSession.isServerBacked &&
-    normalizeText(previousActiveSession.collaborator) === normalizeText(currentUserName)
+    normalizeText(previousActiveSession.collaborator) === normalizeText(currentUserName) &&
+    !isGhostActiveSessionCandidate(previousActiveSession, Array.from(mergedSessions.values()))
   ) {
     activeSession = normalizeSession(previousActiveSession);
   } else {
@@ -4335,6 +4340,12 @@ function applyFieldManageDeletion(kind) {
 
 function stopActiveSession() {
   if (!activeSession) {
+    return;
+  }
+
+  const persistedMatch = findMatchingPersistedSessionForActive(activeSession);
+  if (persistedMatch) {
+    void dismissGhostActiveSession(activeSession, persistedMatch);
     return;
   }
 
@@ -5744,6 +5755,12 @@ function areSessionsEffectivelySame(left, right) {
     return true;
   }
 
+  const sameCollaborator = normalizeText(left.collaborator) === normalizeText(right.collaborator);
+  const sameStartIdentity = getSessionStartIdentity(left.start) && getSessionStartIdentity(left.start) === getSessionStartIdentity(right.start);
+  if (sameCollaborator && sameStartIdentity) {
+    return true;
+  }
+
   const leftStart = new Date(left.start).getTime();
   const rightStart = new Date(right.start).getTime();
   const leftEnd = new Date(left.end).getTime();
@@ -5758,7 +5775,6 @@ function areSessionsEffectivelySame(left, right) {
     return false;
   }
 
-  const sameCollaborator = normalizeText(left.collaborator) === normalizeText(right.collaborator);
   const sameProject = normalizeText(left.project) === normalizeText(right.project);
   const sameTask = normalizeText(left.task) === normalizeText(right.task);
   const sameBounds = Math.abs(leftStart - rightStart) < 60000 && Math.abs(leftEnd - rightEnd) < 60000;
@@ -9086,14 +9102,16 @@ function findSessionById(sessionId) {
 }
 
 function getPersistedActiveSessions() {
-  const currentId = activeSession?.id ?? null;
   const merged = new Map();
 
   for (const session of remoteActiveSessions) {
+    if (isGhostActiveSessionCandidate(session)) {
+      continue;
+    }
     merged.set(session.id, session);
   }
 
-  if (activeSession) {
+  if (activeSession && !isGhostActiveSessionCandidate(activeSession)) {
     merged.set(activeSession.id, activeSession);
   }
 
@@ -9111,12 +9129,82 @@ function getSessionsForCollaborator(collaborator) {
   );
 }
 
+function isGhostActiveSessionCandidate(activeLike, persistedRows = sessions) {
+  if (!activeLike) {
+    return false;
+  }
+  const collaborator = normalizeText(activeLike.collaborator ?? "");
+  const startKey = getSessionStartIdentity(activeLike.start);
+  if (!collaborator || !startKey) {
+    return false;
+  }
+  return persistedRows.some((session) => {
+    if (!session || session.isServerActive) {
+      return false;
+    }
+    return (
+      normalizeText(session.collaborator ?? "") === collaborator &&
+      getSessionStartIdentity(session.start) === startKey
+    );
+  });
+}
+
 function getAllSessionsWithActive() {
   const rows = new Map(sessions.map((session) => [session.id, session]));
   for (const activeRow of getPersistedActiveSessions()) {
     rows.set(activeRow.id, activeRow);
   }
   return Array.from(rows.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
+}
+
+function findMatchingPersistedSessionForActive(activeLike) {
+  if (!activeLike) {
+    return null;
+  }
+  const collaborator = normalizeText(activeLike.collaborator ?? "");
+  const startIdentity = getSessionStartIdentity(activeLike.start);
+  if (!collaborator || !startIdentity) {
+    return null;
+  }
+  return sessions.find((session) => (
+    !session.isServerActive &&
+    normalizeText(session.collaborator ?? "") === collaborator &&
+    getSessionStartIdentity(session.start) === startIdentity
+  )) ?? null;
+}
+
+async function dismissGhostActiveSession(activeLike, persistedMatch = null) {
+  if (!activeLike) {
+    return false;
+  }
+  cancelActiveSessionServerSync();
+  rememberRecentlyStoppedSession(activeLike);
+  activeSession = null;
+  persistActiveSession();
+  stopTimerLoop();
+  resetFormAfterStop();
+  clearPendingStoppedSessionState();
+  remoteActiveSessions = remoteActiveSessions.filter((item) => {
+    if (item.id === activeLike.id) {
+      return false;
+    }
+    if (item.dbActiveSessionId && activeLike.dbActiveSessionId && item.dbActiveSessionId === activeLike.dbActiveSessionId) {
+      return false;
+    }
+    return !(normalizeText(item.collaborator) === normalizeText(activeLike.collaborator) && getSessionStartIdentity(item.start) === getSessionStartIdentity(activeLike.start));
+  });
+  render();
+  void removeStoppedSessionGhostsFromSupabase(activeLike, { refreshAfterSuccess: false }).then(() => {
+    void loadServerBackedState({ silent: false });
+  });
+  setAuthStatusMessage(
+    persistedMatch
+      ? "Session residuelle ignoree : l'entree existe deja dans le journal."
+      : "Session active residuelle nettoyee.",
+    "warning",
+    { persistMs: 3600 },
+  );
+  return true;
 }
 
 function getActiveSessionEffectiveEnd(session) {
@@ -9620,6 +9708,14 @@ function formatTimeLabel(date) {
 function formatTimeOnly(value) {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? "" : formatTimeLabel(date);
+}
+
+function getSessionStartIdentity(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return String(Math.floor(date.getTime() / 60000));
 }
 
 function getStartOfWeek(dateValue) {
