@@ -1,0 +1,64 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" fill="#EDF1F3"/>
+  <rect x="40" y="40" width="1520" height="820" rx="28" fill="#F8FBFC" stroke="#CCD7DC"/>
+  <rect x="70" y="70" width="1460" height="126" rx="24" fill="#F7FBFC" stroke="#D3DEE2"/>
+  <text x="110" y="118" fill="#768792" font-family="Arial, sans-serif" font-size="18" letter-spacing="2">PROFIL ACTIF</text>
+  <circle cx="140" cy="150" r="29" fill="#5D7682"/>
+  <circle cx="140" cy="140" r="11" fill="#E7EEF1"/>
+  <path d="M120 168C124 156 136 151 140 151C144 151 156 156 160 168" fill="#E7EEF1"/>
+  <text x="182" y="147" fill="#132C35" font-family="Arial, sans-serif" font-weight="700" font-size="30">Eduardo</text>
+  <text x="182" y="176" fill="#6B7B84" font-family="Arial, sans-serif" font-size="24">eduardo@cargonautes.fr</text>
+
+  <rect x="920" y="96" width="90" height="54" rx="14" fill="#EAF0F2" stroke="#CCD6DA"/>
+  <text x="950" y="130" fill="#506B77" font-family="Arial, sans-serif" font-weight="700" font-size="24">Admin</text>
+  <rect x="1024" y="96" width="162" height="54" rx="14" fill="#FFFFFF" stroke="#CED6DA"/>
+  <text x="1048" y="130" fill="#213E47" font-family="Arial, sans-serif" font-weight="700" font-size="24">Se déconnecter</text>
+
+  <g>
+    <rect x="1210" y="96" width="56" height="54" rx="14" fill="#DCECF0" stroke="#BDD4DB"/>
+    <circle cx="1238" cy="123" r="10" fill="#365F70"/>
+    <rect x="1280" y="96" width="56" height="54" rx="14" fill="#FFFFFF" stroke="#CED6DA"/>
+    <path d="M1308 109V137M1294 123H1322" stroke="#5C6F78" stroke-width="4" stroke-linecap="round"/>
+    <rect x="1350" y="96" width="56" height="54" rx="14" fill="#FFFFFF" stroke="#CED6DA"/>
+    <path d="M1368 115H1388V121H1368V115ZM1368 126H1388V132H1368V126Z" fill="#5C6F78"/>
+    <rect x="1420" y="96" width="56" height="54" rx="14" fill="#FFFFFF" stroke="#CED6DA"/>
+    <path d="M1448 109L1458 123L1448 137L1438 123L1448 109Z" fill="#5C6F78"/>
+  </g>
+
+  <rect x="70" y="210" width="1460" height="62" rx="18" fill="#1F3843"/>
+  <circle cx="104" cy="241" r="8" fill="#93C2B6"/>
+  <text x="126" y="248" fill="#F2F7F7" font-family="Arial, sans-serif" font-weight="700" font-size="24">Synchronisation partielle</text>
+  <text x="430" y="248" fill="#BFD0D4" font-family="Arial, sans-serif" font-size="22">Historique OK · Session active en attente · Reprises OK</text>
+  <text x="1216" y="248" fill="#DDE7EA" font-family="Arial, sans-serif" font-size="22">Bannière système dédiée</text>
+
+  <text x="70" y="334" fill="#7B8C95" font-family="Arial, sans-serif" font-size="20" letter-spacing="2">LECTURE D’ANALYSE</text>
+  <text x="70" y="386" fill="#102A33" font-family="Arial, sans-serif" font-weight="700" font-size="58">Pilotage manager</text>
+  <text x="70" y="426" fill="#6A7B84" font-family="Arial, sans-serif" font-size="26">Version plus industrielle : plus de contraste, structure plus ferme, lecture plus robuste.</text>
+
+  <rect x="70" y="470" width="470" height="162" rx="24" fill="#FFFFFF" stroke="#D4DEE2"/>
+  <text x="102" y="516" fill="#314952" font-family="Arial, sans-serif" font-weight="700" font-size="24" letter-spacing="1">SOURCE D’INFORMATION</text>
+  <rect x="102" y="544" width="406" height="64" rx="16" fill="#F5F9FA" stroke="#C4D6DD"/>
+  <text x="126" y="586" fill="#16313B" font-family="Arial, sans-serif" font-weight="700" font-size="26">Toute l’équipe</text>
+  <path d="M462 566L478 582L494 566" stroke="#51656F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="562" y="470" width="548" height="162" rx="24" fill="#F7FBFC" stroke="#D4DEE2"/>
+  <text x="594" y="516" fill="#314952" font-family="Arial, sans-serif" font-weight="700" font-size="24" letter-spacing="1">RÉGLAGES DE LECTURE</text>
+  <rect x="594" y="544" width="142" height="64" rx="16" fill="#DCECF0" stroke="#BDD4DB"/>
+  <text x="630" y="586" fill="#355F70" font-family="Arial, sans-serif" font-weight="700" font-size="26">Semaine</text>
+  <rect x="750" y="544" width="116" height="64" rx="16" fill="#FFFFFF" stroke="#CED6DA"/>
+  <text x="790" y="586" fill="#294246" font-family="Arial, sans-serif" font-weight="700" font-size="26">Mois</text>
+  <rect x="880" y="544" width="198" height="64" rx="16" fill="#FFFFFF" stroke="#CED6DA"/>
+  <text x="926" y="586" fill="#294246" font-family="Arial, sans-serif" font-weight="700" font-size="26">Catégories</text>
+
+  <rect x="1132" y="470" width="398" height="162" rx="24" fill="#FFFDFC" stroke="#D8D9D6"/>
+  <text x="1164" y="516" fill="#685E58" font-family="Arial, sans-serif" font-weight="700" font-size="24" letter-spacing="1">ACTIONS</text>
+  <rect x="1164" y="544" width="230" height="64" rx="16" fill="#FFFFFF" stroke="#D7D8D6"/>
+  <text x="1188" y="586" fill="#203E47" font-family="Arial, sans-serif" font-size="26">28/04/2026</text>
+  <rect x="1410" y="544" width="88" height="64" rx="16" fill="#EFF6F8" stroke="#C5D8DE"/>
+  <path d="M1434 558H1474V572H1434V558ZM1434 580H1466V594H1434V580Z" fill="#4C6671"/>
+
+  <rect x="70" y="668" width="1460" height="152" rx="24" fill="#FFFFFF" stroke="#D6DFE2"/>
+  <text x="104" y="712" fill="#7B8B94" font-family="Arial, sans-serif" font-size="20" letter-spacing="2">TYPOGRAPHIE ET ÉLÉMENTS</text>
+  <text x="104" y="754" fill="#102A33" font-family="Arial, sans-serif" font-weight="700" font-size="42">H1 / H2 / H3 / paragraphe / état / bouton / chip : chaque type a sa raison d’exister.</text>
+  <text x="104" y="792" fill="#667781" font-family="Arial, sans-serif" font-size="24">Palette Slate Works : fond minéral, textes bleu-noir, success mats, alertes séparées du contenu métier.</text>
+</svg>

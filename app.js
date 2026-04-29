@@ -170,8 +170,10 @@ const authRescueSelect = document.querySelector("#auth-rescue-select");
 const authRescueButton = document.querySelector("#auth-rescue-button");
 const authUserName = document.querySelector("#auth-user-name");
 const authUserEmail = document.querySelector("#auth-user-email");
+const authUserAvatar = document.querySelector("#auth-user-avatar");
 const authRolePill = document.querySelector("#auth-role-pill");
 const authSignoutButton = document.querySelector("#auth-signout-button");
+const authStatusShell = document.querySelector("#auth-status-shell");
 const authStatus = document.querySelector("#auth-status");
 const collaboratorInput = document.querySelector("#collaborator-input");
 const collaboratorSuggestions = document.querySelector("#collaborator-suggestions");
@@ -307,9 +309,22 @@ const plannedDialogSuggestionCategory = document.querySelector("#planned-dialog-
 const plannedDialogSuggestionDetail = document.querySelector("#planned-dialog-suggestion-detail");
 const plannedApplySuggestionButton = document.querySelector("#planned-apply-suggestion-button");
 const plannedSubjectInput = document.querySelector("#planned-subject-input");
+const plannedTaskInput = document.querySelector("#planned-task-input");
 const plannedCategoryInput = document.querySelector("#planned-category-input");
+const plannedCategoriesList = document.querySelector("#planned-categories-list");
 const plannedTagsList = document.querySelector("#planned-tags-list");
 const plannedTagsInput = document.querySelector("#planned-tags-input");
+const plannedNotionInput = document.querySelector("#planned-notion-input");
+const plannedNotesInput = document.querySelector("#planned-notes-input");
+const plannedObjectiveDisclosure = document.querySelector("#planned-objective-disclosure");
+const plannedObjectiveSummaryText = document.querySelector("#planned-objective-summary-text");
+const plannedObjectivePoleInput = document.querySelector("#planned-objective-pole-input");
+const plannedObjectiveOkrInput = document.querySelector("#planned-objective-okr-input");
+const plannedObjectiveKrInput = document.querySelector("#planned-objective-kr-input");
+const plannedObjectivePoleSelected = document.querySelector("#planned-objective-pole-selected");
+const plannedObjectiveOkrSelected = document.querySelector("#planned-objective-okr-selected");
+const plannedObjectiveKrSelected = document.querySelector("#planned-objective-kr-selected");
+const plannedDialogStatus = document.querySelector("#planned-dialog-status");
 const plannedIgnoreButton = document.querySelector("#planned-ignore-button");
 const plannedCancelButton = document.querySelector("#planned-cancel-button");
 const plannedSaveButton = document.querySelector("#planned-save-button");
@@ -951,10 +966,27 @@ let usersAdminEditingId = null;
 let usersAdminDraft = null;
 let pendingStoppedSessionState = loadPendingStoppedSessionState();
 let recentlyStoppedSessionGuards = loadRecentlyStoppedSessionGuards();
+
+if (
+  activeSession && (
+    matchesPendingStoppedSession(activeSession) ||
+    isRecentlyStoppedSessionLike(activeSession) ||
+    isGhostActiveSessionCandidate(activeSession, sessions)
+  )
+) {
+  activeSession = null;
+  try {
+    window.localStorage.removeItem(ACTIVE_SESSION_KEY);
+  } catch {
+    // ignore storage issues
+  }
+}
+
 let plannedEventOverrides = loadStoredPlannedEventOverrides();
 let plannedCalendarSnapshots = loadStoredPlannedCalendarSnapshots();
 let plannedEditingEventId = null;
 let plannedEditingEvent = null;
+let plannedCurrentCategories = [];
 let plannedCurrentTags = [];
 let visiblePlannedEvents = [];
 
@@ -986,6 +1018,18 @@ setupTokenInput(manualTagsInput, {
     manualCurrentTags = dedupePreservingOrder(values);
     renderManualTagTokens();
   },
+});
+
+setupTokenInput(plannedCategoryInput, {
+  getValues: () => plannedCurrentCategories,
+  setValues: (values) => {
+    const normalized = normalizeCategoryAndTags(values, plannedCurrentTags);
+    plannedCurrentCategories = normalized.categories;
+    plannedCurrentTags = normalized.tags;
+    renderPlannedCategoryTokens();
+    renderPlannedTagTokens();
+  },
+  singleValue: true,
 });
 
 setupTokenInput(plannedTagsInput, {
@@ -2030,9 +2074,11 @@ function initializeAutocomplete() {
       getOptions: () => getCategorySuggestionLabels(),
       applyValue: (value) => {
         const normalized = normalizeCategoryAndTags([value], plannedCurrentTags);
-        plannedCategoryInput.value = normalized.categories[0] ?? "";
+        plannedCurrentCategories = normalized.categories;
+        plannedCategoryInput.value = "";
         plannedCurrentTags = normalized.tags;
         plannedTagsInput.value = "";
+        renderPlannedCategoryTokens();
         renderPlannedTagTokens();
       },
     },
@@ -2043,6 +2089,54 @@ function initializeAutocomplete() {
         plannedCurrentTags = dedupePreservingOrder([...plannedCurrentTags, value]);
         plannedTagsInput.value = "";
         renderPlannedTagTokens();
+      },
+    },
+    {
+      input: plannedTaskInput,
+      getOptions: () => uniqueValues("task"),
+      applyValue: (value) => {
+        plannedTaskInput.value = value;
+      },
+    },
+    {
+      input: plannedNotionInput,
+      getOptions: () => uniqueValues("notionRef"),
+      applyValue: (value) => {
+        plannedNotionInput.value = value;
+      },
+    },
+    {
+      input: plannedObjectivePoleInput,
+      anchor: plannedObjectivePoleInput.closest(".objective-block"),
+      getOptions: () => mergeSuggestionValues(OBJECTIVE_2026_PILLARS, uniqueValues("objectivePole")),
+      applyValue: (value) => {
+        plannedObjectivePoleInput.value = value;
+      },
+    },
+    {
+      input: plannedObjectiveOkrInput,
+      anchor: plannedObjectiveOkrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveOkrOptions(plannedObjectivePoleInput.value.trim()),
+      applyValue: (value) => {
+        applyObjectiveOkrSelection(value, {
+          poleInput: plannedObjectivePoleInput,
+          okrInput: plannedObjectiveOkrInput,
+        });
+      },
+    },
+    {
+      input: plannedObjectiveKrInput,
+      anchor: plannedObjectiveKrInput.closest(".objective-block"),
+      getOptions: () => getObjectiveKrOptions(
+        plannedObjectivePoleInput.value.trim(),
+        plannedObjectiveOkrInput.value.trim(),
+      ),
+      applyValue: (value) => {
+        applyObjectiveKrSelection(value, {
+          poleInput: plannedObjectivePoleInput,
+          okrInput: plannedObjectiveOkrInput,
+          krInput: plannedObjectiveKrInput,
+        });
       },
     },
     {
@@ -2654,14 +2748,13 @@ function handleAgendaDragEnd(event) {
   }
 
   suppressNextAgendaClick = true;
-  if (state.originalSession.isServerActive) {
+  if (state.originalSession.isServerActive && isCurrentActiveSession(state.originalSession)) {
     const nextActiveSession = normalizeSession({
       ...state.originalSession,
       ...state.previewSession,
       isServerActive: true,
     });
-    activeSession =
-      activeSession?.id === nextActiveSession.id ? nextActiveSession : activeSession;
+    activeSession = nextActiveSession;
     persistActiveSession();
     void logSessionChange(state.originalSession, nextActiveSession, `agenda-${state.mode}`);
     render();
@@ -2774,6 +2867,13 @@ function initializeObjectiveSelections() {
     okrInput: manualObjectiveOkrInput,
     krInput: manualObjectiveKrInput,
   });
+  setupObjectiveDisclosure({
+    disclosure: plannedObjectiveDisclosure,
+    summaryText: plannedObjectiveSummaryText,
+    poleInput: plannedObjectivePoleInput,
+    okrInput: plannedObjectiveOkrInput,
+    krInput: plannedObjectiveKrInput,
+  });
 
   setupSingleSelectionDisplay({
     input: objectivePoleInput,
@@ -2798,6 +2898,18 @@ function initializeObjectiveSelections() {
   setupSingleSelectionDisplay({
     input: manualObjectiveKrInput,
     container: manualObjectiveKrSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: plannedObjectivePoleInput,
+    container: plannedObjectivePoleSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: plannedObjectiveOkrInput,
+    container: plannedObjectiveOkrSelected,
+  });
+  setupSingleSelectionDisplay({
+    input: plannedObjectiveKrInput,
+    container: plannedObjectiveKrSelected,
   });
 
   renderObjectiveSelections();
@@ -2849,6 +2961,9 @@ function renderObjectiveSelections() {
   renderSingleSelectionTag(manualObjectivePoleInput, manualObjectivePoleSelected);
   renderSingleSelectionTag(manualObjectiveOkrInput, manualObjectiveOkrSelected);
   renderSingleSelectionTag(manualObjectiveKrInput, manualObjectiveKrSelected);
+  renderSingleSelectionTag(plannedObjectivePoleInput, plannedObjectivePoleSelected);
+  renderSingleSelectionTag(plannedObjectiveOkrInput, plannedObjectiveOkrSelected);
+  renderSingleSelectionTag(plannedObjectiveKrInput, plannedObjectiveKrSelected);
   renderObjectiveDisclosureSummary(objectiveSummaryText, {
     pole: objectivePoleInput.value.trim(),
     okr: objectiveOkrInput.value.trim(),
@@ -2858,6 +2973,11 @@ function renderObjectiveSelections() {
     pole: manualObjectivePoleInput.value.trim(),
     okr: manualObjectiveOkrInput.value.trim(),
     kr: manualObjectiveKrInput.value.trim(),
+  });
+  renderObjectiveDisclosureSummary(plannedObjectiveSummaryText, {
+    pole: plannedObjectivePoleInput.value.trim(),
+    okr: plannedObjectiveOkrInput.value.trim(),
+    kr: plannedObjectiveKrInput.value.trim(),
   });
   updateFieldManageButtons();
 }
@@ -3084,33 +3204,52 @@ function materializeDemoSession(template, user, day, slot, slotIndex) {
   };
 }
 
-function loadSessions() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    const normalized = parsed
-      .map(normalizeSession)
-      .filter((session) => !isCorruptedPersistedSession(session))
-      .filter((session) => DEMO_MODE_ENABLED || !isDemoSession(session));
-    const demoSessions = getDemoSessions();
-    if (!normalized.length) {
-      return demoSessions;
+function readLocalStorageJsonWithFallback(primaryKey, fallbackKeys = [], fallbackValue = null) {
+  const keys = [primaryKey, ...fallbackKeys].filter(Boolean);
+  let parseFailedOnPrimary = false;
+  for (const key of keys) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      if (raw == null) {
+        continue;
+      }
+      const parsed = JSON.parse(raw);
+      if (parseFailedOnPrimary && key !== primaryKey) {
+        try {
+          window.localStorage.setItem(primaryKey, JSON.stringify(parsed));
+        } catch {
+          // Best-effort self-heal only.
+        }
+      }
+      return parsed;
+    } catch {
+      if (key === primaryKey) {
+        parseFailedOnPrimary = true;
+      }
     }
-
-    return [...demoSessions, ...normalized];
-  } catch {
-    return getDemoSessions();
   }
+  return fallbackValue;
+}
+
+function loadSessions() {
+  const parsed = readLocalStorageJsonWithFallback(STORAGE_KEY, [LEGACY_STORAGE_KEYS[STORAGE_KEY]], []);
+  const normalized = Array.isArray(parsed)
+    ? parsed
+        .map(normalizeSession)
+        .filter((session) => !isCorruptedPersistedSession(session))
+        .filter((session) => DEMO_MODE_ENABLED || !isDemoSession(session))
+    : [];
+  const demoSessions = getDemoSessions();
+  if (!normalized.length) {
+    return demoSessions;
+  }
+
+  return [...demoSessions, ...normalized];
 }
 
 function loadActiveSession() {
-  try {
-    const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
-    const parsed = raw ? JSON.parse(raw) : null;
-    return parsed ? normalizeSession(parsed) : null;
-  } catch {
-    return null;
-  }
+  const parsed = readLocalStorageJsonWithFallback(ACTIVE_SESSION_KEY, [LEGACY_STORAGE_KEYS[ACTIVE_SESSION_KEY]], null);
+  return parsed ? normalizeSession(parsed) : null;
 }
 
 function loadPendingStoppedSessionState() {
@@ -3215,10 +3354,10 @@ function rememberRecentlyStoppedSession(session) {
   persistRecentlyStoppedSessionGuards();
 }
 
-function isRecentlyStoppedRemoteActiveRow(row) {
-  const collaborator = normalizeText(row?.user_name ?? "");
-  const startedAtKey = getSessionStartIdentity(row?.started_at ?? "");
-  const activeSessionId = normalizeText(row?.active_session_id ?? "");
+function isRecentlyStoppedSessionLike(sessionLike) {
+  const collaborator = normalizeText(sessionLike?.user_name ?? sessionLike?.collaborator ?? "");
+  const startedAtKey = getSessionStartIdentity(sessionLike?.started_at ?? sessionLike?.start ?? "");
+  const activeSessionId = normalizeText(sessionLike?.active_session_id ?? sessionLike?.dbActiveSessionId ?? sessionLike?.id ?? "");
   if (!collaborator || !startedAtKey) {
     return false;
   }
@@ -3234,6 +3373,10 @@ function isRecentlyStoppedRemoteActiveRow(row) {
     }
     return item.activeSessionId === activeSessionId;
   });
+}
+
+function isRecentlyStoppedRemoteActiveRow(row) {
+  return isRecentlyStoppedSessionLike(row);
 }
 
 function getVisiblePendingStoppedSessionState() {
@@ -3267,6 +3410,37 @@ function matchesPendingStoppedSession(activeLike) {
   return Math.abs(activeStartMs - pendingStartMs) < 5 * 60 * 1000;
 }
 
+function shouldBlockActiveSessionSync(sessionLike) {
+  if (!sessionLike) {
+    return false;
+  }
+  if (matchesPendingStoppedSession(sessionLike)) {
+    return true;
+  }
+  const collaborator = normalizeText(sessionLike.collaborator ?? "");
+  const startedAtKey = getSessionStartIdentity(sessionLike.start);
+  if (!collaborator || !startedAtKey) {
+    return false;
+  }
+  return recentlyStoppedSessionGuards.some((item) => {
+    const itemStartedAtKey = item.startedAtKey || getSessionStartIdentity(item.startedAt);
+    return item.collaborator === collaborator && itemStartedAtKey === startedAtKey;
+  });
+}
+
+function shouldSuppressRemoteActiveForPendingCollaborator(rowOrSession) {
+  const pendingSession = pendingStoppedSessionState?.session;
+  if (!pendingSession) {
+    return false;
+  }
+  const rowCollaborator = normalizeText(rowOrSession?.user_name ?? rowOrSession?.collaborator ?? "");
+  const pendingCollaborator = normalizeText(pendingSession.collaborator ?? "");
+  if (!rowCollaborator || !pendingCollaborator) {
+    return false;
+  }
+  return rowCollaborator === pendingCollaborator;
+}
+
 function setStatusNodeMessage(node, message = "", tone = "error") {
   if (!node) {
     return;
@@ -3278,6 +3452,15 @@ function setStatusNodeMessage(node, message = "", tone = "error") {
 
 function setManualDialogStatus(message = "", tone = "error") {
   setStatusNodeMessage(manualDialogStatus, message, tone);
+}
+
+function setPlannedDialogStatus(message = "", tone = "error") {
+  setStatusNodeMessage(plannedDialogStatus, message, tone);
+}
+
+function extractFirstUrl(rawValue = "") {
+  const match = String(rawValue ?? "").match(/https?:\/\/[^\s)]+/i);
+  return match ? match[0] : "";
 }
 
 function setUsersAdminDraftStatus(message = "", tone = "error") {
@@ -3554,11 +3737,16 @@ function hydrateRemoteState(historyRows, activeRows) {
   const mergedSessions = new Map();
   const closedRemoteSessionIds = new Set();
   const closedRemoteSessionKeys = new Set();
+  const remoteTimeEntryIds = new Set();
 
   for (const row of historyRows) {
     const sourceSessionId = normalizeText(row?.source_session_id ?? row?.time_entry_id ?? "");
     if (sourceSessionId) {
       closedRemoteSessionIds.add(sourceSessionId);
+    }
+    const timeEntryId = normalizeText(row?.time_entry_id ?? "");
+    if (timeEntryId) {
+      remoteTimeEntryIds.add(timeEntryId);
     }
     const userName = normalizeText(row?.user_name ?? "");
     const startedAtKey = getSessionStartIdentity(row?.started_at ?? "");
@@ -3575,10 +3763,22 @@ function hydrateRemoteState(historyRows, activeRows) {
   }
 
   for (const session of sessions) {
-    if (!session || isDemoSession(session) || session.isServerBacked || session.dbTimeEntryId) {
+    if (!session || isDemoSession(session) || session.isServerBacked) {
       continue;
     }
+
     const localKey = normalizeText(session.id);
+    const localRemoteId = normalizeText(session.dbTimeEntryId ?? "");
+    const localCollaborator = normalizeText(session.collaborator ?? "");
+    const localStartKey = getSessionStartIdentity(session.start);
+    const alreadyPresentByStart = localCollaborator && localStartKey
+      ? closedRemoteSessionKeys.has(`${localCollaborator}::${localStartKey}`)
+      : false;
+    const alreadyPresentByRemoteId = localRemoteId ? remoteTimeEntryIds.has(localRemoteId) : false;
+
+    if (alreadyPresentByRemoteId || alreadyPresentByStart) {
+      continue;
+    }
     if (!localKey || mergedSessions.has(localKey)) {
       continue;
     }
@@ -3598,7 +3798,7 @@ function hydrateRemoteState(historyRows, activeRows) {
       if (userName && startedAtKey && closedRemoteSessionKeys.has(`${userName}::${startedAtKey}`)) {
         return false;
       }
-      if (isRecentlyStoppedRemoteActiveRow(row) || matchesPendingStoppedSession(row)) {
+      if (isRecentlyStoppedRemoteActiveRow(row) || matchesPendingStoppedSession(row) || shouldSuppressRemoteActiveForPendingCollaborator(row)) {
         return false;
       }
       return true;
@@ -3785,6 +3985,13 @@ function stopRemoteSyncLoop() {
   }
   window.clearInterval(remoteSyncIntervalId);
   remoteSyncIntervalId = null;
+}
+
+function isCurrentActiveSession(sessionLike) {
+  if (!sessionLike || !activeSession) {
+    return false;
+  }
+  return normalizeText(sessionLike.id ?? "") === normalizeText(activeSession.id ?? "");
 }
 
 function syncActiveSessionDraftFromForm({ audit = false, source = "active-session-context" } = {}) {
@@ -4451,6 +4658,9 @@ function setAuthStatusMessage(message = "", tone = "neutral", options = {}) {
   }
   authStatus.textContent = message;
   authStatus.hidden = !message;
+  if (authStatusShell) {
+    authStatusShell.hidden = !message;
+  }
   authStatus.dataset.tone = message ? tone : "";
   if (message && options.persistMs) {
     const expectedMessage = message;
@@ -5336,6 +5546,9 @@ async function upsertActiveSessionToSupabase(session) {
   if (!session) {
     return false;
   }
+  if (shouldBlockActiveSessionSync(session)) {
+    return false;
+  }
 
   const payload = await buildActiveSessionPayload(session);
   if (!payload) {
@@ -5668,7 +5881,7 @@ function saveManualEntry() {
   };
 
   const activeSessionBeingEdited =
-    (manualEditingSessionId && getPersistedActiveSessions().find((item) => item.id === manualEditingSessionId)) ?? null;
+    manualEditingSessionId && isCurrentActiveSession({ id: manualEditingSessionId }) ? activeSession : null;
 
   if (activeSessionBeingEdited) {
     if (shouldFinalizeActiveSessionFromManualEdit(activeSessionBeingEdited, manualSession)) {
@@ -6137,6 +6350,21 @@ function formatRoleLabel(role) {
   return "Mode local";
 }
 
+function getUserAvatarMonogram(name) {
+  const words = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) {
+    return "U";
+  }
+  return words
+    .slice(0, 2)
+    .map((word) => Array.from(word)[0] || "")
+    .join("")
+    .toUpperCase();
+}
+
 function renderAuthPanel() {
   if (!authGuestShell || !authUserShell) {
     return;
@@ -6156,7 +6384,14 @@ function renderAuthPanel() {
     if (authRolePill) {
       authRolePill.textContent = formatRoleLabel(accessProfile.role);
     }
+    if (authUserAvatar) {
+      authUserAvatar.textContent = getUserAvatarMonogram(accessProfile.appUser.user_name);
+    }
     return;
+  }
+
+  if (authUserAvatar) {
+    authUserAvatar.textContent = "U";
   }
 
   if (authRescueSelect) {
@@ -6470,7 +6705,7 @@ function getFilteredJournalSessions(rows) {
 
 function renderSessionList() {
   sessionList.innerHTML = "";
-  const visibleSessions = getFilteredJournalSessions(getScopedSessions(sessions));
+  const visibleSessions = getFilteredJournalSessions(getScopedSessions(getSessionsWithPendingStopped()));
 
   if (!visibleSessions.length) {
     const filtersActive = Boolean(
@@ -7472,23 +7707,42 @@ function openPlannedDialog(plannedEvent) {
   }
   plannedEditingEventId = plannedEvent.id;
   plannedEditingEvent = plannedEvent;
+  setPlannedDialogStatus("");
   plannedSubjectInput.value = plannedEvent.title || "";
-  plannedCategoryInput.value = getPlannedEventDisplayCategory(plannedEvent);
+  plannedTaskInput.value = plannedEvent.task || "";
+  plannedCurrentCategories = getPlannedEventDisplayCategory(plannedEvent) ? [getPlannedEventDisplayCategory(plannedEvent)] : [];
   plannedCurrentTags = getPlannedEventEditableTags(plannedEvent);
+  renderPlannedCategoryTokens();
+  plannedNotionInput.value = plannedEvent.notionRef || extractFirstUrl(plannedEvent.description || "") || "";
+  plannedNotesInput.value = plannedEvent.notes || plannedEvent.description || "";
+  plannedObjectivePoleInput.value = plannedEvent.objectivePole || "";
+  plannedObjectiveOkrInput.value = plannedEvent.objectiveOkr || "";
+  plannedObjectiveKrInput.value = plannedEvent.objectiveKr || "";
   renderPlannedTagTokens();
+  renderObjectiveSelections();
   plannedDialogSubtitle.textContent = `${formatPlannedEventWeekday(plannedEvent.start_at)} · ${formatPlannedEventTime(plannedEvent)}`;
   syncPlannedDialogSuggestion(plannedEvent);
   plannedDialog.showModal();
-  requestAnimationFrame(() => plannedCategoryInput.focus());
+  requestAnimationFrame(() => plannedSubjectInput.focus());
 }
 
 function resetPlannedDialog() {
   plannedEditingEventId = null;
   plannedEditingEvent = null;
+  setPlannedDialogStatus("");
   plannedSubjectInput.value = "";
+  plannedTaskInput.value = "";
+  plannedCurrentCategories = [];
   plannedCategoryInput.value = "";
   plannedCurrentTags = [];
+  renderPlannedCategoryTokens();
+  plannedNotionInput.value = "";
+  plannedNotesInput.value = "";
+  plannedObjectivePoleInput.value = "";
+  plannedObjectiveOkrInput.value = "";
+  plannedObjectiveKrInput.value = "";
   renderPlannedTagTokens();
+  renderObjectiveSelections();
   plannedDialogSubtitle.textContent = "";
   syncPlannedDialogSuggestion(null);
 }
@@ -7497,26 +7751,104 @@ function closePlannedDialog() {
   plannedDialog?.close();
 }
 
+function buildPlannedSessionDraft() {
+  if (!plannedEditingEvent) {
+    return null;
+  }
+
+  const collaborator = plannedEditingEvent.collaborator || getCurrentCollaborator() || accessProfile.appUser?.user_name || "";
+  const project = plannedSubjectInput.value.trim();
+  const task = plannedTaskInput.value.trim();
+  const start = new Date(plannedEditingEvent.start_at);
+  const end = new Date(plannedEditingEvent.end_at);
+  const normalized = normalizeCategoryAndTags(
+    [...plannedCurrentCategories, ...parseTokenString(plannedCategoryInput.value)],
+    dedupePreservingOrder([...plannedCurrentTags, ...parseTokenString(plannedTagsInput.value)]),
+  );
+
+  if (!collaborator) {
+    setPlannedDialogStatus("Choisissez votre nom pour rattacher cet événement à un collaborateur.", "warning");
+    return null;
+  }
+  if (!project) {
+    setPlannedDialogStatus("Le sujet est requis pour créer une entrée réelle.", "error");
+    plannedSubjectInput.focus();
+    return null;
+  }
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    setPlannedDialogStatus("Les horaires importés sont invalides pour cet événement.", "error");
+    return null;
+  }
+
+  return {
+    id: createSessionId(),
+    collaborator,
+    project,
+    task,
+    categories: normalized.categories,
+    tags: normalized.tags,
+    notionRef: plannedNotionInput.value.trim(),
+    objectivePole: plannedObjectivePoleInput.value.trim(),
+    objectiveOkr: plannedObjectiveOkrInput.value.trim(),
+    objectiveKr: plannedObjectiveKrInput.value.trim(),
+    notes: plannedNotesInput.value.trim(),
+    start: start.toISOString(),
+    end: end.toISOString(),
+    durationMs: Math.max(end.getTime() - start.getTime(), 0),
+  };
+}
+
 function applyPlannedEventDecision(mode) {
   if (!plannedEditingEventId) {
     return;
   }
 
-  const payload = {
+  setPlannedDialogStatus("");
+  const basePayload = {
     title: plannedSubjectInput.value.trim(),
-    validated_category: plannedCategoryInput.value.trim(),
-    validated_tags: dedupePreservingOrder(plannedCurrentTags),
-    status: mode,
+    task: plannedTaskInput.value.trim(),
+    description: plannedNotesInput.value.trim(),
+    notionRef: plannedNotionInput.value.trim(),
+    objectivePole: plannedObjectivePoleInput.value.trim(),
+    objectiveOkr: plannedObjectiveOkrInput.value.trim(),
+    objectiveKr: plannedObjectiveKrInput.value.trim(),
+    validated_category: plannedCurrentCategories[0] ?? plannedCategoryInput.value.trim(),
+    validated_tags: dedupePreservingOrder([...plannedCurrentTags, ...parseTokenString(plannedTagsInput.value)]),
     updated_at: new Date().toISOString(),
   };
 
-  if (mode === "validated" && !payload.validated_category && !payload.validated_tags.length) {
-    payload.status = "pending";
+  if (mode === "validated") {
+    const plannedSession = buildPlannedSessionDraft();
+    if (!plannedSession) {
+      return;
+    }
+
+    attemptSaveSession(plannedSession, {
+      onSuccess: (sessionToSave) => {
+        upsertSession(sessionToSave);
+        persistSessions();
+        void logSessionChange(null, sessionToSave, "planned-import-validate");
+        void syncSessionToSupabase(sessionToSave, "planned-import");
+
+        plannedEventOverrides[plannedEditingEventId] = {
+          ...(plannedEventOverrides[plannedEditingEventId] ?? {}),
+          ...basePayload,
+          status: "integrated",
+          integrated_session_id: sessionToSave.id,
+          integrated_at: new Date().toISOString(),
+        };
+        storePlannedEventOverrides(plannedEventOverrides);
+        closePlannedDialog();
+        render();
+      },
+    });
+    return;
   }
 
   plannedEventOverrides[plannedEditingEventId] = {
     ...(plannedEventOverrides[plannedEditingEventId] ?? {}),
-    ...payload,
+    ...basePayload,
+    status: mode,
   };
   storePlannedEventOverrides(plannedEventOverrides);
   closePlannedDialog();
@@ -7654,6 +7986,7 @@ function getImportedPlannedEventsForCollaborator(collaborator, range) {
         .filter((event) => isValidPlannedSnapshotEvent(event))
         .map((event, index) => buildPlannedImportedEvent(snapshot, event, index)),
     )
+    .filter((row) => row.status !== "integrated")
     .filter((row) => {
       const start = new Date(row.start_at);
       const end = new Date(row.end_at);
@@ -9235,6 +9568,22 @@ function getPersistedActiveSessions() {
   }));
 }
 
+function getSessionsWithPendingStopped() {
+  const rows = [...sessions];
+  const pendingSession = pendingStoppedSessionState?.session;
+  if (!pendingSession) {
+    return rows;
+  }
+  const alreadyPresent = rows.some((session) => areSessionsEffectivelySame(session, pendingSession));
+  if (!alreadyPresent) {
+    rows.unshift(normalizeSession({
+      ...pendingSession,
+      isServerActive: false,
+    }));
+  }
+  return rows;
+}
+
 function getSessionsForCollaborator(collaborator) {
   return getScopedSessions(getAllSessionsWithActive()).filter(
     (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
@@ -9280,7 +9629,7 @@ function isStaleActiveSessionCandidate(activeLike, options = {}) {
 }
 
 function getAllSessionsWithActive() {
-  const rows = new Map(sessions.map((session) => [session.id, session]));
+  const rows = new Map(getSessionsWithPendingStopped().map((session) => [session.id, session]));
   for (const activeRow of getPersistedActiveSessions()) {
     rows.set(activeRow.id, activeRow);
   }
@@ -9532,6 +9881,13 @@ function renderManualTagTokens() {
     manualCurrentTags = manualCurrentTags.filter((_, itemIndex) => itemIndex !== index);
     renderManualTagTokens();
   });
+}
+
+function renderPlannedCategoryTokens() {
+  renderTokenList(plannedCategoriesList, plannedCurrentCategories, (index) => {
+    plannedCurrentCategories = plannedCurrentCategories.filter((_, itemIndex) => itemIndex !== index);
+    renderPlannedCategoryTokens();
+  }, { kind: "category" });
 }
 
 function renderPlannedTagTokens() {
