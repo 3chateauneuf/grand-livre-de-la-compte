@@ -6,9 +6,11 @@ const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
 const PLANNED_EVENTS_OVERRIDES_KEY = "mordologie-planned-events-v1";
 const PLANNED_CALENDAR_SNAPSHOTS_KEY = "mordologie-planned-calendar-snapshots-v1";
 const DAY_THEMES_KEY = "mordologie-day-themes-v1";
+const PROFILE_AVATAR_KEY = "mordologie-profile-avatar-v1";
 const UI_PREFERENCES_TABLE = "user_ui_preferences";
 const DAY_THEMES_PREFERENCE_KEY = "day_themes";
 const REPRISES_ORDER_PREFERENCE_KEY = "reprises_order";
+const PROFILE_AVATAR_PREFERENCE_KEY = "profile_avatar";
 const LOCAL_RESCUE_ACCESS_KEY = "mordologie-local-rescue-access-v1";
 const PENDING_STOP_STATE_KEY = "mordologie-pending-stop-v1";
 const RECENTLY_STOPPED_SESSIONS_KEY = "mordologie-recently-stopped-sessions-v1";
@@ -21,6 +23,7 @@ const LEGACY_STORAGE_KEYS = {
   [CATEGORY_COLOR_KEY]: "grand-livre-category-colors-v1",
   [REPRISES_ORDER_KEY]: "grand-livre-reprises-order-v1",
   [REPRISES_ACTIONS_KEY]: "grand-livre-reprises-actions-v1",
+  [PROFILE_AVATAR_KEY]: "grand-livre-profile-avatar-v1",
 };
 const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
@@ -174,6 +177,7 @@ const authRescueButton = document.querySelector("#auth-rescue-button");
 const authUserName = document.querySelector("#auth-user-name");
 const authUserEmail = document.querySelector("#auth-user-email");
 const authUserAvatar = document.querySelector("#auth-user-avatar");
+const authAvatarInput = document.querySelector("#auth-avatar-input");
 const authRolePill = document.querySelector("#auth-role-pill");
 const authSignoutButton = document.querySelector("#auth-signout-button");
 const authStatusShell = document.querySelector("#auth-status-shell");
@@ -953,6 +957,7 @@ let repriseActions = loadStoredRepriseActions();
 let remoteStateAvailable = false;
 let sharedDayThemesByScope = {};
 let sharedReprisesOrderByScope = {};
+let sharedProfileAvatarsByOwner = {};
 let remoteSyncHealth = {
   history: "unknown",
   active: "unknown",
@@ -1060,6 +1065,36 @@ void initializeAuth();
 
 authSignoutButton?.addEventListener("click", async () => {
   await handleAuthSignOut();
+});
+
+authUserAvatar?.addEventListener("click", () => {
+  if (!accessProfile.appUser?.user_name) {
+    return;
+  }
+  authAvatarInput?.click();
+});
+
+authAvatarInput?.addEventListener("change", async (event) => {
+  const input = event.target;
+  const file = input?.files?.[0];
+  if (!file || !accessProfile.appUser?.user_name) {
+    return;
+  }
+
+  try {
+    const avatarDataUrl = await resizeAvatarFileToDataUrl(file);
+    const ownerName = accessProfile.appUser.user_name;
+    setLocalProfileAvatar(ownerName, avatarDataUrl);
+    await syncProfileAvatarPreference(ownerName, avatarDataUrl);
+    applyAuthAvatarVisual(ownerName);
+    setAuthStatusMessage("Photo de profil mise à jour.", "success", { persistMs: 2400 });
+  } catch {
+    setAuthStatusMessage("Impossible de charger cette image de profil.", "error", { persistMs: 3200 });
+  } finally {
+    if (input) {
+      input.value = "";
+    }
+  }
 });
 
 authRescueButton?.addEventListener("click", async () => {
@@ -3153,6 +3188,43 @@ function persistDayThemes() {
   window.localStorage.setItem(DAY_THEMES_KEY, JSON.stringify(dayThemes));
 }
 
+function loadStoredProfileAvatars() {
+  try {
+    return JSON.parse(window.localStorage.getItem(PROFILE_AVATAR_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
+function storeProfileAvatars(value) {
+  try {
+    window.localStorage.setItem(PROFILE_AVATAR_KEY, JSON.stringify(value));
+  } catch {
+    // ignore local storage errors
+  }
+}
+
+function getProfileAvatarOwnerKey(ownerName = "") {
+  return normalizeText(ownerName || getSharedPreferenceOwnerName() || "global") || "global";
+}
+
+function getLocalProfileAvatar(ownerName = "") {
+  const ownerKey = getProfileAvatarOwnerKey(ownerName);
+  const avatars = loadStoredProfileAvatars();
+  return typeof avatars[ownerKey] === "string" ? avatars[ownerKey] : "";
+}
+
+function setLocalProfileAvatar(ownerName, dataUrl) {
+  const ownerKey = getProfileAvatarOwnerKey(ownerName);
+  const avatars = loadStoredProfileAvatars();
+  if (dataUrl) {
+    avatars[ownerKey] = dataUrl;
+  } else {
+    delete avatars[ownerKey];
+  }
+  storeProfileAvatars(avatars);
+}
+
 function getSharedPreferenceOwnerName() {
   return accessProfile.appUser?.user_name?.trim() ?? "";
 }
@@ -3164,28 +3236,48 @@ function getSharedPreferenceScopeKey(collaborator = "") {
 function hydrateSharedUiPreferences(rows = []) {
   const nextDayThemesByScope = {};
   const nextReprisesOrderByScope = {};
+  const nextProfileAvatarsByOwner = {};
+  const nextLocalReprisesOrder = loadStoredReprisesOrder();
 
   for (const row of rows) {
     const scopeKey = String(row?.scope_key || "global");
     const value = row?.value_json;
     if (row?.preference_key === DAY_THEMES_PREFERENCE_KEY && Array.isArray(value)) {
-      nextDayThemesByScope[scopeKey] = value
+      const collaborator = row.collaborator_name || getCurrentCollaborator() || "";
+      const normalizedThemes = value
         .filter((item) => item && typeof item === "object")
         .map((item, index) => ({
           id: String(item.id || createSessionId()),
-          collaborator: item.collaborator || row.collaborator_name || getCurrentCollaborator() || "",
+          collaborator: item.collaborator || collaborator,
           label: String(item.label || "").trim(),
           order: Number(item.order ?? index) || 0,
         }))
         .filter((item) => item.label);
+      nextDayThemesByScope[scopeKey] = normalizedThemes;
+      if (collaborator) {
+        setLocalScopedDayThemes(collaborator, normalizedThemes);
+      }
     }
     if (row?.preference_key === REPRISES_ORDER_PREFERENCE_KEY && Array.isArray(value)) {
-      nextReprisesOrderByScope[scopeKey] = value.map((item) => String(item || "").trim()).filter(Boolean);
+      const order = value.map((item) => String(item || "").trim()).filter(Boolean);
+      nextReprisesOrderByScope[scopeKey] = order;
+      nextLocalReprisesOrder[scopeKey] = order;
+    }
+    if (row?.preference_key === PROFILE_AVATAR_PREFERENCE_KEY && value && typeof value === "object") {
+      const ownerName = row.owner_user_name || row.collaborator_name || "";
+      const ownerKey = getProfileAvatarOwnerKey(ownerName);
+      const dataUrl = typeof value.data_url === "string" ? value.data_url : "";
+      if (dataUrl) {
+        nextProfileAvatarsByOwner[ownerKey] = dataUrl;
+        setLocalProfileAvatar(ownerName, dataUrl);
+      }
     }
   }
 
+  storeReprisesOrder(nextLocalReprisesOrder);
   sharedDayThemesByScope = nextDayThemesByScope;
   sharedReprisesOrderByScope = nextReprisesOrderByScope;
+  sharedProfileAvatarsByOwner = nextProfileAvatarsByOwner;
 }
 
 function isMissingSharedPreferencesTableError(error) {
@@ -3279,6 +3371,70 @@ async function syncReprisesOrderPreferenceForCollaborator(collaborator, explicit
   await syncSharedUiPreference(REPRISES_ORDER_PREFERENCE_KEY, collaborator, order);
 }
 
+function getEffectiveProfileAvatar(ownerName = "") {
+  const ownerKey = getProfileAvatarOwnerKey(ownerName);
+  return sharedProfileAvatarsByOwner[ownerKey] || getLocalProfileAvatar(ownerName) || "";
+}
+
+async function syncProfileAvatarPreference(ownerName, dataUrl) {
+  const ownerKey = getProfileAvatarOwnerKey(ownerName);
+  if (dataUrl) {
+    sharedProfileAvatarsByOwner[ownerKey] = dataUrl;
+  } else {
+    delete sharedProfileAvatarsByOwner[ownerKey];
+  }
+  await syncSharedUiPreference(PROFILE_AVATAR_PREFERENCE_KEY, ownerName, { data_url: dataUrl || "" });
+}
+
+async function resizeAvatarFileToDataUrl(file) {
+  const imageUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("avatar-read-failed"));
+    reader.readAsDataURL(file);
+  });
+
+  const image = await new Promise((resolve, reject) => {
+    const nextImage = new Image();
+    nextImage.onload = () => resolve(nextImage);
+    nextImage.onerror = () => reject(new Error("avatar-image-invalid"));
+    nextImage.src = imageUrl;
+  });
+
+  const size = 192;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return imageUrl;
+  }
+
+  const sourceSize = Math.min(image.width, image.height);
+  const sourceX = (image.width - sourceSize) / 2;
+  const sourceY = (image.height - sourceSize) / 2;
+  context.drawImage(image, sourceX, sourceY, sourceSize, sourceSize, 0, 0, size, size);
+  return canvas.toDataURL("image/webp", 0.9);
+}
+
+function applyAuthAvatarVisual(ownerName = "") {
+  if (!authUserAvatar) {
+    return;
+  }
+
+  const avatarDataUrl = getEffectiveProfileAvatar(ownerName);
+  if (avatarDataUrl) {
+    authUserAvatar.textContent = getUserAvatarMonogram(ownerName || accessProfile.appUser?.user_name || "U");
+    authUserAvatar.classList.add("has-photo");
+    authUserAvatar.style.backgroundImage = `url(${avatarDataUrl})`;
+    return;
+  }
+
+  authUserAvatar.classList.remove("has-photo");
+  authUserAvatar.style.backgroundImage = "";
+  authUserAvatar.textContent = getUserAvatarMonogram(ownerName || accessProfile.appUser?.user_name || "U");
+}
+
 async function ensureSharedUiPreferencesBackfilled() {
   const collaborator = getCurrentCollaborator();
   if (!collaborator || !window.supabase) {
@@ -3297,6 +3453,15 @@ async function ensureSharedUiPreferencesBackfilled() {
     const localOrder = loadStoredReprisesOrder()[getReprisesOrderKey(collaborator)] ?? [];
     if (localOrder.length) {
       await syncReprisesOrderPreferenceForCollaborator(collaborator, localOrder);
+    }
+  }
+
+  const ownerName = getSharedPreferenceOwnerName();
+  const ownerKey = getProfileAvatarOwnerKey(ownerName);
+  if (!sharedProfileAvatarsByOwner[ownerKey]) {
+    const localAvatar = getLocalProfileAvatar(ownerName);
+    if (localAvatar) {
+      await syncProfileAvatarPreference(ownerName, localAvatar);
     }
   }
 }
@@ -6569,13 +6734,13 @@ function renderAuthPanel() {
     if (authRolePill) {
       authRolePill.textContent = formatRoleLabel(accessProfile.role);
     }
-    if (authUserAvatar) {
-      authUserAvatar.textContent = getUserAvatarMonogram(accessProfile.appUser.user_name);
-    }
+    applyAuthAvatarVisual(accessProfile.appUser.user_name);
     return;
   }
 
   if (authUserAvatar) {
+    authUserAvatar.classList.remove("has-photo");
+    authUserAvatar.style.backgroundImage = "";
     authUserAvatar.textContent = "U";
   }
 
@@ -6993,10 +7158,11 @@ function renderPersonalStats() {
   const referenceDayStart = new Date(referenceDay.getFullYear(), referenceDay.getMonth(), referenceDay.getDate());
   const referenceDayEnd = new Date(referenceDayStart);
   referenceDayEnd.setDate(referenceDayEnd.getDate() + 1);
+  const statsRows = rows.filter((session) => isLiveStatsEligibleSession(session, collaborator, referenceDayStart));
 
   let referenceDayMs = 0;
   let weekMs = 0;
-  for (const session of rows) {
+  for (const session of statsRows) {
     const start = new Date(session.start);
     const durationMs = Number(session.durationMs) || 0;
     if (start >= referenceDayStart && start < referenceDayEnd) {
@@ -9770,6 +9936,31 @@ function getSessionsForCollaborator(collaborator) {
   return getScopedSessions(getAllSessionsWithActive()).filter(
     (session) => normalizeText(session.collaborator) === normalizeText(collaborator),
   );
+}
+
+function isLiveStatsEligibleSession(session, collaborator, referenceDayStart = null) {
+  if (!session) {
+    return false;
+  }
+  if (!session.isServerActive) {
+    return true;
+  }
+  if (!activeSession || normalizeText(session.id ?? "") !== normalizeText(activeSession.id ?? "")) {
+    return false;
+  }
+  if (normalizeText(session.collaborator ?? "") !== normalizeText(collaborator ?? "")) {
+    return false;
+  }
+  if (!referenceDayStart) {
+    return true;
+  }
+  const start = new Date(session.start);
+  if (Number.isNaN(start.getTime())) {
+    return false;
+  }
+  const end = new Date(referenceDayStart);
+  end.setDate(end.getDate() + 1);
+  return start >= referenceDayStart && start < end;
 }
 
 function isGhostActiveSessionCandidate(activeLike, persistedRows = sessions) {
