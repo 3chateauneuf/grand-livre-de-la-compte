@@ -101,11 +101,29 @@ create table if not exists public.reprise_actions (
   primary key (subject_user_name, memory_key)
 );
 
+create table if not exists public.user_ui_preferences (
+  owner_user_name text not null,
+  collaborator_name text not null,
+  preference_key text not null
+    check (preference_key in ('day_themes', 'reprises_order')),
+  scope_key text not null,
+  value_json jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (owner_user_name, preference_key, scope_key)
+);
+
 create index if not exists idx_reprise_actions_actor_name
   on public.reprise_actions(actor_name);
 
 create index if not exists idx_reprise_actions_updated_at
   on public.reprise_actions(updated_at desc);
+
+create index if not exists idx_user_ui_preferences_owner_name
+  on public.user_ui_preferences(owner_user_name);
+
+create index if not exists idx_user_ui_preferences_updated_at
+  on public.user_ui_preferences(updated_at desc);
 
 alter table public.users enable row level security;
 alter table public.projects enable row level security;
@@ -114,6 +132,7 @@ alter table public.time_entries enable row level security;
 alter table public.active_sessions enable row level security;
 alter table public.session_audit_log enable row level security;
 alter table public.reprise_actions enable row level security;
+alter table public.user_ui_preferences enable row level security;
 
 drop policy if exists users_anon_read_lightweight on public.users;
 create policy users_anon_read_lightweight
@@ -258,6 +277,28 @@ with check (true);
 drop policy if exists reprise_actions_anon_update_shared on public.reprise_actions;
 create policy reprise_actions_anon_update_shared
 on public.reprise_actions
+for update
+to anon
+using (true)
+with check (true);
+
+drop policy if exists user_ui_preferences_anon_read_shared on public.user_ui_preferences;
+create policy user_ui_preferences_anon_read_shared
+on public.user_ui_preferences
+for select
+to anon
+using (true);
+
+drop policy if exists user_ui_preferences_anon_insert_shared on public.user_ui_preferences;
+create policy user_ui_preferences_anon_insert_shared
+on public.user_ui_preferences
+for insert
+to anon
+with check (true);
+
+drop policy if exists user_ui_preferences_anon_update_shared on public.user_ui_preferences;
+create policy user_ui_preferences_anon_update_shared
+on public.user_ui_preferences
 for update
 to anon
 using (true)

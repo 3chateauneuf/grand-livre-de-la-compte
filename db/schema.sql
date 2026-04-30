@@ -140,6 +140,18 @@ create table reprise_actions (
   primary key (subject_user_name, memory_key)
 );
 
+create table user_ui_preferences (
+  owner_user_name text not null,
+  collaborator_name text not null,
+  preference_key text not null
+    check (preference_key in ('day_themes', 'reprises_order')),
+  scope_key text not null,
+  value_json jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (owner_user_name, preference_key, scope_key)
+);
+
 create index idx_time_entries_entry_date on time_entries(entry_date);
 create index idx_time_entries_user_id on time_entries(user_id);
 create index idx_time_entries_project_id on time_entries(project_id);
@@ -156,6 +168,8 @@ create index idx_active_sessions_started_at on active_sessions(started_at);
 create index idx_active_sessions_updated_at on active_sessions(updated_at);
 create index idx_reprise_actions_actor_name on reprise_actions(actor_name);
 create index idx_reprise_actions_updated_at on reprise_actions(updated_at);
+create index idx_user_ui_preferences_owner_name on user_ui_preferences(owner_user_name);
+create index idx_user_ui_preferences_updated_at on user_ui_preferences(updated_at);
 
 -- Write-time rules enforced by the application layer
 --

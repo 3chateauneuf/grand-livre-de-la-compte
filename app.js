@@ -6,6 +6,9 @@ const REPRISES_ACTIONS_KEY = "mordologie-reprises-actions-v1";
 const PLANNED_EVENTS_OVERRIDES_KEY = "mordologie-planned-events-v1";
 const PLANNED_CALENDAR_SNAPSHOTS_KEY = "mordologie-planned-calendar-snapshots-v1";
 const DAY_THEMES_KEY = "mordologie-day-themes-v1";
+const UI_PREFERENCES_TABLE = "user_ui_preferences";
+const DAY_THEMES_PREFERENCE_KEY = "day_themes";
+const REPRISES_ORDER_PREFERENCE_KEY = "reprises_order";
 const LOCAL_RESCUE_ACCESS_KEY = "mordologie-local-rescue-access-v1";
 const PENDING_STOP_STATE_KEY = "mordologie-pending-stop-v1";
 const RECENTLY_STOPPED_SESSIONS_KEY = "mordologie-recently-stopped-sessions-v1";
@@ -948,10 +951,13 @@ let auditTableAvailable = null;
 let remoteActiveSessions = [];
 let repriseActions = loadStoredRepriseActions();
 let remoteStateAvailable = false;
+let sharedDayThemesByScope = {};
+let sharedReprisesOrderByScope = {};
 let remoteSyncHealth = {
   history: "unknown",
   active: "unknown",
   reprise: "unknown",
+  preferences: "unknown",
 };
 let remoteSyncStatusSignature = "";
 let remoteStateLoadingPromise = null;
@@ -1255,15 +1261,19 @@ addDayThemeButton?.addEventListener("click", () => {
   }
 
   const scopedThemes = getScopedDayThemes(collaborator);
-  dayThemes.unshift({
-    id: createSessionId(),
-    collaborator,
-    label,
-    order: scopedThemes.length,
-  });
-  persistDayThemes();
+  const nextScopedThemes = [
+    ...scopedThemes,
+    {
+      id: createSessionId(),
+      collaborator,
+      label,
+      order: scopedThemes.length,
+    },
+  ];
+  setLocalScopedDayThemes(collaborator, nextScopedThemes);
   dayThemeInput.value = "";
   renderDayThemes();
+  void syncDayThemesPreferenceForCollaborator(collaborator);
 });
 
 dayThemeInput?.addEventListener("keydown", (event) => {
@@ -1279,9 +1289,13 @@ dayThemesList?.addEventListener("click", (event) => {
     return;
   }
 
-  dayThemes = dayThemes.filter((item) => item.id !== removeButton.dataset.removeThemeId);
-  persistDayThemes();
+  const collaborator = getCurrentCollaborator();
+  const remainingThemes = getScopedDayThemes(collaborator).filter((item) => item.id !== removeButton.dataset.removeThemeId);
+  setLocalScopedDayThemes(collaborator, remainingThemes);
   renderDayThemes();
+  if (collaborator) {
+    void syncDayThemesPreferenceForCollaborator(collaborator);
+  }
 });
 
 projectInput.addEventListener("input", () => {
@@ -3139,6 +3153,154 @@ function persistDayThemes() {
   window.localStorage.setItem(DAY_THEMES_KEY, JSON.stringify(dayThemes));
 }
 
+function getSharedPreferenceOwnerName() {
+  return accessProfile.appUser?.user_name?.trim() ?? "";
+}
+
+function getSharedPreferenceScopeKey(collaborator = "") {
+  return normalizeText(collaborator || getCurrentCollaborator() || "global") || "global";
+}
+
+function hydrateSharedUiPreferences(rows = []) {
+  const nextDayThemesByScope = {};
+  const nextReprisesOrderByScope = {};
+
+  for (const row of rows) {
+    const scopeKey = String(row?.scope_key || "global");
+    const value = row?.value_json;
+    if (row?.preference_key === DAY_THEMES_PREFERENCE_KEY && Array.isArray(value)) {
+      nextDayThemesByScope[scopeKey] = value
+        .filter((item) => item && typeof item === "object")
+        .map((item, index) => ({
+          id: String(item.id || createSessionId()),
+          collaborator: item.collaborator || row.collaborator_name || getCurrentCollaborator() || "",
+          label: String(item.label || "").trim(),
+          order: Number(item.order ?? index) || 0,
+        }))
+        .filter((item) => item.label);
+    }
+    if (row?.preference_key === REPRISES_ORDER_PREFERENCE_KEY && Array.isArray(value)) {
+      nextReprisesOrderByScope[scopeKey] = value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+  }
+
+  sharedDayThemesByScope = nextDayThemesByScope;
+  sharedReprisesOrderByScope = nextReprisesOrderByScope;
+}
+
+function isMissingSharedPreferencesTableError(error) {
+  const message = String(error?.message || "");
+  const code = String(error?.code || "");
+  return code === "42P01" || code === "PGRST205" || message.includes(UI_PREFERENCES_TABLE);
+}
+
+async function syncSharedUiPreference(preferenceKey, collaborator, valueJson) {
+  if (!window.supabase) {
+    return false;
+  }
+
+  const ownerUserName = getSharedPreferenceOwnerName();
+  if (!ownerUserName) {
+    return false;
+  }
+
+  const payload = {
+    owner_user_name: ownerUserName,
+    collaborator_name: collaborator || ownerUserName,
+    preference_key: preferenceKey,
+    scope_key: getSharedPreferenceScopeKey(collaborator),
+    value_json: valueJson,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await window.supabase
+    .from(UI_PREFERENCES_TABLE)
+    .upsert([payload], { onConflict: "owner_user_name,preference_key,scope_key" });
+
+  if (error) {
+    if (!isMissingSharedPreferencesTableError(error)) {
+      console.warn(`${preferenceKey} shared preference upsert failed:`, error);
+    }
+    return false;
+  }
+
+  return true;
+}
+
+function getLocalScopedDayThemes(collaborator) {
+  const key = normalizeText(collaborator || "");
+  return dayThemes
+    .filter((item) => normalizeText(item.collaborator || "") === key)
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+}
+
+function setLocalScopedDayThemes(collaborator, nextItems) {
+  const key = normalizeText(collaborator || "");
+  const preserved = dayThemes.filter((item) => normalizeText(item.collaborator || "") !== key);
+  dayThemes = [
+    ...nextItems.map((item, index) => ({
+      id: String(item.id || createSessionId()),
+      collaborator,
+      label: String(item.label || "").trim(),
+      order: Number(item.order ?? index) || 0,
+    })).filter((item) => item.label),
+    ...preserved,
+  ];
+  persistDayThemes();
+}
+
+function getEffectiveScopedDayThemes(collaborator) {
+  const remoteItems = sharedDayThemesByScope[getSharedPreferenceScopeKey(collaborator)];
+  if (Array.isArray(remoteItems)) {
+    return remoteItems.slice().sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+  }
+  return getLocalScopedDayThemes(collaborator);
+}
+
+async function syncDayThemesPreferenceForCollaborator(collaborator) {
+  const scopeKey = getSharedPreferenceScopeKey(collaborator);
+  const scopedThemes = getLocalScopedDayThemes(collaborator);
+  sharedDayThemesByScope[scopeKey] = scopedThemes.map((item) => ({ ...item }));
+  await syncSharedUiPreference(DAY_THEMES_PREFERENCE_KEY, collaborator, scopedThemes);
+}
+
+function getEffectiveReprisesOrderMap() {
+  const localOrder = loadStoredReprisesOrder();
+  return {
+    ...localOrder,
+    ...sharedReprisesOrderByScope,
+  };
+}
+
+async function syncReprisesOrderPreferenceForCollaborator(collaborator, explicitOrder = null) {
+  const order = explicitOrder ?? (loadStoredReprisesOrder()[getReprisesOrderKey(collaborator)] ?? []);
+  const scopeKey = getSharedPreferenceScopeKey(collaborator);
+  sharedReprisesOrderByScope[scopeKey] = [...order];
+  await syncSharedUiPreference(REPRISES_ORDER_PREFERENCE_KEY, collaborator, order);
+}
+
+async function ensureSharedUiPreferencesBackfilled() {
+  const collaborator = getCurrentCollaborator();
+  if (!collaborator || !window.supabase) {
+    return;
+  }
+
+  const scopeKey = getSharedPreferenceScopeKey(collaborator);
+  if (!Array.isArray(sharedDayThemesByScope[scopeKey])) {
+    const localThemes = getLocalScopedDayThemes(collaborator);
+    if (localThemes.length) {
+      await syncDayThemesPreferenceForCollaborator(collaborator);
+    }
+  }
+
+  if (!Array.isArray(sharedReprisesOrderByScope[scopeKey])) {
+    const localOrder = loadStoredReprisesOrder()[getReprisesOrderKey(collaborator)] ?? [];
+    if (localOrder.length) {
+      await syncReprisesOrderPreferenceForCollaborator(collaborator, localOrder);
+    }
+  }
+}
+
 function buildRollingDemoSessions(referenceDate = new Date()) {
   const baseDate = new Date(referenceDate);
   baseDate.setHours(0, 0, 0, 0);
@@ -3491,12 +3653,13 @@ function updateRemoteSyncStatus(nextHealth, { silent = false } = {}) {
     history: "historique",
     active: "session active",
     reprise: "reprises",
+    preferences: "preferences",
   };
   const failed = Object.entries(nextHealth)
     .filter(([, value]) => value !== "ok")
     .map(([key]) => labels[key]);
   const allOk = failed.length === 0;
-  const signature = `${nextHealth.history}|${nextHealth.active}|${nextHealth.reprise}`;
+  const signature = `${nextHealth.history}|${nextHealth.active}|${nextHealth.reprise}|${nextHealth.preferences}`;
   const previousSignature = remoteSyncStatusSignature;
   remoteSyncStatusSignature = signature;
   const currentStatusText = authStatus?.textContent || "";
@@ -3506,7 +3669,7 @@ function updateRemoteSyncStatus(nextHealth, { silent = false } = {}) {
 
   if (allOk) {
     if (previousSignature && previousSignature !== signature && !shouldRespectCurrentError) {
-      setAuthStatusMessage("Synchronisation rétablie pour l’historique, la session active et les reprises.", "success", { persistMs: 2600 });
+      setAuthStatusMessage("Synchronisation rétablie pour l’historique, la session active, les reprises et les préférences.", "success", { persistMs: 2600 });
     }
     return;
   }
@@ -3884,19 +4047,32 @@ async function loadServerBackedState({ silent = false } = {}) {
   }
 
   remoteStateLoadingPromise = (async () => {
-    const [historyResult, activeResult, repriseActionsResult] = await Promise.allSettled([
+    const preferenceOwnerName = getSharedPreferenceOwnerName();
+    const [historyResult, activeResult, repriseActionsResult, preferencesResult] = await Promise.allSettled([
       window.supabase.from("time_entries").select("*").order("created_at", { ascending: false }),
       window.supabase.from("active_sessions").select("*").order("updated_at", { ascending: false }),
       window.supabase.from("reprise_actions").select("*").order("updated_at", { ascending: false }),
+      preferenceOwnerName
+        ? window.supabase
+            .from(UI_PREFERENCES_TABLE)
+            .select("*")
+            .eq("owner_user_name", preferenceOwnerName)
+            .order("updated_at", { ascending: false })
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
     const historyOk = historyResult.status === "fulfilled" && !historyResult.value.error;
     const activeOk = activeResult.status === "fulfilled" && !activeResult.value.error;
     const repriseOk = repriseActionsResult.status === "fulfilled" && !repriseActionsResult.value.error;
+    const rawPreferencesOk = preferencesResult.status === "fulfilled" && !preferencesResult.value.error;
+    const preferencesMissingTable =
+      preferencesResult.status === "fulfilled" && isMissingSharedPreferencesTableError(preferencesResult.value.error);
+    const preferencesOk = rawPreferencesOk || preferencesMissingTable;
 
     const historyRows = historyOk ? historyResult.value.data ?? [] : null;
     const activeRows = activeOk ? activeResult.value.data ?? [] : null;
     const repriseActionRows = repriseOk ? repriseActionsResult.value.data ?? [] : null;
+    const preferenceRows = rawPreferencesOk ? preferencesResult.value.data ?? [] : null;
 
     if (historyResult.status === "fulfilled" && historyResult.value.error) {
       console.warn("time_entries load failed:", historyResult.value.error);
@@ -3907,24 +4083,32 @@ async function loadServerBackedState({ silent = false } = {}) {
     if (repriseActionsResult.status === "fulfilled" && repriseActionsResult.value.error) {
       console.warn("reprise_actions load failed:", repriseActionsResult.value.error);
     }
+    if (preferencesResult.status === "fulfilled" && preferencesResult.value.error && !preferencesMissingTable) {
+      console.warn("user_ui_preferences load failed:", preferencesResult.value.error);
+    }
 
     updateRemoteSyncStatus(
       {
         history: historyOk ? "ok" : "error",
         active: activeOk ? "ok" : "error",
         reprise: repriseOk ? "ok" : "error",
+        preferences: preferencesOk ? "ok" : "error",
       },
       { silent },
     );
 
-    if (!historyRows && !activeRows && !repriseActionRows) {
+    if (!historyRows && !activeRows && !repriseActionRows && !preferenceRows) {
       remoteStateAvailable = false;
       return false;
     }
 
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
-    remoteStateAvailable = historyOk || activeOk || repriseOk;
+    hydrateSharedUiPreferences(preferenceRows ?? []);
+    remoteStateAvailable = historyOk || activeOk || repriseOk || preferencesOk;
+    if (rawPreferencesOk) {
+      await ensureSharedUiPreferencesBackfilled();
+    }
 
     if (!silent) {
       render();
@@ -4375,7 +4559,7 @@ function getReprisesOrderKey(collaborator) {
 
 function getOrderedProjectMemories(collaboratorName = "") {
   const memories = getProjectMemories(collaboratorName);
-  const orderMap = loadStoredReprisesOrder();
+  const orderMap = getEffectiveReprisesOrderMap();
   const customOrder = orderMap[getReprisesOrderKey(collaboratorName)] ?? [];
   const indexMap = new Map(customOrder.map((key, index) => [key, index]));
 
@@ -4407,6 +4591,7 @@ function persistReprisesOrderFromDom() {
   const orderMap = loadStoredReprisesOrder();
   orderMap[getReprisesOrderKey(collaborator)] = order;
   storeReprisesOrder(orderMap);
+  void syncReprisesOrderPreferenceForCollaborator(collaborator, order);
 }
 
 function captureChipPositions(container) {
@@ -6419,10 +6604,7 @@ function renderAuthPanel() {
 }
 
 function getScopedDayThemes(collaborator) {
-  const key = normalizeText(collaborator || "");
-  return dayThemes
-    .filter((item) => normalizeText(item.collaborator || "") === key)
-    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
+  return getEffectiveScopedDayThemes(collaborator);
 }
 
 function renderDayThemes() {
@@ -10341,6 +10523,8 @@ function registerServiceWorker() {
       return;
     }
 
-    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("./service-worker.js").then((registration) => {
+      registration.update().catch(() => {});
+    }).catch(() => {});
   });
 }
