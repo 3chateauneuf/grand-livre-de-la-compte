@@ -4320,12 +4320,15 @@ function hydrateRemoteState(historyRows, activeRows) {
     .map(mapActiveSessionRowToSession)
     .sort((left, right) => new Date(right.start) - new Date(left.start));
 
-  // Deduplicate by collaborator: keep only the newest active session per user.
-  // Prevents a stale duplicate row in active_sessions from being reinstalled
-  // as a ghost timer after a successful stop clears pendingStoppedSessionState.
+  // Deduplicate: keep only the newest active session per user.
+  // Key priority: user_id (stable DB identity) → user_name → collaborator.
+  // Prevents a stale duplicate row from being reinstalled as a ghost timer
+  // after clearPendingStoppedSessionState() removes the suppression guard.
   const deduplicatedActives = new Map();
   for (const session of activeRowsFiltered) {
-    const key = normalizeText(session.collaborator ?? "");
+    const key = (typeof session.dbUserId === "string" && session.dbUserId.trim())
+      ? session.dbUserId.trim()
+      : normalizeText(session.collaborator ?? "");
     if (key && !deduplicatedActives.has(key)) {
       deduplicatedActives.set(key, session);
     }
@@ -6260,6 +6263,12 @@ async function removeStoppedSessionGhostsFromSupabase(session, options = {}) {
       removedAny = true;
     }
 
+    // No targeted IDs available: the remote row doesn't exist or was never
+    // pushed. No error means the active session is already gone — treat as done.
+    if (!removedAny && candidateIds.length === 0) {
+      removedAny = true;
+    }
+
     if (collaborator && sessionStart) {
       const { error } = await window.supabase
         .from("active_sessions")
@@ -6276,13 +6285,19 @@ async function removeStoppedSessionGhostsFromSupabase(session, options = {}) {
 
     // Sweep older ghost rows for the same user that survived the targeted
     // deletes above (duplicate active_sessions with different IDs/timestamps).
-    if (collaborator && sessionStart) {
+    // Use user_id as the primary sweep key; fall back to user_name.
+    // A successful sweep (no error) also marks removedAny to unblock
+    // a pending stop that had no specific ID to target.
+    const sweepUserId = typeof session.dbUserId === "string" ? session.dbUserId.trim() : "";
+    if (sessionStart && (sweepUserId || collaborator)) {
       try {
-        await window.supabase
-          .from("active_sessions")
-          .delete()
-          .eq("user_name", collaborator)
-          .lt("started_at", sessionStart);
+        const sweepQuery = sweepUserId
+          ? window.supabase.from("active_sessions").delete().eq("user_id", sweepUserId).lt("started_at", sessionStart)
+          : window.supabase.from("active_sessions").delete().eq("user_name", collaborator).lt("started_at", sessionStart);
+        const { error: sweepError } = await sweepQuery;
+        if (!sweepError) {
+          removedAny = true;
+        }
       } catch (_) {
         // supplementary cleanup — ignore errors
       }
@@ -6356,6 +6371,18 @@ async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
 
   await loadServerBackedState({ silent: false });
 
+  // If the targeted delete reported failure but the remote row is no longer
+  // present after the reload (swept by another device, DB cleanup, or the
+  // ghost sweep above), treat stop_active as done so the pending stop does
+  // not loop forever waiting for a non-existent row.
+  if (!activeRemoved) {
+    const stillPresent = remoteActiveSessions.some(
+      (item) => normalizeText(item.collaborator ?? "") === normalizeText(session.collaborator ?? ""),
+    );
+    if (!stillPresent) {
+      activeRemoved = true;
+    }
+  }
 
   if (!activeRemoved) {
     console.warn("Active session cleanup incomplete after stop; keeping local closure authoritative.", session);
