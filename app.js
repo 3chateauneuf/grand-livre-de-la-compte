@@ -3642,8 +3642,7 @@ function logStopSync(event, payload = {}) {
 }
 
 function buildStateLossSnapshot(extra = {}) {
-  const collaborator = getCurrentCollaborator();
-  const repriseCount = collaborator ? getOrderedProjectMemories(collaborator).length : getProjectMemories().length;
+  const repriseCount = quickProjects?.querySelectorAll?.("[data-memory-key]")?.length ?? 0;
   return {
     sessionsCount: sessions.length,
     sessionIds: sessions.map((session) => session?.id ?? "").filter(Boolean),
