@@ -3620,8 +3620,14 @@ function setPendingStoppedSessionState(nextState) {
 }
 
 function clearPendingStoppedSessionState() {
+  logStateLoss("clearPendingStoppedSessionState:before", {
+    writer: "clearPendingStoppedSessionState",
+  });
   pendingStoppedSessionState = null;
   persistPendingStoppedSessionState();
+  logStateLoss("clearPendingStoppedSessionState:after", {
+    writer: "clearPendingStoppedSessionState",
+  });
 }
 
 function buildPendingStopOpsState(previous = null) {
@@ -3633,6 +3639,35 @@ function buildPendingStopOpsState(previous = null) {
 
 function logStopSync(event, payload = {}) {
   console.info(`[Mordologie stop-sync] ${event}`, payload);
+}
+
+function buildStateLossSnapshot(extra = {}) {
+  const collaborator = getCurrentCollaborator();
+  const repriseCount = collaborator ? getOrderedProjectMemories(collaborator).length : getProjectMemories().length;
+  return {
+    sessionsCount: sessions.length,
+    sessionIds: sessions.map((session) => session?.id ?? "").filter(Boolean),
+    sessionSyncStates: sessions.map((session) => ({
+      id: session?.id ?? "",
+      syncStatus: session?.syncStatus ?? "",
+      isServerBacked: Boolean(session?.isServerBacked),
+    })),
+    activeSessionId: activeSession?.id ?? null,
+    pendingStoppedSessionState: pendingStoppedSessionState
+      ? {
+          sessionId: pendingStoppedSessionState.session?.id ?? null,
+          state: pendingStoppedSessionState.state ?? "",
+          pendingOps: pendingStoppedSessionState.pendingOps ?? null,
+          syncStatus: pendingStoppedSessionState.session?.syncStatus ?? "",
+        }
+      : null,
+    reprisesCount: repriseCount,
+    ...extra,
+  };
+}
+
+function logStateLoss(event, payload = {}) {
+  console.info(`[Mordologie state-loss] ${event}`, buildStateLossSnapshot(payload));
 }
 
 function loadRecentlyStoppedSessionGuards() {
@@ -4167,6 +4202,11 @@ function mapActiveSessionRowToSession(row) {
 }
 
 function hydrateRemoteState(historyRows, activeRows) {
+  logStateLoss("hydrateRemoteState:before", {
+    writer: "hydrateRemoteState",
+    historyRowsCount: historyRows.length,
+    activeRowsCount: activeRows.length,
+  });
   const previousHydratedActiveSessionId = activeSession?.id ?? null;
   const remoteSessions = historyRows.map(mapTimeEntryRowToSession);
   const mergedSessions = new Map();
@@ -4198,7 +4238,12 @@ function hydrateRemoteState(historyRows, activeRows) {
   }
 
   for (const session of sessions) {
-    if (!session || isDemoSession(session) || session.isServerBacked) {
+    if (!session || isDemoSession(session)) {
+      continue;
+    }
+
+    const protectRecentLocalSession = ["pending_create", "pending_remote_stop", "synced"].includes(session.syncStatus || "");
+    if (session.isServerBacked && !protectRecentLocalSession) {
       continue;
     }
 
@@ -4221,6 +4266,12 @@ function hydrateRemoteState(historyRows, activeRows) {
   }
 
   sessions = Array.from(mergedSessions.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
+  logStateLoss("hydrateRemoteState:after-merge", {
+    writer: "hydrateRemoteState",
+    historyRowsCount: historyRows.length,
+    activeRowsCount: activeRows.length,
+    remoteSessionIds: remoteSessions.map((session) => session?.id ?? "").filter(Boolean),
+  });
 
   remoteActiveSessions = activeRows
     .filter((row) => {
@@ -4280,6 +4331,11 @@ function hydrateRemoteState(historyRows, activeRows) {
   if (shouldHydrateActiveSessionForm) {
     hydrateFormFromActiveSession();
   }
+  logStateLoss("hydrateRemoteState:after", {
+    writer: "hydrateRemoteState",
+    historyRowsCount: historyRows.length,
+    activeRowsCount: activeRows.length,
+  });
 }
 
 function hydrateRepriseActions(rows) {
@@ -4297,6 +4353,10 @@ function hydrateRepriseActions(rows) {
 
 function persistSessions() {
   const persistedRows = sessions.filter((session) => !isDemoSession(session));
+  logStateLoss("persistSessions", {
+    writer: "persistSessions",
+    persistedCount: persistedRows.length,
+  });
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persistedRows));
 }
 
@@ -4310,6 +4370,10 @@ function persistActiveSession() {
 }
 
 async function loadServerBackedState({ silent = false } = {}) {
+  logStateLoss("loadServerBackedState:begin", {
+    writer: "loadServerBackedState",
+    silent,
+  });
   if (!window.supabase) {
     return false;
   }
@@ -4371,12 +4435,32 @@ async function loadServerBackedState({ silent = false } = {}) {
 
     if (!historyRows && !activeRows && !repriseActionRows && !preferenceRows) {
       remoteStateAvailable = false;
+      logStateLoss("loadServerBackedState:empty-remote", {
+        writer: "loadServerBackedState",
+        silent,
+      });
       return false;
     }
 
+    logStateLoss("loadServerBackedState:before-hydrate", {
+      writer: "loadServerBackedState",
+      silent,
+      historyRowsCount: historyRows?.length ?? 0,
+      activeRowsCount: activeRows?.length ?? 0,
+      repriseRowsCount: repriseActionRows?.length ?? 0,
+      preferenceRowsCount: preferenceRows?.length ?? 0,
+    });
     hydrateRemoteState(historyRows ?? [], activeRows ?? []);
     hydrateRepriseActions(repriseActionRows ?? repriseActions);
     hydrateSharedUiPreferences(preferenceRows ?? []);
+    logStateLoss("loadServerBackedState:after-hydrate", {
+      writer: "loadServerBackedState",
+      silent,
+      historyRowsCount: historyRows?.length ?? 0,
+      activeRowsCount: activeRows?.length ?? 0,
+      repriseRowsCount: repriseActionRows?.length ?? 0,
+      preferenceRowsCount: preferenceRows?.length ?? 0,
+    });
     remoteStateAvailable = historyOk || activeOk || repriseOk || preferencesOk;
     if (rawPreferencesOk) {
       await ensureSharedUiPreferencesBackfilled();
@@ -4431,6 +4515,10 @@ function startRemoteSyncLoop() {
   }
 
   remoteSyncIntervalId = window.setInterval(() => {
+    logStateLoss("startRemoteSyncLoop:tick", {
+      writer: "startRemoteSyncLoop",
+      intervalMs: REMOTE_SYNC_INTERVAL_MS,
+    });
     void loadServerBackedState({ silent: false });
   }, REMOTE_SYNC_INTERVAL_MS);
 }
@@ -10042,6 +10130,9 @@ function findSessionById(sessionId) {
 }
 
 function getPersistedActiveSessions() {
+  logStateLoss("getPersistedActiveSessions:before", {
+    writer: "getPersistedActiveSessions",
+  });
   const merged = new Map();
 
   for (const session of remoteActiveSessions) {
@@ -10060,12 +10151,17 @@ function getPersistedActiveSessions() {
     merged.set(collaboratorKey || activeSession.id, activeSession);
   }
 
-  return Array.from(merged.values()).map((session) => ({
+  const persistedActiveRows = Array.from(merged.values()).map((session) => ({
     ...session,
     end: getActiveSessionEffectiveEnd(session).toISOString(),
     durationMs: getActiveSessionDurationMs(session),
     isServerActive: true,
   }));
+  logStateLoss("getPersistedActiveSessions:after", {
+    writer: "getPersistedActiveSessions",
+    persistedActiveIds: persistedActiveRows.map((session) => session?.id ?? "").filter(Boolean),
+  });
+  return persistedActiveRows;
 }
 
 function getSessionsWithPendingStopped() {
@@ -10154,11 +10250,19 @@ function isStaleActiveSessionCandidate(activeLike, options = {}) {
 }
 
 function getAllSessionsWithActive() {
+  logStateLoss("getAllSessionsWithActive:before", {
+    writer: "getAllSessionsWithActive",
+  });
   const rows = new Map(getSessionsWithPendingStopped().map((session) => [session.id, session]));
   for (const activeRow of getPersistedActiveSessions()) {
     rows.set(activeRow.id, activeRow);
   }
-  return Array.from(rows.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
+  const allRows = Array.from(rows.values()).sort((left, right) => new Date(right.start) - new Date(left.start));
+  logStateLoss("getAllSessionsWithActive:after", {
+    writer: "getAllSessionsWithActive",
+    allSessionIds: allRows.map((session) => session?.id ?? "").filter(Boolean),
+  });
+  return allRows;
 }
 
 function findMatchingPersistedSessionForActive(activeLike) {
