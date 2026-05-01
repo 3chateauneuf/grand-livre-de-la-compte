@@ -6687,6 +6687,7 @@ function saveManualEntry() {
 
   attemptSaveSession(manualSession, {
     excludeId: manualEditingSessionId,
+    closedOnly: true,
     onSuccess: (sessionToSave) => {
       const previousSession =
         manualEditingSessionId ? findSessionById(manualEditingSessionId) ?? null : null;
@@ -6746,7 +6747,7 @@ async function deleteSession(session) {
 }
 
 function attemptSaveSession(session, options = {}) {
-  const overlap = findOverlappingSession(session, options.excludeId);
+  const overlap = findOverlappingSession(session, options.excludeId, { closedOnly: options.closedOnly ?? false });
   if (overlap) {
     showConflict(session, overlap, options.onSuccess);
     return false;
@@ -6817,13 +6818,14 @@ function areSessionsEffectivelySame(left, right) {
   return sameCollaborator && sameProject && sameTask && sameBounds;
 }
 
-function findOverlappingSession(session, excludeId = null) {
+function findOverlappingSession(session, excludeId = null, { closedOnly = false } = {}) {
   const start = new Date(session.start).getTime();
   const end = new Date(session.end).getTime();
   const collaboratorKey = normalizeText(session.collaborator);
+  const pool = closedOnly ? getSessionsWithPendingStopped() : getAllSessionsWithActive();
 
   return (
-    getAllSessionsWithActive().find((existing) => {
+    pool.find((existing) => {
       if (existing.id === excludeId) {
         return false;
       }
