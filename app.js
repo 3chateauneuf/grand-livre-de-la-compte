@@ -29,6 +29,8 @@ const REMOTE_SYNC_INTERVAL_MS = 15000;
 const QUICK_REPRISES_LIMIT = 6;
 const MEMORY_CONTEXT_LIMIT = 8;
 const DEMO_MODE_ENABLED = false;
+const DEBUG_STOP_SYNC = false;   // set true to trace stop/sync lifecycle
+const DEBUG_STATE_LOSS = false;  // set true to trace session state mutations
 const COLOR_PALETTE = ["#6FC7C0", "#F3A47D", "#EFB8C8", "#E8D98A", "#9ADAD3", "#F6BE95", "#F5D2DB", "#CDE6B4", "#BFD9E8", "#D8C6E7"];
 const RESOURCE_PASTEL_PALETTE = [...COLOR_PALETTE];
 const CATEGORY_REWRITE_RULES = [
@@ -3659,7 +3661,7 @@ function buildPendingStopOpsState(previous = null) {
 }
 
 function logStopSync(event, payload = {}) {
-  console.info(`[Mordologie stop-sync] ${event}`, payload);
+  if (DEBUG_STOP_SYNC) console.info(`[Mordologie stop-sync] ${event}`, payload);
 }
 
 function buildStateLossSnapshot(extra = {}) {
@@ -3687,7 +3689,7 @@ function buildStateLossSnapshot(extra = {}) {
 }
 
 function logStateLoss(event, payload = {}) {
-  console.info(`[Mordologie state-loss] ${event}`, buildStateLossSnapshot(payload));
+  if (DEBUG_STATE_LOSS) console.info(`[Mordologie state-loss] ${event}`, buildStateLossSnapshot(payload));
 }
 
 function loadRecentlyStoppedSessionGuards() {

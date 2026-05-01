@@ -84,3 +84,25 @@ For V1, if a project or category label changes later:
 - do not rewrite past `time_entries`
 
 This keeps exports readable without adding a heavier historical snapshot system yet.
+
+## active_sessions — unique index requirement
+
+`active_sessions` must have a unique index on `user_id`:
+
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS active_sessions_user_id_unique
+ON public.active_sessions(user_id);
+```
+
+The load-bearing index is `active_sessions_user_id_unique`. `upsertActiveSessionToSupabase`
+uses `onConflict: "user_id"` when a `user_id` is present in the payload. Without the unique
+index, the `onConflict: "user_id"` upsert is rejected. Before this unique-index rule and the
+user_id conflict key, duplicate active rows could accumulate for the same user and later be
+reinstalled as ghost timers.
+
+Rules:
+- never drop this index without updating `upsertActiveSessionToSupabase`
+- the fallback `onConflict: "active_session_id"` exists only for rows that genuinely
+  lack a `user_id` (pre-migration safety guard — should not occur in normal operation)
+- the pre-delete sweep in `upsertActiveSessionToSupabase` provides a second safety net,
+  but the unique index is the primary guard
