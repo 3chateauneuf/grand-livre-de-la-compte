@@ -224,6 +224,8 @@ const pauseButton = document.querySelector("#pause-button");
 const openManualButton = document.querySelector("#open-manual-button");
 const activeStartDisplay = document.querySelector("#active-start-display");
 const timerDisplay = document.querySelector("#timer-display");
+const timerStateLabel = document.querySelector("#timer-state-label");
+const timerPanel = document.querySelector(".timer-panel");
 const activeSessionStatusCopy = document.querySelector("#active-session-status-copy");
 const activeSessionStatusActions = document.querySelector("#active-session-status-actions");
 const retryPendingStopButton = document.querySelector("#retry-pending-stop-button");
@@ -7156,6 +7158,8 @@ function renderActiveSession() {
 
   if (!activeSession) {
     timerDisplay.textContent = "00:00:00";
+    if (timerStateLabel) timerStateLabel.textContent = "Prêt";
+    timerPanel?.classList.remove("timer-panel--running", "timer-panel--paused");
     activeTaskLabel.textContent = pendingStop
       ? pendingStop.state === "syncing"
         ? "Clôture en cours."
@@ -7174,7 +7178,7 @@ function renderActiveSession() {
       const syncing = pendingStop.state === "syncing";
       activeSessionStatusCopy.textContent = syncing
         ? "Synchronisation de la session arrêtée en cours."
-        : pendingStop.errorMessage || "Session arrêtée localement. Reessayez la synchronisation pour finaliser l'enregistrement.";
+        : pendingStop.errorMessage || "Session arrêtée localement. Réessayez la synchronisation pour finaliser l'enregistrement.";
       activeSessionStatusCopy.hidden = false;
       activeSessionStatusCopy.dataset.tone = syncing ? "warning" : "error";
       if (activeSessionStatusActions) {
@@ -7185,8 +7189,12 @@ function renderActiveSession() {
   }
 
   const isPaused = Boolean(activeSession.pausedAt);
-  activeTaskLabel.textContent = isPaused ? "Session en pause." : "Session en cours.";
-  toggleButton.textContent = "Arreter";
+  if (timerStateLabel) timerStateLabel.textContent = isPaused ? "En pause" : "En cours";
+  timerPanel?.classList.toggle("timer-panel--running", !isPaused);
+  timerPanel?.classList.toggle("timer-panel--paused", isPaused);
+  const activeSubject = typeof activeSession.project === "string" ? activeSession.project.trim() : "";
+  activeTaskLabel.textContent = activeSubject || (isPaused ? "Session en pause." : "Session en cours.");
+  toggleButton.textContent = "Arrêter";
   toggleButton.classList.toggle("running", !isPaused);
   pauseButton.hidden = false;
   pauseButton.textContent = isPaused ? "Reprendre" : "Mettre en pause";

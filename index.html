@@ -105,7 +105,7 @@
                 </div>
                 <div class="auth-user-meta">
                   <span id="auth-role-pill" class="pill auth-role-pill">Cargonaute</span>
-                  <button id="auth-signout-button" type="button" class="btn btn-secondary">Se deconnecter</button>
+                  <button id="auth-signout-button" type="button" class="btn btn-secondary">Se déconnecter</button>
                 </div>
               </div>
             </section>
@@ -207,7 +207,7 @@
 
                 <section class="timer-panel">
                   <div class="timer-head">
-                    <p class="timer-label">Session active</p>
+                    <p id="timer-state-label" class="timer-label">Prêt</p>
                     <p id="active-task-label" class="active-task-label">Prêt à lancer une nouvelle session.</p>
                   </div>
                   <p id="timer-display" class="timer-display">00:00:00</p>
@@ -411,7 +411,7 @@
               <span>Vue du lundi au dimanche.</span>
             </article>
             <article class="summary-card">
-              <p>Cargonautes visibles</p>
+              <p>Équipe active</p>
               <strong id="team-count">0</strong>
               <span id="active-count-copy">Aucune session en cours.</span>
             </article>
@@ -522,7 +522,7 @@
             <span id="report-top-project-time">0 h 00</span>
           </article>
           <article class="summary-card">
-            <p id="report-top-category-label">Categorie principale</p>
+            <p id="report-top-category-label">Catégorie principale</p>
             <strong id="report-top-category">-</strong>
             <span id="report-top-category-time">0 h 00</span>
           </article>
@@ -545,7 +545,7 @@
 
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Evolution</h3>
+              <h3>Évolution</h3>
                 <p>Tendance de la période ou d’un profil.</p>
             </div>
             <div id="evolution-grid" class="evolution-grid"></div>
@@ -555,7 +555,7 @@
         <article id="manager-objectives-panel" class="inner-card objective-report-panel">
           <div class="section-minihead">
             <h3>Objectifs 2026</h3>
-            <p>Lecture par objectif avec repartition interne des KR sur la plage active.</p>
+            <p>Lecture par objectif avec répartition interne des KR sur la plage active.</p>
           </div>
           <div id="manager-objectives-grid" class="objective-report-grid"></div>
         </article>
@@ -584,7 +584,7 @@
 
           <article class="inner-card">
             <div class="section-minihead">
-              <h3>Analyse detaillee</h3>
+              <h3>Analyse détaillée</h3>
               <p>Projets et catégories sur la plage active.</p>
             </div>
             <div class="table-stack">
@@ -657,7 +657,7 @@
               <span id="resource-top-project-time">0 h 00</span>
             </article>
           <article class="summary-card">
-            <p id="resource-top-category-label">Categorie principale</p>
+            <p id="resource-top-category-label">Catégorie principale</p>
             <strong id="resource-top-category">-</strong>
             <span id="resource-top-category-time">0 h 00</span>
           </article>
@@ -681,7 +681,7 @@
             <article class="inner-card">
               <div class="section-minihead">
                 <h3>Tendance globale</h3>
-                <p>Vue synthese des semaines recentes.</p>
+                <p>Vue synthèse des semaines récentes.</p>
               </div>
             <div id="resource-evolution-grid" class="evolution-grid"></div>
           </article>
@@ -787,7 +787,7 @@
                 <input id="journal-filter-from" class="select-input" type="date" />
               </label>
               <label class="field">
-                <span>Jusqu'a</span>
+                <span>Jusqu'à</span>
                 <input id="journal-filter-to" class="select-input" type="date" />
               </label>
             </div>
@@ -848,7 +848,7 @@
             <p class="eyebrow">Saisie manuelle</p>
             <h2>Ajouter ou corriger une entrée</h2>
           </div>
-          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+          <button type="submit" class="dialog-close" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
 
         <div class="dialog-body">
@@ -927,7 +927,7 @@
                         <span>KR</span>
                         <div class="single-select-field">
                           <div class="single-select-token" id="manual-objective-kr-selected"></div>
-                          <input id="manual-objective-kr-input" type="text" placeholder="Resultat cle si besoin" />
+                          <input id="manual-objective-kr-input" type="text" placeholder="Résultat clé si besoin" />
                         </div>
                       </label>
                     </div>
@@ -947,7 +947,7 @@
 
             <div class="dialog-time-grid">
               <section class="dialog-time-card">
-                <p id="manual-start-card-title" class="dialog-time-card-title">Debut</p>
+                <p id="manual-start-card-title" class="dialog-time-card-title">Début</p>
                 <div class="dialog-time-inputs">
                   <label class="field">
                     <span>Date</span>
@@ -976,7 +976,7 @@
             </div>
 
             <label class="field field-full">
-              <span>Duree (h)</span>
+              <span>Durée (h)</span>
               <input
                 id="manual-duration-input"
                 type="text"
@@ -984,7 +984,7 @@
                 list="manual-duration-suggestions"
                 placeholder="Ex. 1,5"
               />
-              <small class="hint">Les propositions vont par demi-heures, mais l’heure reste editable à la minute si besoin.</small>
+              <small class="hint">Les propositions vont par demi-heures, mais l’heure reste éditable à la minute si besoin.</small>
             </label>
             <datalist id="manual-duration-suggestions">
               <option value="0,5"></option>
@@ -1023,7 +1023,7 @@
             <p class="eyebrow">Semaine prévue</p>
             <h2>Qualifier l'événement</h2>
           </div>
-          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+          <button type="submit" class="dialog-close" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
         <div class="dialog-body">
           <section class="dialog-section">
@@ -1130,7 +1130,7 @@
             <p class="eyebrow">Chevauchement</p>
             <h2>Une autre session existe déjà</h2>
           </div>
-          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+          <button type="submit" class="dialog-close" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
 
         <div class="dialog-body">
@@ -1155,7 +1155,7 @@
             <p class="eyebrow" id="decision-dialog-eyebrow">Confirmation</p>
             <h2 id="decision-dialog-title">Verifier cette action</h2>
           </div>
-          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+          <button type="submit" class="dialog-close" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
 
         <div class="dialog-body">
@@ -1179,7 +1179,7 @@
             <p class="eyebrow">Champ</p>
             <h2 id="field-manage-title">Gérer la valeur</h2>
           </div>
-          <button type="submit" class="dialog-close" aria-label="Fermer">x</button>
+          <button type="submit" class="dialog-close" aria-label="Fermer"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
         </div>
 
         <div class="dialog-body">
@@ -1232,13 +1232,13 @@
               class="session-edit-button"
               aria-label="Modifier l'entrée"
               title="Modifier l'entrée"
-            >✎</button>
+            ><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M8 2l2 2-5.5 5.5H3V8L8 2z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg></button>
             <button
               type="button"
               class="session-delete-button"
               aria-label="Supprimer l'entrée"
               title="Supprimer l'entrée"
-            >🗑</button>
+            ><svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M2 3.5h8M4.5 3.5V2.5h3v1M4 3.5l.5 6h3l.5-6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
         </div>
       </article>
