@@ -4301,7 +4301,7 @@ function hydrateRemoteState(historyRows, activeRows) {
     remoteSessionIds: remoteSessions.map((session) => session?.id ?? "").filter(Boolean),
   });
 
-  remoteActiveSessions = activeRows
+  const activeRowsFiltered = activeRows
     .filter((row) => {
       const activeSessionId = normalizeText(row?.active_session_id ?? "");
       if (activeSessionId && closedRemoteSessionIds.has(activeSessionId)) {
@@ -4319,6 +4319,18 @@ function hydrateRemoteState(historyRows, activeRows) {
     })
     .map(mapActiveSessionRowToSession)
     .sort((left, right) => new Date(right.start) - new Date(left.start));
+
+  // Deduplicate by collaborator: keep only the newest active session per user.
+  // Prevents a stale duplicate row in active_sessions from being reinstalled
+  // as a ghost timer after a successful stop clears pendingStoppedSessionState.
+  const deduplicatedActives = new Map();
+  for (const session of activeRowsFiltered) {
+    const key = normalizeText(session.collaborator ?? "");
+    if (key && !deduplicatedActives.has(key)) {
+      deduplicatedActives.set(key, session);
+    }
+  }
+  remoteActiveSessions = Array.from(deduplicatedActives.values());
 
   const currentUserName = accessProfile.appUser?.user_name ?? "";
   const previousActiveSession = activeSession;
@@ -6174,6 +6186,28 @@ async function upsertActiveSessionToSupabase(session) {
     return false;
   }
 
+  // Purge stale rows for this user before upserting. Without a unique index
+  // on user_id, every new active_session_id would INSERT a duplicate row
+  // instead of replacing the existing one.
+  if (window.supabase && payload.active_session_id) {
+    try {
+      if (payload.user_id) {
+        await window.supabase
+          .from("active_sessions")
+          .delete()
+          .eq("user_id", payload.user_id)
+          .neq("active_session_id", payload.active_session_id);
+      } else if (payload.user_name) {
+        await window.supabase
+          .from("active_sessions")
+          .delete()
+          .eq("user_name", payload.user_name)
+          .neq("active_session_id", payload.active_session_id);
+      }
+    } catch (_) {
+      // best-effort; proceed with upsert regardless
+    }
+  }
 
   return executeSupabaseMutation({
     queryFactory: (supabase) =>
@@ -6238,6 +6272,20 @@ async function removeStoppedSessionGhostsFromSupabase(session, options = {}) {
         return false;
       }
       removedAny = true;
+    }
+
+    // Sweep older ghost rows for the same user that survived the targeted
+    // deletes above (duplicate active_sessions with different IDs/timestamps).
+    if (collaborator && sessionStart) {
+      try {
+        await window.supabase
+          .from("active_sessions")
+          .delete()
+          .eq("user_name", collaborator)
+          .lt("started_at", sessionStart);
+      } catch (_) {
+        // supplementary cleanup — ignore errors
+      }
     }
 
     if (removedAny && (options.refreshAfterSuccess ?? true)) {
