@@ -6687,7 +6687,6 @@ function saveManualEntry() {
 
   attemptSaveSession(manualSession, {
     excludeId: manualEditingSessionId,
-    closedOnly: true,
     onSuccess: (sessionToSave) => {
       const previousSession =
         manualEditingSessionId ? findSessionById(manualEditingSessionId) ?? null : null;
@@ -6747,9 +6746,9 @@ async function deleteSession(session) {
 }
 
 function attemptSaveSession(session, options = {}) {
-  const overlap = findOverlappingSession(session, options.excludeId, { closedOnly: options.closedOnly ?? false });
-  if (overlap) {
-    showConflict(session, overlap, options.onSuccess);
+  const duplicate = findExactDuplicate(session, options.excludeId);
+  if (duplicate) {
+    showConflict(session, duplicate, options.onSuccess);
     return false;
   }
 
@@ -6842,11 +6841,44 @@ function findOverlappingSession(session, excludeId = null, { closedOnly = false 
   );
 }
 
+function findExactDuplicate(session, excludeId = null) {
+  if (!session) return null;
+  const startMs = new Date(session.start).getTime();
+  const endMs = new Date(session.end).getTime();
+  if (Number.isNaN(startMs) || Number.isNaN(endMs)) return null;
+
+  const collaboratorKey = normalizeText(session.collaborator ?? "");
+  const projectKey = normalizeText(session.project ?? "");
+  const taskKey = normalizeText(session.task ?? "");
+  const categoryKey = normalizeText((Array.isArray(session.categories) ? session.categories[0] : null) ?? "");
+  const poleKey = normalizeText(session.objectivePole ?? "");
+  const okrKey = normalizeText(session.objectiveOkr ?? "");
+  const krKey = normalizeText(session.objectiveKr ?? "");
+
+  return getSessionsWithPendingStopped().find((existing) => {
+    if (!existing || existing.id === excludeId) return false;
+    if (session.dbTimeEntryId && existing.dbTimeEntryId && session.dbTimeEntryId === existing.dbTimeEntryId) return true;
+    if (session.dbActiveSessionId && existing.dbActiveSessionId && !existing.isServerActive
+        && session.dbActiveSessionId === existing.dbActiveSessionId) return true;
+    if (normalizeText(existing.collaborator ?? "") !== collaboratorKey) return false;
+    if (normalizeText(existing.project ?? "") !== projectKey) return false;
+    if (normalizeText(existing.task ?? "") !== taskKey) return false;
+    if (normalizeText((Array.isArray(existing.categories) ? existing.categories[0] : null) ?? "") !== categoryKey) return false;
+    if (normalizeText(existing.objectivePole ?? "") !== poleKey) return false;
+    if (normalizeText(existing.objectiveOkr ?? "") !== okrKey) return false;
+    if (normalizeText(existing.objectiveKr ?? "") !== krKey) return false;
+    const existingStart = new Date(existing.start).getTime();
+    const existingEnd = new Date(existing.end).getTime();
+    if (Number.isNaN(existingStart) || Number.isNaN(existingEnd)) return false;
+    return Math.abs(startMs - existingStart) < 60000 && Math.abs(endMs - existingEnd) < 60000;
+  }) ?? null;
+}
+
 function showConflict(newSession, existingSession, onResolve) {
   pendingConflict = { newSession, existingSession, onResolve };
   const adjusted = getAdjustedSession(newSession, existingSession);
   conflictMessage.textContent =
-    "Une autre session de ce cargonaute occupe déjà une partie de ce créneau.";
+    "Une entrée identique existe déjà pour ce cargonaute.";
   conflictDetail.textContent = `${existingSession.collaborator} · ${existingSession.project} · ${formatDate(
     existingSession.start,
   )} · ${formatDuration(existingSession.durationMs)}`;
