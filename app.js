@@ -3591,6 +3591,7 @@ function loadPendingStoppedSessionState() {
       source: parsed.source || "timer",
       state: parsed.state === "syncing" ? "pending" : parsed.state || "pending",
       stopOpId: parsed.stopOpId || `stop-${parsed.session.id || createSessionId()}`,
+      remoteActiveSessionId: parsed.remoteActiveSessionId || parsed.session.dbActiveSessionId || parsed.session.id || null,
       pendingOps: {
         create_entry: parsed.pendingOps?.create_entry === "done" ? "done" : "pending",
         stop_active: parsed.pendingOps?.stop_active === "done" ? "done" : "pending",
@@ -3956,6 +3957,7 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
     });
     const partiallySyncedSession = {
       ...sessionToSync,
+      dbActiveSessionId: null,
       syncStatus: "pending_remote_stop",
     };
     upsertSession(partiallySyncedSession);
@@ -3964,6 +3966,7 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
       ...pendingStoppedSessionState,
       session: partiallySyncedSession,
       state: "pending",
+      remoteActiveSessionId: pendingStoppedSessionState.remoteActiveSessionId ?? sessionToSync.id,
       stopOpId: pendingStoppedSessionState.stopOpId || `stop-${sessionToSync.id}-${Date.now()}`,
       pendingOps: {
         create_entry: "done",
@@ -3984,9 +3987,11 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
     ...pendingStoppedSessionState,
     session: {
       ...sessionToSync,
+      dbActiveSessionId: null,
       syncStatus: "pending_create",
     },
     state: "pending",
+    remoteActiveSessionId: pendingStoppedSessionState.remoteActiveSessionId ?? sessionToSync.id,
     stopOpId: pendingStoppedSessionState.stopOpId || `stop-${sessionToSync.id}-${Date.now()}`,
     pendingOps: {
       create_entry: "pending",
@@ -4025,8 +4030,11 @@ async function completeStoppedSessionLocally(sessionToSave, source = "timer") {
       };
   cancelActiveSessionServerSync();
   rememberRecentlyStoppedSession(sessionWithServerId);
+  const remoteActiveSessionId = sessionWithServerId.dbActiveSessionId ?? sessionWithServerId.id;
   const pendingLocalEntry = {
     ...sessionWithServerId,
+    dbActiveSessionId: null,
+    isServerActive: false,
     syncStatus: "pending_create",
   };
   logStopSync("completeStoppedSessionLocally:materialized", {
@@ -4046,6 +4054,7 @@ async function completeStoppedSessionLocally(sessionToSave, source = "timer") {
     session: pendingLocalEntry,
     source,
     state: "syncing",
+    remoteActiveSessionId,
     stopOpId: pendingStoppedSessionState?.stopOpId || `stop-${sessionWithServerId.id}-${Date.now()}`,
     pendingOps: {
       create_entry: "pending",
@@ -5184,6 +5193,7 @@ function stopActiveSession() {
     pausedAt: null,
     end: end.toISOString(),
     durationMs,
+    isServerActive: false,
   };
 
   const overlap = findOverlappingSession(finishedSession, activeSession.id);
@@ -5921,11 +5931,21 @@ async function resolveSessionReferences(session) {
   };
 }
 
+function isValidTimeEntryId(value) {
+  return /^TE-[0-9]{6}$/.test(String(value ?? ""));
+}
+
+function buildFallbackTimeEntryId() {
+  const numeric = (Date.now() + Math.floor(Math.random() * 1000)) % 1000000;
+  return `TE-${String(numeric).padStart(6, "0")}`;
+}
+
 async function getNextTimeEntryId() {
-  if (globalThis.crypto?.randomUUID) {
-    return `TE-${globalThis.crypto.randomUUID()}`;
+  const nextId = await getNextPrefixedId("time_entries", "time_entry_id", "TE-", 6);
+  if (isValidTimeEntryId(nextId)) {
+    return nextId;
   }
-  return `TE-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+  return buildFallbackTimeEntryId();
 }
 
 async function getNextPrefixedId(tableName, columnName, prefix, padLength) {
@@ -5950,13 +5970,28 @@ async function getNextPrefixedId(tableName, columnName, prefix, padLength) {
   return `${prefix}${String(nextNumber).padStart(padLength, "0")}`;
 }
 
+function normalizeTimeEntrySource(source = "manual") {
+  const raw = String(source ?? "").trim().toLowerCase();
+  if (!raw) {
+    return "manual";
+  }
+  if (raw.includes("timer")) {
+    return "timer";
+  }
+  if (raw.includes("quick")) {
+    return "quick";
+  }
+  return "manual";
+}
+
 async function buildTimeEntryPayloadFromSession(session, source = "manual") {
   const references = await resolveSessionReferences(session);
   if (!references) {
     return null;
   }
 
-  const timeEntryId = session.dbTimeEntryId ?? (await getNextTimeEntryId());
+  const existingTimeEntryId = isValidTimeEntryId(session.dbTimeEntryId) ? session.dbTimeEntryId : null;
+  const timeEntryId = existingTimeEntryId ?? (await getNextTimeEntryId());
   if (!timeEntryId || !references.user) {
     return null;
   }
@@ -5991,7 +6026,7 @@ async function buildTimeEntryPayloadFromSession(session, source = "manual") {
     objective_okr: session.objectiveOkr || "",
     objective_kr: session.objectiveKr || "",
     notes: session.notes || "",
-    source,
+    source: normalizeTimeEntrySource(source),
     status: "saved",
   };
 }
@@ -6209,9 +6244,11 @@ async function removeTimeEntryFromSupabase(timeEntryId) {
 
 async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
   const pendingOps = buildPendingStopOpsState(pendingStoppedSessionState?.pendingOps);
+  const remoteActiveSessionId = pendingStoppedSessionState?.remoteActiveSessionId ?? session.dbActiveSessionId ?? session.id;
   logStopSync("finalizeStoppedSessionOnSupabase:start", {
     sessionId: session.id,
     dbTimeEntryId: session.dbTimeEntryId,
+    remoteActiveSessionId,
     pendingOps,
     source,
   });
@@ -6229,7 +6266,10 @@ async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
 
   let activeRemoved = pendingOps.stop_active === "done";
   if (!activeRemoved) {
-    activeRemoved = await removeStoppedSessionGhostsFromSupabase(session, { refreshAfterSuccess: false });
+    activeRemoved = await removeStoppedSessionGhostsFromSupabase({
+      ...session,
+      dbActiveSessionId: remoteActiveSessionId,
+    }, { refreshAfterSuccess: false });
   }
 
   remoteActiveSessions = remoteActiveSessions.filter((item) => {
@@ -6539,13 +6579,14 @@ async function deleteSession(session) {
     return false;
   }
 
-  const isActiveLike =
+  const hasHistoricalEntry = Boolean(session.dbTimeEntryId || session.end);
+  const hasRemoteActiveGhost =
     Boolean(session.dbActiveSessionId || session.isServerActive) ||
     getPersistedActiveSessions().some((item) => item.id === session.id);
 
-  if (isActiveLike) {
-    const removed = await removeActiveSessionFromSupabase(session.dbActiveSessionId ?? session.id);
-    if (!removed) {
+  if (hasRemoteActiveGhost) {
+    const removedGhost = await removeStoppedSessionGhostsFromSupabase(session, { refreshAfterSuccess: false });
+    if (!removedGhost && !hasHistoricalEntry) {
       return false;
     }
     if (activeSession?.id === session.id) {
@@ -6556,8 +6597,6 @@ async function deleteSession(session) {
       renderActiveSession();
     }
     remoteActiveSessions = remoteActiveSessions.filter((item) => item.id !== session.id);
-    render();
-    return true;
   }
 
   if (session.dbTimeEntryId) {
@@ -6565,6 +6604,10 @@ async function deleteSession(session) {
     if (!removed) {
       return false;
     }
+  }
+
+  if (pendingStoppedSessionState?.session && areSessionsEffectivelySame(pendingStoppedSessionState.session, session)) {
+    clearPendingStoppedSessionState();
   }
 
   sessions = sessions.filter((item) => item.id !== session.id);
