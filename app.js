@@ -3590,6 +3590,11 @@ function loadPendingStoppedSessionState() {
       session: normalizeSession(parsed.session),
       source: parsed.source || "timer",
       state: parsed.state === "syncing" ? "pending" : parsed.state || "pending",
+      stopOpId: parsed.stopOpId || `stop-${parsed.session.id || createSessionId()}`,
+      pendingOps: {
+        create_entry: parsed.pendingOps?.create_entry === "done" ? "done" : "pending",
+        stop_active: parsed.pendingOps?.stop_active === "done" ? "done" : "pending",
+      },
       errorMessage: parsed.errorMessage || "",
     };
   } catch {
@@ -3617,6 +3622,17 @@ function setPendingStoppedSessionState(nextState) {
 function clearPendingStoppedSessionState() {
   pendingStoppedSessionState = null;
   persistPendingStoppedSessionState();
+}
+
+function buildPendingStopOpsState(previous = null) {
+  return {
+    create_entry: previous?.create_entry === "done" ? "done" : "pending",
+    stop_active: previous?.stop_active === "done" ? "done" : "pending",
+  };
+}
+
+function logStopSync(event, payload = {}) {
+  console.info(`[Mordologie stop-sync] ${event}`, payload);
 }
 
 function loadRecentlyStoppedSessionGuards() {
@@ -3866,25 +3882,82 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
     ...pendingStoppedSessionState,
     session: sessionToSync,
     state: "syncing",
+    pendingOps: buildPendingStopOpsState(pendingStoppedSessionState.pendingOps),
     errorMessage: "",
+  });
+  logStopSync("syncPendingStoppedSession:start", {
+    sessionId: sessionToSync.id,
+    dbTimeEntryId: sessionToSync.dbTimeEntryId,
+    syncStatus: sessionToSync.syncStatus || "",
+    pendingOps: buildPendingStopOpsState(pendingStoppedSessionState.pendingOps),
+    fromRetry,
   });
   renderActiveSession();
 
-  const synced = await finalizeStoppedSessionOnSupabase(
+  const syncResult = await finalizeStoppedSessionOnSupabase(
     sessionToSync,
     pendingStoppedSessionState.source || "timer",
   );
 
-  if (synced) {
+  if (syncResult.historySaved && syncResult.activeRemoved) {
+    logStopSync("syncPendingStoppedSession:complete", {
+      sessionId: sessionToSync.id,
+      result: syncResult,
+    });
+    upsertSession({
+      ...sessionToSync,
+      syncStatus: "synced",
+    });
+    persistSessions();
     clearPendingStoppedSessionState();
     setAuthStatusMessage("Session arrêtée et synchronisée.", "success", { persistMs: 2600 });
     render();
     return true;
   }
 
+  if (syncResult.historySaved) {
+    logStopSync("syncPendingStoppedSession:partial", {
+      sessionId: sessionToSync.id,
+      result: syncResult,
+    });
+    const partiallySyncedSession = {
+      ...sessionToSync,
+      syncStatus: "pending_remote_stop",
+    };
+    upsertSession(partiallySyncedSession);
+    persistSessions();
+    setPendingStoppedSessionState({
+      ...pendingStoppedSessionState,
+      session: partiallySyncedSession,
+      state: "pending",
+      stopOpId: pendingStoppedSessionState.stopOpId || `stop-${sessionToSync.id}-${Date.now()}`,
+      pendingOps: {
+        create_entry: "done",
+        stop_active: "pending",
+      },
+      errorMessage: "Entrée enregistrée. Réessayez la synchronisation pour finaliser la fermeture distante.",
+    });
+    setAuthStatusMessage("Entrée enregistrée. Fermeture distante de la session à reprendre.", "warning", { persistMs: 3600 });
+    render();
+    return false;
+  }
+
+  logStopSync("syncPendingStoppedSession:failed", {
+    sessionId: sessionToSync.id,
+    result: syncResult,
+  });
   setPendingStoppedSessionState({
     ...pendingStoppedSessionState,
+    session: {
+      ...sessionToSync,
+      syncStatus: "pending_create",
+    },
     state: "pending",
+    stopOpId: pendingStoppedSessionState.stopOpId || `stop-${sessionToSync.id}-${Date.now()}`,
+    pendingOps: {
+      create_entry: "pending",
+      stop_active: "pending",
+    },
     errorMessage: "Session arrêtée localement. Réessayez la synchronisation.",
   });
   setAuthStatusMessage("Session arrêtée localement. Synchronisation à reprendre.", "warning", { persistMs: 3600 });
@@ -3893,6 +3966,23 @@ async function syncPendingStoppedSession({ fromRetry = false } = {}) {
 }
 
 async function completeStoppedSessionLocally(sessionToSave, source = "timer") {
+  // Idempotence guard: once a stop has already materialized locally for this
+  // session, repeated stop attempts must not create a second pending entry.
+  if (
+    pendingStoppedSessionState?.session &&
+    areSessionsEffectivelySame(pendingStoppedSessionState.session, sessionToSave)
+  ) {
+    logStopSync("completeStoppedSessionLocally:idempotent-skip", {
+      sessionId: sessionToSave.id,
+      pendingSessionId: pendingStoppedSessionState.session.id,
+    });
+    activeSession = null;
+    persistActiveSession();
+    stopTimerLoop();
+    render();
+    return;
+  }
+
   const sessionWithServerId = sessionToSave.dbTimeEntryId
     ? sessionToSave
     : {
@@ -3901,16 +3991,32 @@ async function completeStoppedSessionLocally(sessionToSave, source = "timer") {
       };
   cancelActiveSessionServerSync();
   rememberRecentlyStoppedSession(sessionWithServerId);
-  upsertSession(sessionWithServerId);
+  const pendingLocalEntry = {
+    ...sessionWithServerId,
+    syncStatus: "pending_create",
+  };
+  logStopSync("completeStoppedSessionLocally:materialized", {
+    sessionId: pendingLocalEntry.id,
+    dbTimeEntryId: pendingLocalEntry.dbTimeEntryId,
+    durationMs: pendingLocalEntry.durationMs,
+    start: pendingLocalEntry.start,
+    end: pendingLocalEntry.end,
+  });
+  upsertSession(pendingLocalEntry);
   activeSession = null;
   persistSessions();
   persistActiveSession();
   stopTimerLoop();
   resetFormAfterStop();
   setPendingStoppedSessionState({
-    session: sessionWithServerId,
+    session: pendingLocalEntry,
     source,
     state: "syncing",
+    stopOpId: pendingStoppedSessionState?.stopOpId || `stop-${sessionWithServerId.id}-${Date.now()}`,
+    pendingOps: {
+      create_entry: "pending",
+      stop_active: "pending",
+    },
     errorMessage: "",
   });
   render();
@@ -3948,6 +4054,7 @@ function normalizeSession(session) {
     dbKpiCategoryLabel: session.dbKpiCategoryLabel ?? "",
     isServerBacked: Boolean(session.isServerBacked),
     isServerActive: Boolean(session.isServerActive),
+    syncStatus: session.syncStatus ?? (session.isServerBacked ? "synced" : ""),
   };
 }
 
@@ -4954,6 +5061,17 @@ function stopActiveSession() {
     return;
   }
 
+  // If this exact timer is already represented by a pending local stop, do
+  // nothing: the close is already in progress and must stay single-shot.
+  if (matchesPendingStoppedSession(activeSession)) {
+    logStopSync("stopActiveSession:idempotent-block", {
+      sessionId: activeSession.id,
+      collaborator: activeSession.collaborator,
+      start: activeSession.start,
+    });
+    return;
+  }
+
   const persistedMatch = findMatchingPersistedSessionForActive(activeSession);
   if (persistedMatch) {
     void dismissGhostActiveSession(activeSession, persistedMatch);
@@ -4964,6 +5082,14 @@ function stopActiveSession() {
 
   const end = getActiveSessionEffectiveEnd(activeSession);
   const durationMs = getActiveSessionDurationMs(activeSession);
+
+  logStopSync("stopActiveSession:begin", {
+    sessionId: activeSession.id,
+    collaborator: activeSession.collaborator,
+    start: activeSession.start,
+    durationMs,
+    pausedAt: activeSession.pausedAt || null,
+  });
 
   const finishedSession = {
     ...activeSession,
@@ -5995,12 +6121,29 @@ async function removeTimeEntryFromSupabase(timeEntryId) {
 }
 
 async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
-  const historySaved = await syncSessionToSupabase(session, source, { refreshAfterSuccess: false });
+  const pendingOps = buildPendingStopOpsState(pendingStoppedSessionState?.pendingOps);
+  logStopSync("finalizeStoppedSessionOnSupabase:start", {
+    sessionId: session.id,
+    dbTimeEntryId: session.dbTimeEntryId,
+    pendingOps,
+    source,
+  });
+
+  let historySaved = pendingOps.create_entry === "done";
   if (!historySaved) {
-    return false;
+    historySaved = await syncSessionToSupabase(session, source, { refreshAfterSuccess: false });
+    if (!historySaved) {
+      return {
+        historySaved: false,
+        activeRemoved: false,
+      };
+    }
   }
 
-  const activeRemoved = await removeStoppedSessionGhostsFromSupabase(session, { refreshAfterSuccess: false });
+  let activeRemoved = pendingOps.stop_active === "done";
+  if (!activeRemoved) {
+    activeRemoved = await removeStoppedSessionGhostsFromSupabase(session, { refreshAfterSuccess: false });
+  }
 
   remoteActiveSessions = remoteActiveSessions.filter((item) => {
     if (item.dbActiveSessionId && session.dbActiveSessionId && item.dbActiveSessionId === session.dbActiveSessionId) {
@@ -6021,7 +6164,16 @@ async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
     console.warn("Active session cleanup incomplete after stop; keeping local closure authoritative.", session);
   }
 
-  return true;
+  logStopSync("finalizeStoppedSessionOnSupabase:done", {
+    sessionId: session.id,
+    historySaved,
+    activeRemoved,
+  });
+
+  return {
+    historySaved,
+    activeRemoved,
+  };
 }
 
 async function logSessionChange(previousSession, nextSession, source = "manual") {
