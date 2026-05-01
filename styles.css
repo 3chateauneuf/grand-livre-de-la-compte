@@ -3096,25 +3096,96 @@ select.select-input {
   margin-top: 0;
 }
 
+.journal-day-group {
+  display: grid;
+  gap: 10px;
+}
+
+.journal-day-group + .journal-day-group {
+  margin-top: 16px;
+}
+
+.journal-day-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 6px 0;
+}
+
+.journal-day-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.journal-day-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.journal-day-subtitle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.journal-day-total {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.journal-day-list {
+  display: grid;
+  gap: 6px;
+}
+
 .session-item {
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px 12px;
-  align-items: center;
+  gap: 10px 14px;
+  align-items: start;
+  border-radius: 18px;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  cursor: pointer;
+}
+
+.session-item:hover,
+.session-item:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(6, 148, 148, 0.18);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 14px 30px rgba(39, 56, 68, 0.08);
+}
+
+.session-item:focus-visible {
+  outline: 2px solid rgba(6, 148, 148, 0.18);
+  outline-offset: 2px;
 }
 
 .session-copy {
-  gap: 4px;
+  gap: 5px;
 }
 
 .session-task {
-  font-size: 0.98rem;
-  line-height: 1.18;
+  font-size: 1rem;
+  line-height: 1.22;
+}
+
+.session-activity {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 .session-secondary {
   color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.25;
+  font-size: 0.76rem;
+  line-height: 1.2;
 }
 
 .session-meta-row {
@@ -3122,6 +3193,7 @@ select.select-input {
   align-items: center;
   gap: 6px;
   min-height: 0;
+  padding-top: 2px;
 }
 
 .session-categories,
@@ -3142,14 +3214,36 @@ select.select-input {
 
 .session-side {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   justify-items: end;
-  align-self: stretch;
+  align-self: start;
+  min-width: 140px;
+}
+
+.session-timing {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+}
+
+.session-time-range {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .session-duration {
-  font-size: 0.92rem;
+  font-size: 0.98rem;
   font-weight: 800;
+}
+
+.session-notes {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.79rem;
+  line-height: 1.35;
 }
 
 .session-actions {

@@ -947,7 +947,7 @@
 
             <div class="dialog-time-grid">
               <section class="dialog-time-card">
-                <p class="dialog-time-card-title">Debut</p>
+                <p id="manual-start-card-title" class="dialog-time-card-title">Debut</p>
                 <div class="dialog-time-inputs">
                   <label class="field">
                     <span>Date</span>
@@ -961,7 +961,7 @@
               </section>
 
               <section class="dialog-time-card">
-                <p class="dialog-time-card-title">Fin</p>
+                <p id="manual-end-card-title" class="dialog-time-card-title">Fin</p>
                 <div class="dialog-time-inputs">
                   <label class="field">
                     <span>Date</span>
@@ -1209,9 +1209,10 @@
     </dialog>
 
     <template id="session-item-template">
-      <article class="session-item">
+      <article class="session-item" tabindex="0" role="button" aria-label="Ouvrir l'entrée">
         <div class="session-copy">
           <p class="session-task"></p>
+          <p class="session-activity"></p>
           <p class="session-secondary"></p>
           <div class="session-meta-row">
             <div class="session-categories"></div>
@@ -1220,7 +1221,10 @@
           <p class="session-notes"></p>
         </div>
         <div class="session-side">
-          <p class="session-duration"></p>
+          <div class="session-timing">
+            <p class="session-time-range"></p>
+            <p class="session-duration"></p>
+          </div>
           <p class="session-date"></p>
           <div class="session-actions">
             <button
@@ -1228,7 +1232,7 @@
               class="session-edit-button"
               aria-label="Modifier l'entrée"
               title="Modifier l'entrée"
-            >🛠</button>
+            >✎</button>
             <button
               type="button"
               class="session-delete-button"

@@ -355,6 +355,8 @@ const manualStartDateInput = document.querySelector("#manual-start-date-input");
 const manualStartTimeInput = document.querySelector("#manual-start-time-input");
 const manualEndDateInput = document.querySelector("#manual-end-date-input");
 const manualEndTimeInput = document.querySelector("#manual-end-time-input");
+const manualStartCardTitle = document.querySelector("#manual-start-card-title");
+const manualEndCardTitle = document.querySelector("#manual-end-card-title");
 const manualDurationInput = document.querySelector("#manual-duration-input");
 const manualNotesInput = document.querySelector("#manual-notes-input");
 const cancelManualButton = document.querySelector("#cancel-manual-button");
@@ -1658,17 +1660,33 @@ sessionList.addEventListener("click", (event) => {
     return;
   }
 
-  const editButton = event.target.closest(".session-edit-button");
-  if (!editButton) {
+  const sessionItem = event.target.closest(".session-item");
+  if (!sessionItem) {
     return;
   }
 
-  const sessionId = editButton.closest(".session-item")?.dataset.sessionId;
+  const sessionId = sessionItem.dataset.sessionId;
   const session = findSessionById(sessionId);
   if (!session) {
     return;
   }
 
+  openManualDialog(session);
+});
+
+sessionList.addEventListener("keydown", (event) => {
+  const sessionItem = event.target.closest(".session-item");
+  if (!sessionItem) {
+    return;
+  }
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+  event.preventDefault();
+  const session = findSessionById(sessionItem.dataset.sessionId);
+  if (!session) {
+    return;
+  }
   openManualDialog(session);
 });
 
@@ -6154,6 +6172,7 @@ async function upsertActiveSessionToSupabase(session) {
     return false;
   }
 
+
   return executeSupabaseMutation({
     queryFactory: (supabase) =>
       supabase.from("active_sessions").upsert([payload], { onConflict: "active_session_id" }),
@@ -6286,6 +6305,7 @@ async function finalizeStoppedSessionOnSupabase(session, source = "timer") {
   });
 
   await loadServerBackedState({ silent: false });
+
 
   if (!activeRemoved) {
     console.warn("Active session cleanup incomplete after stop; keeping local closure authoritative.", session);
@@ -6431,8 +6451,11 @@ function openManualDialog(session = null, preset = null) {
   manualObjectiveOkrInput.value = session?.objectiveOkr ?? preset?.objectiveOkr ?? objectiveOkrInput.value.trim();
   manualObjectiveKrInput.value = session?.objectiveKr ?? preset?.objectiveKr ?? objectiveKrInput.value.trim();
   manualNotesInput.value = session?.notes ?? preset?.notes ?? notesInput.value.trim();
-  setDateTimeFieldValue(manualStartDateInput, manualStartTimeInput, session ? new Date(session.start) : start);
-  setDateTimeFieldValue(manualEndDateInput, manualEndTimeInput, session ? new Date(session.end) : end);
+  const startDateValue = session ? new Date(session.start) : start;
+  const endDateValue = session ? new Date(session.end) : end;
+  setDateTimeFieldValue(manualStartDateInput, manualStartTimeInput, startDateValue);
+  setDateTimeFieldValue(manualEndDateInput, manualEndTimeInput, endDateValue);
+  updateManualTimingCardTitles(startDateValue, endDateValue);
   syncManualDurationFromBounds();
   if (deleteManualButton) {
     deleteManualButton.hidden = !session;
@@ -6441,6 +6464,29 @@ function openManualDialog(session = null, preset = null) {
   renderManualTagTokens();
   renderObjectiveSelections();
   manualDialog.showModal();
+}
+
+function formatManualCardDate(dateValue) {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("fr-FR", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(date);
+}
+
+function updateManualTimingCardTitles(startDate, endDate) {
+  if (manualStartCardTitle) {
+    const label = formatManualCardDate(startDate);
+    manualStartCardTitle.textContent = label ? `Debut · ${label}` : "Debut";
+  }
+  if (manualEndCardTitle) {
+    const label = formatManualCardDate(endDate);
+    manualEndCardTitle.textContent = label ? `Fin · ${label}` : "Fin";
+  }
 }
 
 function shouldFinalizeActiveSessionFromManualEdit(originalSession, editedSession) {
@@ -7354,47 +7400,99 @@ function renderSessionList() {
     return;
   }
 
-  for (const session of visibleSessions.slice(0, 18)) {
-    const fragment = sessionItemTemplate.content.cloneNode(true);
-    const item = fragment.querySelector(".session-item");
-    item.dataset.sessionId = session.id;
-    item.title = [
-      `Sujet: ${session.project || session.task || "Sans sujet"}`,
-      session.task ? `Client: ${session.task}` : "",
-      session.categories?.length ? `Catégorie : ${session.categories.join(", ")}` : "",
-      session.tags?.length ? `Tags : ${session.tags.join(", ")}` : "",
-      `Date: ${formatDate(session.start)}`,
-      `Horaire: ${formatTimeLabel(new Date(session.start))}${session.end ? ` - ${formatTimeLabel(new Date(session.end))}` : ""}`,
-      session.notes ? `Note: ${session.notes}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
+  const groups = new Map();
+  for (const session of visibleSessions.slice(0, 42)) {
+    const dayKey = new Date(session.start).toISOString().slice(0, 10);
+    const current = groups.get(dayKey) ?? [];
+    current.push(session);
+    groups.set(dayKey, current);
+  }
 
-    fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans sujet";
-    const secondaryElement = fragment.querySelector(".session-secondary");
-    const secondaryBits = [getSessionClientLabel(session), formatDate(session.start)].filter(Boolean);
-    secondaryElement.textContent = secondaryBits.join(" · ");
-    secondaryElement.hidden = !secondaryBits.length;
-    fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
-    const dateElement = fragment.querySelector(".session-date");
-    dateElement.textContent = formatDate(session.start);
-    dateElement.hidden = true;
+  for (const [, daySessions] of groups.entries()) {
+    const group = document.createElement("section");
+    group.className = "journal-day-group";
 
-    const notesElement = fragment.querySelector(".session-notes");
-    notesElement.textContent = session.notes || "";
-    notesElement.hidden = true;
+    const header = document.createElement("div");
+    header.className = "journal-day-header";
 
-    const categoriesElement = fragment.querySelector(".session-categories");
-    categoriesElement.innerHTML = "";
-    renderPills(categoriesElement, (session.categories ?? []).slice(0, 1), { kind: "category" });
-    categoriesElement.hidden = !(session.categories ?? []).length;
+    const headerCopy = document.createElement("div");
+    headerCopy.className = "journal-day-copy";
 
-    const tagsElement = fragment.querySelector(".session-tags");
-    tagsElement.innerHTML = "";
-    renderPills(tagsElement, (session.tags ?? []).slice(0, 2).map((tag) => `#${tag}`), { kind: "tag" });
-    tagsElement.hidden = !(session.tags ?? []).length;
+    const title = document.createElement("h3");
+    title.className = "journal-day-title";
+    title.textContent = formatDate(daySessions[0].start);
 
-    sessionList.append(fragment);
+    const subtitle = document.createElement("p");
+    subtitle.className = "journal-day-subtitle";
+    subtitle.textContent = `${daySessions.length} entrée${daySessions.length > 1 ? "s" : ""}`;
+
+    const total = document.createElement("strong");
+    total.className = "journal-day-total";
+    total.textContent = formatDuration(daySessions.reduce((sum, session) => sum + (Number(session.durationMs) || 0), 0));
+
+    headerCopy.append(title, subtitle);
+    header.append(headerCopy, total);
+    group.append(header);
+
+    const body = document.createElement("div");
+    body.className = "journal-day-list";
+
+    for (const session of daySessions) {
+      const fragment = sessionItemTemplate.content.cloneNode(true);
+      const item = fragment.querySelector(".session-item");
+      item.dataset.sessionId = session.id;
+      item.title = [
+        `Sujet: ${session.project || session.task || "Sans sujet"}`,
+        session.task ? `Activité: ${session.task}` : "",
+        session.categories?.length ? `Catégorie : ${session.categories.join(", ")}` : "",
+        session.tags?.length ? `Tags : ${session.tags.join(", ")}` : "",
+        `Horaire: ${formatTimeLabel(new Date(session.start))}${session.end ? ` - ${formatTimeLabel(new Date(session.end))}` : ""}`,
+        session.notes ? `Note: ${session.notes}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
+      fragment.querySelector(".session-task").textContent = session.project || session.task || "Sans sujet";
+
+      const activityElement = fragment.querySelector(".session-activity");
+      const activityLabel = getSessionClientLabel(session) || session.task || "Activité non précisée";
+      activityElement.textContent = activityLabel;
+      activityElement.hidden = !activityLabel;
+
+      const secondaryElement = fragment.querySelector(".session-secondary");
+      const secondaryBits = [];
+      if (session.objectiveOkr) secondaryBits.push(formatObjectiveOkrDisplay(session.objectiveOkr));
+      if (session.objectiveKr) secondaryBits.push(formatObjectiveKrDisplay(session.objectiveKr));
+      secondaryElement.textContent = secondaryBits.join(" · ");
+      secondaryElement.hidden = !secondaryBits.length;
+
+      fragment.querySelector(".session-duration").textContent = formatDuration(session.durationMs);
+      const timeRangeElement = fragment.querySelector(".session-time-range");
+      timeRangeElement.textContent = `${formatTimeLabel(new Date(session.start))}${session.end ? ` - ${formatTimeLabel(new Date(session.end))}` : ""}`;
+
+      const dateElement = fragment.querySelector(".session-date");
+      dateElement.textContent = formatDate(session.start);
+      dateElement.hidden = true;
+
+      const notesElement = fragment.querySelector(".session-notes");
+      notesElement.textContent = session.notes || "";
+      notesElement.hidden = !session.notes;
+
+      const categoriesElement = fragment.querySelector(".session-categories");
+      categoriesElement.innerHTML = "";
+      renderPills(categoriesElement, (session.categories ?? []).slice(0, 1), { kind: "category" });
+      categoriesElement.hidden = !(session.categories ?? []).length;
+
+      const tagsElement = fragment.querySelector(".session-tags");
+      tagsElement.innerHTML = "";
+      renderPills(tagsElement, (session.tags ?? []).slice(0, 3).map((tag) => `#${tag}`), { kind: "tag" });
+      tagsElement.hidden = !(session.tags ?? []).length;
+
+      body.append(fragment);
+    }
+
+    group.append(body);
+    sessionList.append(group);
   }
 }
 
