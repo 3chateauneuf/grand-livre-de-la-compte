@@ -6212,9 +6212,13 @@ async function upsertActiveSessionToSupabase(session) {
     }
   }
 
+  // Use user_id as conflict key when the unique index exists (post-migration).
+  // Falls back to active_session_id if user_id is absent (pre-migration safety).
+  const activeSessionConflictKey = payload.user_id ? "user_id" : "active_session_id";
+
   return executeSupabaseMutation({
     queryFactory: (supabase) =>
-      supabase.from("active_sessions").upsert([payload], { onConflict: "active_session_id" }),
+      supabase.from("active_sessions").upsert([payload], { onConflict: activeSessionConflictKey }),
     unavailableMessage: "Synchronisation indisponible pour cette session en cours.",
     unavailableTone: "warning",
     errorLogLabel: "active_sessions upsert failed",
